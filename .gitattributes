@@ -1,5 +1,5 @@
-/libcaide/tests/* linguist-documentation
-/libcaide/tests/*.sh linguist-documentation=false
-/libcaide/cbits/clang/* linguist-vendored
-/libcaide/cbits/llvm/* linguist-vendored
+/tests/* linguist-documentation
+/tests/*.sh linguist-documentation=false
+/src/clang/* linguist-vendored
+/src/llvm/* linguist-vendored
 

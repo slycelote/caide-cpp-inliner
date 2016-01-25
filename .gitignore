@@ -3,11 +3,9 @@
 *.o
 *.pyc
 
-/libcaide/cbits/build
-/libcaide/cbits/clangbuild*
-/libcaide/tests/tmp
-/libcaide/res/*.zip
+/src/build
+/src/clangbuild*
+/tests/tmp
 
-/libcaide/codedb
-/libcaide/tools/cfkeys.py
+/tools/cfkeys.py
 

@@ -1,20 +1,13 @@
-### Eclipse ###
-.metadata
-
-### Vim ###
 *.swp
 *~
+*.o
+*.pyc
 
-### IntelliJ ###
-# User-specific stuff:
-**/.idea/workspace.xml
-**/.idea/tasks.xml
-**/.idea/dictionaries/
-**/.idea/misc.xml
+/libcaide/cbits/build
+/libcaide/cbits/clangbuild*
+/libcaide/tests/tmp
+/libcaide/res/*.zip
 
-# Sensitive or high-churn files:
-**/.idea/dataSources.ids
-**/.idea/dataSources.xml
-**/.idea/sqlDataSources.xml
-**/.idea/dynamic.xml
-**/.idea/uiDesigner.xml
+/libcaide/codedb
+/libcaide/tools/cfkeys.py
+

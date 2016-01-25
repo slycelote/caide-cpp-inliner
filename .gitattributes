@@ -1,5 +1,3 @@
-/libcaide/res/* linguist-documentation
-/libcaide/res/init/templates/* linguist-documentation=false
 /libcaide/tests/* linguist-documentation
 /libcaide/tests/*.sh linguist-documentation=false
 /libcaide/cbits/clang/* linguist-vendored

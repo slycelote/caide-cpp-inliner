@@ -6,10 +6,7 @@ cur_dir=$( cd $(dirname "${BASH_SOURCE[0]}") ; pwd )
 [ -d $cur_dir ] || exit 420
 
 tmp_dir=$cur_dir/tmp
-export caide=$cur_dir/../dist/build/caide/caide
-# On Windows use something like CSC=/c/Windows/Microsoft.NET/Framework/v4.0.30319/csc.exe ./run-tests.sh
-CSC=${CSC:-gmcs}
-export CSC
+export caide=$cur_dir/../src/build/caide-cpp-inliner
 
 functions_file=$cur_dir/test-functions.sh
 

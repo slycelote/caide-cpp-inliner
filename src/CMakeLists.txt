@@ -13,16 +13,16 @@ if(LLVM_PACKAGE_VERSION VERSION_LESS MINIMAL_SUPPORTED_CLANG_VERSION)
     message(FATAL_ERROR "clang/llvm version >= ${MINIMAL_SUPPORTED_CLANG_VERSION} is required")
 endif()
 
-# Find out which clang libraries we need
+# Find out which clang libraries we need. Note that the order of libraries matters.
 if(LLVM_PACKAGE_VERSION VERSION_EQUAL "3.6")
-    set(clang_libs "clangFrontend;clangCodeGen;clangIndex;clangSerialization;clangDriver;clangTooling;clangParse;clangSema;clangStaticAnalyzerFrontend;clangStaticAnalyzerCheckers;clangStaticAnalyzerCore;clangAnalysis;clangRewriteFrontend;clangRewrite;clangEdit;clangAST;clangLex;clangBasic")
+    set(clang_lib_names "clangTooling;clangFrontend;clangDriver;clangSerialization;clangParse;clangSema;clangAnalysis;clangRewrite;clangEdit;clangAST;clangLex;clangBasic")
 
 else()
     if(LLVM_PACKAGE_VERSION VERSION_GREATER "3.7")
         message(WARNING "A high clang/llvm version is detected. Build failure is possible.")
     endif()
 
-    set(clang_libs "clangFrontend;clangCodeGen;clangIndex;clangSerialization;clangDriver;clangTooling;clangParse;clangSema;clangStaticAnalyzerFrontend;clangStaticAnalyzerCheckers;clangStaticAnalyzerCore;clangAnalysis;clangRewriteFrontend;clangRewrite;clangEdit;clangAST;clangLex;clangBasic")
+    set(clang_lib_names "clangTooling;clangFrontend;clangDriver;clangSerialization;clangParse;clangSema;clangAnalysis;clangRewrite;clangEdit;clangAST;clangLex;clangBasic")
 endif()
 
 
@@ -43,30 +43,37 @@ endif()
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-# Now build our tools
+# Now define build artifacts and how to link them
 
-add_executable(cmd cmd.cpp inliner.cpp optimizer.cpp
+add_library(caideInliner STATIC inliner.cpp optimizer.cpp
     RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
     StmtParentMap.cpp util.cpp)
 
+add_executable(cmd cmd.cpp)
+
+target_link_libraries(cmd caideInliner)
+
 # Link against clang libraries
-foreach(clang_lib IN LISTS clang_libs)
-    #message(STATUS "searching for ${clang_lib}")
-    # generate a unique name for a variable where the location of the library
-    # will be stored in CMake cache
+set(clang_libs "")
+foreach(clang_lib IN LISTS clang_lib_names)
+    # Generate a unique name for a variable in which the location
+    # of the library will be stored in CMake cache
     set(var_name "${clang_lib}_loc")
+
     find_library(${var_name} ${clang_lib} HINTS "${LLVM_LIBRARY_DIRS}")
-    if(${var_name} STREQUAL "${var_name}-NOTFOUND")
-        message(WARNING "lib${clang_lib}.a not found")
+
+    if(${var_name})
+        list(APPEND clang_libs ${${var_name}})
     else()
-        target_link_libraries(cmd ${${var_name}})
+        message(WARNING "lib${clang_lib}.a not found")
     endif()
 endforeach()
 
-# Find the libraries that correspond to the LLVM components
-# that we wish to use
-llvm_map_components_to_libnames(llvm_libs cppbackend codegen option scalaropts)
-#message(STATUS "${llvm_libs}")
+target_link_libraries(cmd ${clang_libs})
+
+# Find the libraries that correspond to the LLVM components that we wish to use.
+# Run `llvm-config --libs <components>' to get the actual list of libraries.
+llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
 
 # Link against LLVM libraries
 target_link_libraries(cmd ${llvm_libs})

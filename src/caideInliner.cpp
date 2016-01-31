@@ -1,4 +1,5 @@
 #include "caideInliner.hpp"
+#include "caideInliner.h"
 
 #include "inliner.h"
 #include "optimizer.h"
@@ -116,4 +117,25 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
 }
 
 } // namespace caide
+
+static vector<string> arrayToCppVector(const char** array, int size) {
+    vector<string> res(size);
+    for (int i = 0; i < size; ++i)
+        res[i].assign(array[i]);
+    return res;
+}
+
+extern "C" void caideInlineCppCode(
+        const CaideCppInlinerOptions* options,
+        const char** cppFilePaths,
+        int numCppFiles,
+        const char* outputFilePath)
+{
+    caide::CppInliner inliner(options->temporaryDirectory);
+    inliner.clangCompilationOptions = arrayToCppVector(options->clangCompilationOptions, options->numClangOptions);
+    inliner.macrosToKeep = arrayToCppVector(options->macrosToKeep, options->numMacrosToKeep);
+    inliner.maxConsequentEmptyLines = options->maxConsequentEmptyLines;
+    vector<string> files = arrayToCppVector(cppFilePaths, numCppFiles);
+    inliner.inlineCode(files, outputFilePath);
+}
 

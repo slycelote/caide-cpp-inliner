@@ -2,6 +2,7 @@
 #include <set>
 #include <string>
 
+// Second inliner stage: remove unused code
 class Optimizer {
 public:
     Optimizer(const std::vector<std::string>& cmdLineOptions,

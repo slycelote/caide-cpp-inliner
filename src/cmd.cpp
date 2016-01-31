@@ -1,34 +1,35 @@
+#include "caideInliner.hpp"
+
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
-#include "inliner.h"
-#include "optimizer.h"
 
 using namespace std;
 
 int main(int argc, const char* argv[]) {
     try {
-        vector<string> options, files;
+        caide::CppInliner inliner("./caide-tmp");
+        vector<string> files;
+
         int i = 1;
-        while (string(argv[i]) != "--") {
-            options.push_back(argv[i]);
+        static const string endOfClangOptions = "--";
+        while (endOfClangOptions != argv[i]) {
+            inliner.clangCompilationOptions.push_back(argv[i]);
             ++i;
         }
-        ++i;
-        string cmd = argv[i];
-        for (++i; i < argc; ++i)
-            files.push_back(argv[i]);
-        if (cmd == "inline") {
-            Inliner inliner(options);
-            for (const auto& f : files)
-                cout << inliner.doInline(f);
-        } else {
-            vector<string> macrosToKeep;
-            Optimizer optimizer(options, macrosToKeep);
-            for (const auto& f : files)
-                cout << optimizer.doOptimize(f);
+
+        for (++i; i < argc; ++i) {
+            static const string flagKeep = "-k";
+            if (flagKeep == argv[i]) {
+                ++i;
+                if (i < argc)
+                    inliner.macrosToKeep.push_back(argv[i]);
+            } else
+                files.push_back(argv[i]);
         }
+
+        inliner.inlineCode(files, "./caide-tmp/result.cpp");
     } catch (const exception& e) {
         cerr << e.what() << endl;
         return 1;

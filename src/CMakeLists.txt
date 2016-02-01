@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(Caide)
+project(CaideInliner)
 
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" ON)
 
@@ -31,7 +31,7 @@ else()
 
     add_subdirectory(llvm)
 
-    # TODO: can we do this instead of manually specifying LLVM_ variables below?
+    # TODO: can we do this instead of hardcoding LLVM_ variables below?
     #include("${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/LLVMConfig.cmake")
 
     set(LLVM_PACKAGE_VERSION "3.7")
@@ -71,7 +71,7 @@ else()
 endif()
 
 
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 
@@ -85,6 +85,28 @@ else()
     # Ignore. It may be VS compiler that doesn't need any special flag
 endif()
 
+
+if(MSVC)
+    # Use the highest warning level for Visual Studio.
+    if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+        string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+    endif()
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    # Add warnings for g++
+    foreach(flag -Wall -Wextra -Wshadow -Wlogical-op)
+        if(CMAKE_CXX_FLAGS MATCHES "${flag}")
+        else()
+            CHECK_CXX_COMPILER_FLAG("${flag}" compiler_supports_flag)
+            if (compiler_supports_flag)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+            endif()
+        endif()
+    endforeach()
+endif()
 
 
 add_library(caideInliner STATIC caideInliner.cpp inliner.cpp optimizer.cpp

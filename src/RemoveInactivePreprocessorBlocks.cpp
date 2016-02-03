@@ -1,3 +1,9 @@
+//                        Caide C++ inliner
+//
+// This file is distributed under the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version. See LICENSE.TXT for details.
+
 #include "RemoveInactivePreprocessorBlocks.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Preprocessor.h"

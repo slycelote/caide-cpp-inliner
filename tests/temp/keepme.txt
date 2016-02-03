@@ -1,0 +1,2 @@
+This is a temporary folder where test runner dumps intermediate files
+

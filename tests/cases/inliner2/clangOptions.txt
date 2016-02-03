@@ -1,0 +1,5 @@
+-std=c++11
+-isystem
+TEST_ROOT/system-inc
+-I
+TEST_ROOT/user-inc

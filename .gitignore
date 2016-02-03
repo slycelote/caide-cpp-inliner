@@ -5,7 +5,9 @@
 
 /src/build
 /src/clangbuild*
-/tests/tmp
 
 /tools/cfkeys.py
+
+/tests/temp/*
+!/tests/temp/keepme.txt
 

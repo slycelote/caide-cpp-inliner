@@ -4,6 +4,8 @@ project(CaideInliner)
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" ON)
 option(CAIDE_SHARED_LIBRARY "Build and link to shared library instead of static" OFF)
 
+enable_testing()
+
 if(CAIDE_USE_SYSTEM_CLANG)
     # Detect LLVM version
     find_package(LLVM 3.6 REQUIRED CONFIG)
@@ -52,7 +54,7 @@ endif()
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
     clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
 
-if (CAIDE_USE_SYSTEM_CLANG)
+if(CAIDE_USE_SYSTEM_CLANG)
     # Find the libraries that correspond to the LLVM components that we wish to use.
     # Run `llvm-config --libs <components>' to get the actual list of libraries.
     llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
@@ -117,17 +119,18 @@ set(inlinerSources caideInliner.cpp inliner.cpp optimizer.cpp
     RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
     StmtParentMap.cpp util.cpp)
 
-if (CAIDE_SHARED_LIBRARY)
+if(CAIDE_SHARED_LIBRARY)
     add_library(caideInliner SHARED ${inlinerSources})
 else()
     add_library(caideInliner STATIC ${inlinerSources})
 endif()
 
-if (NOT CAIDE_USE_SYSTEM_CLANG)
+if(NOT CAIDE_USE_SYSTEM_CLANG)
     # caideInliner requires some headers that are generated during the build of clang and llvm
     add_dependencies(caideInliner ${llvm_libs})
     add_dependencies(caideInliner ${clang_libs})
 endif()
 
 add_subdirectory(cmd)
+add_subdirectory(test-tool)
 

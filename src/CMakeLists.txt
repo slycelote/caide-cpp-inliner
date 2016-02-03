@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(CaideInliner)
 
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" ON)
+option(CAIDE_SHARED_LIBRARY "Build and link to shared library instead of static" OFF)
 
 if(CAIDE_USE_SYSTEM_CLANG)
     # Detect LLVM version
@@ -38,7 +39,9 @@ else()
     message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
 
     set(LLVM_LIBRARY_DIRS "${CMAKE_BINARY_DIR}/llvm/lib")
-    set(LLVM_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/llvm/include;${CMAKE_SOURCE_DIR}/clang/include;${CMAKE_BINARY_DIR}/llvm/include;${CMAKE_BINARY_DIR}/llvm/tools/clang/include")
+    set(LLVM_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/llvm/include"
+        "${CMAKE_SOURCE_DIR}/clang/include" "${CMAKE_BINARY_DIR}/llvm/include"
+        "${CMAKE_BINARY_DIR}/llvm/tools/clang/include")
     set(LLVM_DEFINITIONS "-D__STDC_LIMIT_MACROS" "-D__STDC_CONSTANT_MACROS")
 endif()
 
@@ -46,7 +49,8 @@ if(LLVM_PACKAGE_VERSION VERSION_GREATER "3.7")
     message(WARNING "A high clang/llvm version is detected. Build failure is possible.")
 endif()
 
-set(clang_libs "clangTooling;clangFrontend;clangDriver;clangSerialization;clangParse;clangSema;clangAnalysis;clangRewrite;clangEdit;clangAST;clangLex;clangBasic")
+set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
+    clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
 
 if (CAIDE_USE_SYSTEM_CLANG)
     # Find the libraries that correspond to the LLVM components that we wish to use.
@@ -109,9 +113,15 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 
-add_library(caideInliner STATIC caideInliner.cpp inliner.cpp optimizer.cpp
+set(inlinerSources caideInliner.cpp inliner.cpp optimizer.cpp
     RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
     StmtParentMap.cpp util.cpp)
+
+if (CAIDE_SHARED_LIBRARY)
+    add_library(caideInliner SHARED ${inlinerSources})
+else()
+    add_library(caideInliner STATIC ${inlinerSources})
+endif()
 
 if (NOT CAIDE_USE_SYSTEM_CLANG)
     # caideInliner requires some headers that are generated during the build of clang and llvm

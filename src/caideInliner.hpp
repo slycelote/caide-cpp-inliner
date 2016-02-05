@@ -53,6 +53,9 @@ public:
     /// Most commonly used options are:
     ///
     /// \li `-I` to setup include search paths
+    /// \li `-isystem` to setup system include search paths. In particular, you will likely need
+    ///     to add builtin clang includes as a system path. See this link:
+    ///     http://clang.llvm.org/docs/LibTooling.html#libtooling-builtin-includes
     /// \li `-D` for custom symbol definitions
     /// \li `-std=c++11` to specify a version of C++ standard
     /// \li `-v` for verbose output
@@ -62,8 +65,7 @@ public:
     /// the library was built in a different Linux distribution):
     ///
     /// \li `-target` to specify compilation target (e.g., i386-pc-mingw32, i386-pc-windows-msvc,
-    ///   i386-pc-linux)
-    /// \li `-isystem` to setup system include search paths
+    ///     i386-pc-linux)
     /// \li `-fmsc-version` to specify a version of Microsoft compiler installed in the system
     ///
     /// Default value is empty.

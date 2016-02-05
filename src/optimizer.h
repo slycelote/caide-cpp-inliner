@@ -13,6 +13,9 @@ class Optimizer {
 public:
     Optimizer(const std::vector<std::string>& cmdLineOptions,
               const std::vector<std::string>& macrosToKeep);
+
+    // The file is read in binary mode, so the returned string is also
+    // 'in binary mode' (contains \r\n on Windows)
     std::string doOptimize(const std::string& cppFile);
 
 private:

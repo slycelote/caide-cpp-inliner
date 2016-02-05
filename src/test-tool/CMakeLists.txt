@@ -10,6 +10,7 @@ list(SORT test_name_list)
 
 # To run tests: make test-tool && ctest
 # For verbose output: CTEST_OUTPUT_ON_FAILURE=1 ctest
+# After adding a new test case, re-run cmake
 foreach(test_name IN LISTS test_name_list)
     add_test(${test_name} test-tool "${tests_temp_dir}" "${tests_dir}/${test_name}")
 endforeach()

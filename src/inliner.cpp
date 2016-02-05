@@ -38,6 +38,9 @@
 using namespace clang;
 using namespace std;
 
+namespace caide {
+namespace internal {
+
 struct IncludeReplacement {
     SourceRange includeDirectiveRange;
     std::string fileName;
@@ -333,5 +336,8 @@ std::string Inliner::doInline(const std::string& cppFile) {
 
     inlineResults.push_back(replacementStack[0].replaceWith);
     return inlineResults.back();
+}
+
+}
 }
 

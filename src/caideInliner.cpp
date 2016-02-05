@@ -113,11 +113,11 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
 
     concatFiles(cppFilePaths, concatStage);
 
-    Inliner inliner{clangCompilationOptions};
+    internal::Inliner inliner{clangCompilationOptions};
     std::string inlinedCode{inliner.doInline(concatStage)};
     removePragmaOnce(inlinedCode, inlinedStage);
 
-    Optimizer optimizer{clangCompilationOptions, macrosToKeep};
+    internal::Optimizer optimizer{clangCompilationOptions, macrosToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};
     removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, outputFilePath);
 }

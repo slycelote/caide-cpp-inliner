@@ -18,6 +18,9 @@ namespace clang {
 #include <vector>
 #include <string>
 
+namespace caide {
+namespace internal {
+
 clang::SourceLocation findTokenAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx, clang::tok::TokenKind tokenType);
 clang::SourceLocation findSemiAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx);
 clang::SourceLocation findLocationAfterSemi(clang::SourceLocation loc, clang::ASTContext& Ctx);
@@ -38,4 +41,7 @@ clang::SourceLocation getExpansionEnd(clang::SourceManager& sourceManager,
 
 clang::SourceRange getExpansionRange(clang::SourceManager& sourceManager,
         const clang::Decl* decl);
+
+}
+}
 

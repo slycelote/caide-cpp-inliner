@@ -19,6 +19,9 @@ namespace clang {
     class MacroDirective;
 }
 
+namespace caide {
+namespace internal {
+
 class SmartRewriter;
 
 class RemoveInactivePreprocessorBlocks: public clang::PPCallbacks {
@@ -59,4 +62,7 @@ public:
     // EndOfMainFile() is called too late; instead, we call this one manually in the consumer.
     void Finalize();
 };
+
+}
+}
 

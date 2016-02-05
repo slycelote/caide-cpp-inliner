@@ -8,6 +8,9 @@
 #include <set>
 #include <string>
 
+namespace caide {
+namespace internal {
+
 // Second inliner stage: remove unused code
 class Optimizer {
 public:
@@ -22,4 +25,7 @@ private:
     std::vector<std::string> cmdLineOptions;
     std::set<std::string> macrosToKeep;
 };
+
+}
+}
 

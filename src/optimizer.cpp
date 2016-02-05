@@ -52,6 +52,9 @@ using namespace std;
 
 #endif
 
+namespace caide {
+namespace internal {
+
 typedef std::map<Decl*, std::set<Decl*> > References;
 
 // Contains information that DependenciesCollector passes to the next stage
@@ -1050,5 +1053,8 @@ std::string Optimizer::doOptimize(const std::string& cppFile) {
         throw std::runtime_error("Compilation error");
 
     return result;
+}
+
+}
 }
 

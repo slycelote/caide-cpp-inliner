@@ -12,6 +12,9 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 
 
+namespace caide {
+namespace internal {
+
 struct RewriteItem {
     clang::SourceRange range;
     clang::Rewriter::RewriteOptions opts;
@@ -48,4 +51,7 @@ private:
     RewriteItemComparer comparer;
     bool changesApplied;
 };
+
+}
+}
 

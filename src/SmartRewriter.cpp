@@ -12,6 +12,9 @@
 
 using namespace clang;
 
+namespace caide {
+namespace internal {
+
 bool SourceLocationComparer::operator() (const SourceLocation& lhs, const SourceLocation& rhs) const {
     return rewriter->getSourceMgr().isBeforeInTranslationUnit(lhs, rhs);
 }
@@ -74,5 +77,8 @@ void SmartRewriter::applyChanges() {
     changesApplied = true;
     for (const RewriteItem& ri : removed)
         rewriter.RemoveText(ri.range, ri.opts);
+}
+
+}
 }
 

@@ -16,6 +16,9 @@
 using namespace std;
 using namespace clang;
 
+namespace caide {
+namespace internal {
+
 struct IfDefClause {
     // Locations of #if, #ifdef, #ifndef, #else, #elif tokens of this clause
     vector<SourceLocation> locations;
@@ -367,5 +370,8 @@ void RemoveInactivePreprocessorBlocks::Else(SourceLocation Loc, SourceLocation I
 
 void RemoveInactivePreprocessorBlocks::Endif(SourceLocation Loc, SourceLocation IfLoc) {
     impl->Endif(Loc, IfLoc);
+}
+
+}
 }
 

@@ -18,6 +18,9 @@
 
 using namespace clang;
 
+namespace caide {
+namespace internal {
+
 // Copied from lib/ARCMigrate/Transforms.cpp
 
 /// \brief \arg Loc is the end of a statement range. This returns the location
@@ -146,5 +149,8 @@ SourceLocation getExpansionEnd(SourceManager& sourceManager, const Decl* decl) {
 SourceRange getExpansionRange(SourceManager& sourceManager, const Decl* decl) {
     return SourceRange(getExpansionStart(sourceManager, decl),
             getExpansionEnd(sourceManager, decl));
+}
+
+}
 }
 

@@ -8,6 +8,9 @@
 #include <string>
 #include <set>
 
+namespace caide {
+namespace internal {
+
 // First inliner stage: inline included headers
 class Inliner {
 public:
@@ -22,4 +25,7 @@ private:
     std::set<std::string> includedHeaders;
     std::vector<std::string> inlineResults;
 };
+
+}
+}
 

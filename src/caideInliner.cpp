@@ -56,15 +56,15 @@ static void concatFiles(const vector<string>& cppFilePaths, const string& output
 
 static bool isPragmaOnce(string line) {
     auto it = std::remove_if(line.begin(), line.end(),
-                [](char c) { return c == ' ' || c == '\t'; });
+                [](char c) { return c == ' ' || c == '\t' || c == '\r'; });
     line.erase(it, line.end());
     // This is technically incorrect in view of multiline macros, multiline strings etc...
     return line == "#pragmaonce";
 }
 
-static void removePragmaOnce(const string& text, const string& outputFilePath) {
-    istringstream in{text};
-    ofstream out{outputFilePath};
+static void removePragmaOnce(const string& textInBinaryMode, const string& outputFilePath) {
+    istringstream in{textInBinaryMode};
+    ofstream out{outputFilePath, std::ios::binary};
     string line;
     while (std::getline(in, line)) {
         if (!isPragmaOnce(line))
@@ -73,17 +73,17 @@ static void removePragmaOnce(const string& text, const string& outputFilePath) {
 }
 
 static bool isWhitespaceOnly(const string& text) {
-    return text.find_first_not_of(" \t") == string::npos;
+    return text.find_first_not_of(" \t\r") == string::npos;
 }
 
-static void removeEmptyLines(const string& text,
+static void removeEmptyLines(const string& textInBinaryMode,
                              int maxConsequentEmptyLines,
                              const string& outputFilePath)
 {
     if (maxConsequentEmptyLines < 0)
         maxConsequentEmptyLines = std::numeric_limits<int>::max();
-    istringstream in{text};
-    ofstream out{outputFilePath};
+    istringstream in{textInBinaryMode};
+    ofstream out{outputFilePath, std::ios::binary};
     int currentConsequentEmptyLines = 0;
     bool readNonEmptyLine = false;
     string line;

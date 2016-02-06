@@ -25,7 +25,7 @@ static vector<string> readNonEmptyLines(const string& filePath) {
     ifstream file{filePath.c_str()};
     string line;
 
-    while (file >> line) {
+    while (std::getline(file, line)) {
         if (line.find_first_not_of(" \t\r\n") != string::npos)
             lines.push_back(line);
     }
@@ -61,6 +61,21 @@ static bool runTest(const string& testDirectory, const string& tempDirectory) {
             opt.replace(p, TEST_ROOT_MARKER.length(), testDirectory);
         }
     }
+
+    // Even if clang is built in Visual Studio, it doesn't correctly determine necessary options.
+    // Try to guess them automatically.
+#ifdef _MSC_VER
+    std::ostringstream mscVersionOption;
+    mscVersionOption << "-fmsc-version=" << _MSC_VER;
+    inliner.clangCompilationOptions.push_back(mscVersionOption.str());
+#if _MSC_VER >= 1900
+    // VS 2015
+    // https://social.msdn.microsoft.com/Forums/vstudio/en-US/86bc577b-528c-469c-a506-15383a44c111/missing-corecrth-from-the-default-include-folder-for-vs215?forum=vcgeneral
+    inliner.clangCompilationOptions.push_back("-isystem");
+    inliner.clangCompilationOptions.push_back("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.10150.0\\ucrt");
+#endif
+#endif
+
     inliner.macrosToKeep = readNonEmptyLines(pathConcat(testDirectory, "macrosToKeep.txt"));
 
     const string outputFilePath = pathConcat(tempDirectory, "result.cpp");

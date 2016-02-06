@@ -53,13 +53,13 @@ void f8(int i = f7()) {
 /// caide keep
 void f9() {}
 
-int i4 ;
+int    i4 ;
 
-int i8, i10;
+int  i8,  i10;
 
 #define td int
 
-td v2;
+td  v2;
 
 void usedFunc() {}
 

@@ -1,5 +1,4 @@
 /tests/* linguist-documentation
-/tests/*.sh linguist-documentation=false
 /src/clang/* linguist-vendored
 /src/llvm/* linguist-vendored
 

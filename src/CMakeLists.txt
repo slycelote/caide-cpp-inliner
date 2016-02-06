@@ -35,7 +35,7 @@ else()
     # It's consistent with how LLVM is packaged in Debian and doesn't require -fno-rtti code for user code.
     option(LLVM_ENABLE_RTTI "" ON)
 
-    add_subdirectory(llvm)
+    add_subdirectory(llvm EXCLUDE_FROM_ALL)
 
     # TODO: can we do this instead of hardcoding LLVM_ variables below?
     #include("${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/LLVMConfig.cmake")
@@ -113,7 +113,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
         if(CMAKE_CXX_FLAGS MATCHES "${flag}")
         else()
             CHECK_CXX_COMPILER_FLAG("${flag}" compiler_supports_flag)
-            if (compiler_supports_flag)
+            if(compiler_supports_flag)
                 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
             endif()
         endif()

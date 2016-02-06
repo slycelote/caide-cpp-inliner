@@ -8,7 +8,10 @@ enable_testing()
 
 if(CAIDE_USE_SYSTEM_CLANG)
     # Detect LLVM version
-    find_package(LLVM 3.6 REQUIRED CONFIG)
+    find_package(LLVM REQUIRED CONFIG)
+    if(NOT LLVM_FOUND)
+        message(FATAL_ERROR "LLVM not found! Make sure packages llvm-dev and libclang-dev are installed")
+    endif()
 
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -47,8 +50,11 @@ else()
     set(LLVM_DEFINITIONS "-D__STDC_LIMIT_MACROS" "-D__STDC_CONSTANT_MACROS")
 endif()
 
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "3.7")
-    message(WARNING "A high clang/llvm version is detected. Build failure is possible.")
+if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
+    message(WARNING "A too old clang/llvm version is detected. Build failure is possible.")
+endif()
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "3.7.255")
+    message(WARNING "A too new clang/llvm version is detected. Build failure is possible.")
 endif()
 
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse

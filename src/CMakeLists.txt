@@ -14,7 +14,7 @@ if(CAIDE_USE_SYSTEM_CLANG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 else()
-    set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/clang" CACHE PATH "" FORCE)
+    set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/clang" CACHE PATH "" FORCE)
     set(LLVM_TARGETS_TO_BUILD "X86" CACHE STRING "" FORCE)
     option(LLVM_INCLUDE_TOOLS "" ON)
     option(LLVM_BUILD_TOOLS "" ON)
@@ -39,10 +39,10 @@ else()
     set(LLVM_PACKAGE_VERSION "3.7")
     message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
 
-    set(LLVM_LIBRARY_DIRS "${CMAKE_BINARY_DIR}/llvm/lib")
-    set(LLVM_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/llvm/include"
-        "${CMAKE_SOURCE_DIR}/clang/include" "${CMAKE_BINARY_DIR}/llvm/include"
-        "${CMAKE_BINARY_DIR}/llvm/tools/clang/include")
+    set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm/lib")
+    set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm/include"
+        "${CMAKE_CURRENT_BINARY_DIR}/llvm/tools/clang/include")
     set(LLVM_DEFINITIONS "-D__STDC_LIMIT_MACROS" "-D__STDC_CONSTANT_MACROS")
 endif()
 

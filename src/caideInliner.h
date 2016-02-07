@@ -30,7 +30,7 @@ struct CaideCppInlinerOptions {
     int maxConsequentEmptyLines;
 };
 
-void caideInlineCppCode(
+int caideInlineCppCode(
         const CaideCppInlinerOptions* options,
         const char** cppFilePaths,
         int numCppFiles,
@@ -39,4 +39,3 @@ void caideInlineCppCode(
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-

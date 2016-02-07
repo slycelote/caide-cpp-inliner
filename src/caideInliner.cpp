@@ -131,17 +131,24 @@ static vector<string> arrayToCppVector(const char** array, int size) {
     return res;
 }
 
-extern "C" void caideInlineCppCode(
+extern "C" int caideInlineCppCode(
         const CaideCppInlinerOptions* options,
         const char** cppFilePaths,
         int numCppFiles,
         const char* outputFilePath)
 {
-    caide::CppInliner inliner(options->temporaryDirectory);
-    inliner.clangCompilationOptions = arrayToCppVector(options->clangCompilationOptions, options->numClangOptions);
-    inliner.macrosToKeep = arrayToCppVector(options->macrosToKeep, options->numMacrosToKeep);
-    inliner.maxConsequentEmptyLines = options->maxConsequentEmptyLines;
-    vector<string> files = arrayToCppVector(cppFilePaths, numCppFiles);
-    inliner.inlineCode(files, outputFilePath);
+    try {
+        caide::CppInliner inliner(options->temporaryDirectory);
+        inliner.clangCompilationOptions = arrayToCppVector(
+            options->clangCompilationOptions, options->numClangOptions);
+        inliner.macrosToKeep = arrayToCppVector(options->macrosToKeep, options->numMacrosToKeep);
+        inliner.maxConsequentEmptyLines = options->maxConsequentEmptyLines;
+        vector<string> files = arrayToCppVector(cppFilePaths, numCppFiles);
+        inliner.inlineCode(files, outputFilePath);
+        return 0;
+    } catch (const std::exception& e) {
+        return 1;
+    } catch (...) {
+        return 2;
+    }
 }
-

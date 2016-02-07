@@ -4,8 +4,6 @@ project(CaideInliner)
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" ON)
 option(CAIDE_SHARED_LIBRARY "Build and link to shared library instead of static" OFF)
 
-enable_testing()
-
 if(CAIDE_USE_SYSTEM_CLANG)
     # Detect LLVM version
     find_package(LLVM REQUIRED CONFIG)
@@ -16,8 +14,6 @@ if(CAIDE_USE_SYSTEM_CLANG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 else()
-    #set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
-    #set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/clanginstall" CACHE PATH "")
     set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/clang" CACHE PATH "" FORCE)
     set(LLVM_TARGETS_TO_BUILD "X86" CACHE STRING "" FORCE)
     option(LLVM_INCLUDE_TOOLS "" ON)
@@ -138,5 +134,7 @@ if(NOT CAIDE_USE_SYSTEM_CLANG)
 endif()
 
 add_subdirectory(cmd)
+
+enable_testing()
 add_subdirectory(test-tool)
 

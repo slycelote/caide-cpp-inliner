@@ -27,6 +27,9 @@ else()
     option(LLVM_ENABLE_DOXYGEN "" OFF)
     option(LLVM_ENABLE_SPHINX "" OFF)
     option(BUILD_SHARED_LIBS "" OFF)
+    option(LLVM_ENABLE_TERMINFO "" OFF)
+    option(WITH_POLLY "" OFF)
+    set(HAVE_LIBEDIT false CACHE BOOL "" FORCE)
     # Enable RTTI, even though it may decrease performance.
     # It's consistent with how LLVM is packaged in Debian and doesn't require -fno-rtti code for user code.
     option(LLVM_ENABLE_RTTI "" ON)

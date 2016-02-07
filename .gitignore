@@ -4,7 +4,6 @@
 *.pyc
 
 /src/build
-/src/clangbuild*
 
 /tools/cfkeys.py
 

@@ -31,7 +31,7 @@ struct CaideCppInlinerOptions {
 };
 
 int caideInlineCppCode(
-        const CaideCppInlinerOptions* options,
+        const struct CaideCppInlinerOptions* options,
         const char** cppFilePaths,
         int numCppFiles,
         const char* outputFilePath);

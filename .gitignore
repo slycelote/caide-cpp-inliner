@@ -8,3 +8,5 @@
 /tests/temp/*
 !/tests/temp/keepme.txt
 
+tags
+

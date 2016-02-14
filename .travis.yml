@@ -32,6 +32,7 @@ matrix:
                       - llvm-toolchain-precise-3.6
                   packages:
                       - *default_packages
+                      - libedit-dev
                       - libclang-3.6-dev
                       - llvm-3.6-dev
 
@@ -43,6 +44,7 @@ matrix:
                       - llvm-toolchain-precise-3.7
                   packages:
                       - *default_packages
+                      - libedit-dev
                       - libclang-3.7-dev
                       - llvm-3.7-dev
 

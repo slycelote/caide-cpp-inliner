@@ -7,12 +7,6 @@
 #include "inliner.h"
 #include "util.h"
 
-#include <cstdio>
-#include <iostream>
-#include <stdexcept>
-#include <string>
-#include <sstream>
-
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
@@ -31,6 +25,14 @@
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
+
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <sstream>
+
 
 
 using namespace clang;
@@ -314,7 +316,7 @@ Inliner::Inliner(const std::vector<std::string>& _cmdLineOptions)
 {}
 
 std::string Inliner::doInline(const std::string& cppFile) {
-    std::auto_ptr<clang::tooling::FixedCompilationDatabase> compilationDatabase(
+    std::unique_ptr<clang::tooling::FixedCompilationDatabase> compilationDatabase(
         createCompilationDatabaseFromCommandLine(cmdLineOptions));
 
     std::vector<std::string> sources(1);

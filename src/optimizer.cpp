@@ -28,6 +28,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <stack>
 #include <stdexcept>
 #include <string>

@@ -32,7 +32,6 @@
 #include "optimizer.h"
 #include "RemoveInactivePreprocessorBlocks.h"
 #include "SmartRewriter.h"
-#include "StmtParentMap.h"
 #include "util.h"
 
 using namespace clang;
@@ -81,56 +80,25 @@ private:
     SourceManager& sourceManager;
     SourceInfo& srcInfo;
 
-    // There is no stmt->getParentDecl() method, so we keep track of it manually.
-    // We maintain two items:
-    // 1. Last visited Decl.
-    // 2. A stack of FunctionDecl's together with Stmt trees of their bodies.
-    // The closest Decl ancestor of a Stmt is either the last visited decl, or
-    // one of the functions on the stack.
-    //
-    // Because there is no callback when a Decl is exited, top of the stack
-    // may contain some extra functions. We account for it in getParentDecl(stmt)
-    // and VisitFunctionDecl, where we rewind the stack.
-    //
-    Decl* lastVisitedDecl;
-    std::vector<std::pair<FunctionDecl*, std::unique_ptr<StmtParentMap> > > functionLexicalStack;
 
-    // Works only when the stmt is currently visited.
-    Decl* getParentDecl(Stmt* stmt) {
-        // There are two possibilities: top of the stack either contains the stmt or not.
-        int stackSize = (int)functionLexicalStack.size();
-        int i = stackSize - 1;
-        while (i >= 0 && !functionLexicalStack[i].second->contains(stmt))
-            --i;
+    // There is no getParentDecl(stmt) function, so we maintain the stack of Decls,
+    // with inner-most active Decl at the top of the stack
+    std::stack<Decl*> declStack;
 
-        if (i < 0) {
-            // We are inside a top level declaration.
-            return lastVisitedDecl;
-        }
-
-        // Rewind the stack, if necessary.
-        for (; stackSize > i + 1; --stackSize)
-            functionLexicalStack.pop_back();
-
-        // Check whether there are any intermediate decls between
-        // containing function and the stmt.
-        // If there are, lastVisitedDecl must be the last of them;
-        // otherwise we return the function.
-        // To check for intermediate decls, walk up the parent pointers and search
-        // for a DeclStmt (which is an adapter class for Decl's)
-        auto& parentMap = *functionLexicalStack.back().second;
-        do {
-            stmt = parentMap.getParent(stmt);
-        } while (stmt && !isa<DeclStmt>(stmt));
-        if (stmt) {
-            // found a DeclStmt
-            return lastVisitedDecl;
-        } else {
-            return functionLexicalStack.back().first;
-        }
+public:
+    bool TraverseDecl(Decl* decl) {
+        declStack.push(decl);
+        bool ret = RecursiveASTVisitor<DependenciesCollector>::TraverseDecl(decl);
+        declStack.pop();
+        return ret;
     }
 
 private:
+
+    Decl* getCurrentDecl() {
+        return declStack.empty() ? nullptr : declStack.top();
+    }
+
     FunctionDecl* getCurrentFunction(Decl* decl) const {
         DeclContext* declCtx = decl->getLexicalDeclContext();
         return dyn_cast_or_null<FunctionDecl>(declCtx);
@@ -236,7 +204,6 @@ public:
     DependenciesCollector(SourceManager& srcMgr, SourceInfo& srcInfo_)
         : sourceManager(srcMgr)
         , srcInfo(srcInfo_)
-        , lastVisitedDecl(nullptr)
     {
     }
 
@@ -245,16 +212,14 @@ public:
 
     bool VisitDecl(Decl* decl) {
         dbg("DECL " << decl->getDeclKindName() << " " << decl
-            << "<" << ::toString(sourceManager, decl).substr(0, 30) << ">"
-            << ::toString(sourceManager, getExpansionRange(sourceManager, decl))
+            << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
+            << toString(sourceManager, getExpansionRange(sourceManager, decl))
             << endl);
 
         // Mark dependence on enclosing class/namespace.
         Decl* ctx = dyn_cast_or_null<Decl>(decl->getDeclContext());
         if (ctx && !isa<FunctionDecl>(ctx))
             insertReference(decl, ctx);
-
-        lastVisitedDecl = decl;
 
         if (comments::FullComment* comment =
             decl->getASTContext().getLocalCommentForDeclUncached(decl))
@@ -285,19 +250,19 @@ public:
         if (!callee || !calleeDecl || isa<UnresolvedMemberExpr>(callee) || isa<CXXDependentScopeMemberExpr>(callee))
             return true;
 
-        insertReference(getParentDecl(callExpr), calleeDecl);
+        insertReference(getCurrentDecl(), calleeDecl);
         return true;
     }
 
     bool VisitCXXConstructExpr(CXXConstructExpr* constructorExpr) {
         dbg(CAIDE_FUNC);
-        insertReference(getParentDecl(constructorExpr), constructorExpr->getConstructor());
+        insertReference(getCurrentDecl(), constructorExpr->getConstructor());
         return true;
     }
 
     bool VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* tempExpr) {
         if (TypeSourceInfo* tsi = tempExpr->getTypeSourceInfo())
-            insertReferenceToType(getParentDecl(tempExpr), tsi->getType());
+            insertReferenceToType(getCurrentDecl(), tsi->getType());
         return true;
     }
 
@@ -308,13 +273,13 @@ public:
     }
 
     bool VisitCXXNewExpr(CXXNewExpr* newExpr) {
-        insertReferenceToType(getParentDecl(newExpr), newExpr->getAllocatedType());
+        insertReferenceToType(getCurrentDecl(), newExpr->getAllocatedType());
         return true;
     }
 
     bool VisitDeclRefExpr(DeclRefExpr* ref) {
         dbg(CAIDE_FUNC);
-        Decl* parent = getParentDecl(ref);
+        Decl* parent = getCurrentDecl();
         insertReference(parent, ref->getDecl());
         NestedNameSpecifier* specifier = ref->getQualifier();
         while (specifier) {
@@ -326,12 +291,12 @@ public:
 
     bool VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr* initExpr) {
         if (TypeSourceInfo* tsi = initExpr->getTypeSourceInfo())
-            insertReferenceToType(getParentDecl(initExpr), tsi->getType());
+            insertReferenceToType(getCurrentDecl(), tsi->getType());
         return true;
     }
 
     bool VisitExplicitCastExpr(ExplicitCastExpr* castExpr) {
-        insertReferenceToType(getParentDecl(castExpr), castExpr->getTypeAsWritten());
+        insertReferenceToType(getCurrentDecl(), castExpr->getTypeAsWritten());
         return true;
     }
 
@@ -370,13 +335,13 @@ public:
 
     bool VisitMemberExpr(MemberExpr* memberExpr) {
         dbg(CAIDE_FUNC);
-        insertReference(getParentDecl(memberExpr), memberExpr->getMemberDecl());
+        insertReference(getCurrentDecl(), memberExpr->getMemberDecl());
         return true;
     }
 
     bool VisitLambdaExpr(LambdaExpr* lambdaExpr) {
         dbg(CAIDE_FUNC);
-        insertReference(getParentDecl(lambdaExpr), lambdaExpr->getCallOperator());
+        insertReference(getCurrentDecl(), lambdaExpr->getCallOperator());
         return true;
     }
 
@@ -438,53 +403,6 @@ public:
         dbg(CAIDE_FUNC);
         if (f->isMain())
             srcInfo.declsToKeep.insert(f);
-
-        if (f->doesThisDeclarationHaveABody() && !f->isLateTemplateParsed()) {
-            // first rewind function stack
-            DeclContext* ctx = f;
-            auto it = functionLexicalStack.end();
-
-            do {
-                ctx = ctx->getLexicalParent();
-                if (ctx && isa<FunctionDecl>(ctx)) {
-                    it = std::find_if(
-                        functionLexicalStack.begin(), functionLexicalStack.end(),
-                        [&](const std::pair<FunctionDecl*, std::unique_ptr<StmtParentMap>>& p) {
-                            return p.first == ctx;
-                        });
-                }
-            } while (ctx && it == functionLexicalStack.end());
-
-            if (it != functionLexicalStack.end()) {
-                ++it;
-                functionLexicalStack.erase(it, functionLexicalStack.end());
-            }
-
-            // now push current function on top of the stack
-            std::unique_ptr<StmtParentMap> parentMap(new StmtParentMap(f->getBody()));
-
-            // Function arguments are not inside the body; need to add them to the parent map explicitly
-            for (unsigned i = 0; i < f->getNumParams(); ++i) {
-                ParmVarDecl* argument = f->getParamDecl(i);
-                if (argument->hasDefaultArg() && !argument->hasUnparsedDefaultArg()
-                    && !argument->hasUninstantiatedDefaultArg())
-                {
-                    parentMap->addStmt(argument->getDefaultArg());
-                }
-
-                // Add reference to the parameter
-                insertReference(f, argument);
-            }
-
-            // Ditto for constructor initializers
-            if (CXXConstructorDecl* ctorDecl = dyn_cast<CXXConstructorDecl>(f)) {
-                for (auto init = ctorDecl->init_begin(); init != ctorDecl->init_end(); ++init) {
-                    parentMap->addStmt((**init).getInit());
-                }
-            }
-
-            functionLexicalStack.emplace_back(f, std::move(parentMap));
-        }
 
         if (sourceManager.isInMainFile(f->getLocStart()) && f->isLateTemplateParsed())
             srcInfo.delayedParsedFunctions.push_back(f);
@@ -1036,7 +954,7 @@ Optimizer::Optimizer(const std::vector<std::string>& cmdLineOptions_,
 {}
 
 std::string Optimizer::doOptimize(const std::string& cppFile) {
-    std::auto_ptr<tooling::FixedCompilationDatabase> compilationDatabase(
+    std::unique_ptr<tooling::FixedCompilationDatabase> compilationDatabase(
         createCompilationDatabaseFromCommandLine(cmdLineOptions));
 
     vector<string> sources;

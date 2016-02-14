@@ -121,8 +121,7 @@ endif()
 
 
 set(inlinerSources caideInliner.cpp inliner.cpp optimizer.cpp
-    RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
-    StmtParentMap.cpp util.cpp)
+    RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp util.cpp)
 
 if(CAIDE_SHARED_LIBRARY)
     add_library(caideInliner SHARED ${inlinerSources})

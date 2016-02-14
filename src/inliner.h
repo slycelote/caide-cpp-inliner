@@ -16,7 +16,7 @@ class Inliner {
 public:
     explicit Inliner(const std::vector<std::string>& clangCommandLineOptions);
 
-    // The file read in binary mode, so the returned string is also
+    // The file is read in binary mode, so the returned string is also
     // 'in binary mode' (contains \r\n on Windows)
     std::string doInline(const std::string& cppFile);
 

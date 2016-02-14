@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include <clang/Rewrite/Core/Rewriter.h>
+
 #include <set>
 #include <vector>
-
-#include "clang/Rewrite/Core/Rewriter.h"
 
 
 namespace caide {

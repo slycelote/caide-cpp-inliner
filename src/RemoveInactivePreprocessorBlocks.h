@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "clang_version.h"
+
+#include <clang/Basic/SourceLocation.h>
+#include <clang/Lex/PPCallbacks.h>
+
 #include <set>
 #include <string>
-
-#include "clang/Basic/SourceLocation.h"
-#include "clang/Lex/PPCallbacks.h"
-
-#include "clang_version.h"
 
 namespace clang {
     class SourceManager;

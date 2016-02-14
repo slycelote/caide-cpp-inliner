@@ -5,13 +5,14 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "RemoveInactivePreprocessorBlocks.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Lex/Preprocessor.h"
+#include "SmartRewriter.h"
+
+#include <clang/Basic/SourceManager.h>
+#include <clang/Lex/Preprocessor.h>
 
 #include <map>
 #include <vector>
 
-#include "SmartRewriter.h"
 
 using namespace std;
 using namespace clang;

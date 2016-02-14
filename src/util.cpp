@@ -5,16 +5,14 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "util.h"
+
+#include <clang/AST/ASTContext.h>
+#include <clang/Basic/FileManager.h>
+#include <clang/Basic/SourceManager.h>
+#include <clang/Frontend/Utils.h>
+#include <clang/Lex/Preprocessor.h>
+
 #include <sstream>
-
-#include "clang/AST/ASTContext.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Frontend/Utils.h"
-#include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-
 
 using namespace clang;
 

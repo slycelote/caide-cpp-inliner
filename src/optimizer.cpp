@@ -4,6 +4,28 @@
 // the Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version. See LICENSE.TXT for details.
 
+#include "optimizer.h"
+#include "RemoveInactivePreprocessorBlocks.h"
+#include "SmartRewriter.h"
+#include "util.h"
+
+#include <clang/AST/ASTConsumer.h>
+#include <clang/AST/ASTContext.h>
+#include <clang/AST/Comment.h>
+#include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Basic/Diagnostic.h>
+#include <clang/Basic/FileManager.h>
+#include <clang/Basic/SourceManager.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/FrontendActions.h>
+#include <clang/Frontend/Utils.h>
+#include <clang/Lex/Preprocessor.h>
+#include <clang/Parse/ParseAST.h>
+#include <clang/Rewrite/Core/Rewriter.h>
+#include <clang/Sema/Sema.h>
+#include <clang/Tooling/Tooling.h>
+
+
 #include <cstdio>
 #include <iostream>
 #include <stack>
@@ -11,28 +33,6 @@
 #include <string>
 #include <sstream>
 
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Comment.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
-#include "clang/Frontend/Utils.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Parse/ParseAST.h"
-#include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/Sema/Sema.h"
-
-#include "clang/Tooling/Tooling.h"
-
-
-#include "optimizer.h"
-#include "RemoveInactivePreprocessorBlocks.h"
-#include "SmartRewriter.h"
-#include "util.h"
 
 using namespace clang;
 using namespace std;

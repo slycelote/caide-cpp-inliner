@@ -6,17 +6,17 @@
 
 #pragma once
 
-#include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/TokenKinds.h"
-#include "clang/Tooling/CompilationDatabase.h"
+#include <clang/Basic/SourceLocation.h>
+#include <clang/Basic/TokenKinds.h>
+#include <clang/Tooling/CompilationDatabase.h>
+
+#include <vector>
+#include <string>
 
 namespace clang {
     class ASTContext;
     class Decl;
 }
-
-#include <vector>
-#include <string>
 
 namespace caide {
 namespace internal {

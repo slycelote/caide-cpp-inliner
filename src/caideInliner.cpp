@@ -37,7 +37,7 @@ static string trimEndPathSeparators(const string& path) {
 
 CppInliner::CppInliner(const string& temporaryDirectory_)
     : clangCompilationOptions{}
-    , macrosToKeep{"_WIN32", "_WIN64", "_MSC_VER", "__GNUC__"}
+    , macrosToKeep{"_WIN32", "_WIN64", "_MSC_VER", "__GNUC__", "__cplusplus"}
     , maxConsequentEmptyLines{2}
     , temporaryDirectory{trimEndPathSeparators(temporaryDirectory_)}
 {
@@ -152,3 +152,4 @@ extern "C" int caideInlineCppCode(
         return 2;
     }
 }
+

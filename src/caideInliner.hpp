@@ -21,7 +21,7 @@ namespace caide {
 /// and headers into a single-file program. Only code reachable from main function
 /// is kept in the output file.
 ///
-/// Faily complex programs are supported, including programs using template metaprogramming
+/// Fairly complex programs are supported, including programs using template metaprogramming
 /// and modern C++ features. That said, don't try to inline Boost headers.
 ///
 /// \sa inlineCode()
@@ -42,7 +42,8 @@ public:
     /// \param outputFilePath path to a file where the inlined program will be written
     ///
     /// All input C++ files and included user headers will be combined into a single C++ file,
-    /// and only code reachable from main function will be kept.
+    /// and only code reachable from main function will be kept. In addition, declarations
+    /// marked with a comment 'caide keep' will be kept too.
     void inlineCode(const std::vector<std::string>& cppFilePaths,
                     const std::string& outputFilePath) const;
 
@@ -58,6 +59,7 @@ public:
     ///     http://clang.llvm.org/docs/LibTooling.html#libtooling-builtin-includes
     /// \li `-D` for custom symbol definitions
     /// \li `-std=c++11` to specify a version of C++ standard
+    /// \li `-fparse-all-comments' to take into account non-documentation comments
     /// \li `-v` for verbose output
     ///
     /// Other options you may need if they are not determined automatically (e.g. if

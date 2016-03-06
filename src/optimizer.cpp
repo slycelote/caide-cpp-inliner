@@ -222,23 +222,29 @@ public:
         if (ctx && !isa<FunctionDecl>(ctx))
             insertReference(decl, ctx);
 
-        if (comments::FullComment* comment =
-            decl->getASTContext().getLocalCommentForDeclUncached(decl))
-        {
-            bool invalid = false;
-            const char* beg = sourceManager.getCharacterData(comment->getLocStart(), &invalid);
-            if (beg && !invalid) {
-                const char* end =
-                    sourceManager.getCharacterData(comment->getLocEnd(), &invalid);
-                if (end && !invalid) {
-                    static const string caideKeepComment = "caide keep";
-                    StringRef haystack(beg, end - beg + 1);
-                    StringRef needle(caideKeepComment);
-                    if (haystack.find(needle) != StringRef::npos)
-                        srcInfo.declsToKeep.insert(decl);
-                }
-            }
-        }
+        if (!sourceManager.isInMainFile(decl->getLocStart()))
+            return true;
+
+        RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
+        if (!comment)
+            return true;
+
+        bool invalid = false;
+        const char* beg = sourceManager.getCharacterData(comment->getLocStart(), &invalid);
+        if (!beg || invalid)
+            return true;
+
+        const char* end =
+            sourceManager.getCharacterData(comment->getLocEnd(), &invalid);
+        if (!end || invalid)
+            return true;
+
+        static const string caideKeepComment = "caide keep";
+        StringRef haystack(beg, end - beg + 1);
+        StringRef needle(caideKeepComment);
+        //std::cerr << toString(sourceManager, decl) << ": " << haystack.str() << std::endl;
+        if (haystack.find(needle) != StringRef::npos)
+            srcInfo.declsToKeep.insert(decl);
 
         return true;
     }

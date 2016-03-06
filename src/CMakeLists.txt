@@ -1,12 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(CaideInliner)
 
-if (MSVC)
-    option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
-else()
-    option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" ON)
-endif()
-
+option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
 option(CAIDE_SHARED_LIBRARY "Build and link to shared library instead of static" OFF)
 
 if(CAIDE_USE_SYSTEM_CLANG)

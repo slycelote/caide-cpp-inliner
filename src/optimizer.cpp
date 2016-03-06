@@ -36,14 +36,18 @@
 
 
 using namespace clang;
-using namespace std;
+using std::map;
+using std::set;
+using std::string;
+using std::vector;
+
 
 //#define CAIDE_DEBUG_MODE
 
 #ifdef CAIDE_DEBUG_MODE
 
 #define dbg(vals) std::cerr << vals
-#define CAIDE_FUNC __FUNCTION__ << endl
+#define CAIDE_FUNC __FUNCTION__ << std::endl
 
 #else
 
@@ -55,17 +59,14 @@ using namespace std;
 namespace caide {
 namespace internal {
 
-typedef std::map<Decl*, std::set<Decl*> > References;
-
 // Contains information that DependenciesCollector passes to the next stage
 struct SourceInfo {
     // key: Decl, value: what the key uses.
-    References uses;
+    map<Decl*, set<Decl*> > uses;
 
     // 'Roots of the dependency tree':
-    // - int main(), or a special function (for Topcoder)
-    // - static variables with possible side effects
-    // - declarations marked with a comment /// caide keep
+    // - int main()
+    // - declarations marked with a comment '/// caide keep'
     set<Decl*> declsToKeep;
 
     // Delayed parsed functions.
@@ -80,7 +81,6 @@ class DependenciesCollector : public RecursiveASTVisitor<DependenciesCollector> 
 private:
     SourceManager& sourceManager;
     SourceInfo& srcInfo;
-
 
     // There is no getParentDecl(stmt) function, so we maintain the stack of Decls,
     // with inner-most active Decl at the top of the stack
@@ -125,7 +125,7 @@ private:
     }
 
     void insertReferenceToType(Decl* from, const Type* to,
-            std::set<const Type*>& seen)
+            set<const Type*>& seen)
     {
         if (!to)
             return;
@@ -184,20 +184,20 @@ private:
     }
 
     void insertReferenceToType(Decl* from, QualType to,
-            std::set<const Type*>& seen)
+            set<const Type*>& seen)
     {
         insertReferenceToType(from, to.getTypePtrOrNull(), seen);
     }
 
     void insertReferenceToType(Decl* from, QualType to)
     {
-        std::set<const Type*> seen;
+        set<const Type*> seen;
         insertReferenceToType(from, to, seen);
     }
 
     void insertReferenceToType(Decl* from, const Type* to)
     {
-        std::set<const Type*> seen;
+        set<const Type*> seen;
         insertReferenceToType(from, to, seen);
     }
 
@@ -326,9 +326,9 @@ public:
             if (initExpr && initExpr->HasSideEffects(varDecl->getASTContext()))
                 srcInfo.declsToKeep.insert(varDecl);
 
-            Because RAII idiom is not common in competitive programming, we simply
-            remove unreferenced global static variables unless they are marked with
-            a '/// caide keep' comment.
+            The analysis of which functions *really* have side effects seems too
+            complicated. So currently we simply remove unreferenced global static
+            variables unless they are marked with a '/// caide keep' comment.
             */
         }
         return true;
@@ -427,7 +427,7 @@ public:
             dbg("Moving to ";
                 DeclarationName DeclName = f->getNameInfo().getName();
                 string FuncName = DeclName.getAsString();
-                cerr << FuncName << " at " <<
+                std::cerr << FuncName << " at " <<
                     toString(sourceManager, f->getLocation()) << std::endl;
             );
         }
@@ -464,15 +464,15 @@ class UsageInfo {
 private:
     SourceManager& sourceManager;
     SourceRangeComparer cmp;
-    std::set<Decl*> usedDecls;
-    std::set<SourceRange, SourceRangeComparer> locationsOfUsedDecls;
+    set<Decl*> usedDecls;
+    set<SourceRange, SourceRangeComparer> locationsOfUsedDecls;
 
 public:
     UsageInfo(SourceManager& sourceManager_, Rewriter& rewriter_)
         : sourceManager(sourceManager_)
     {
         cmp.cmp.rewriter = &rewriter_;
-        locationsOfUsedDecls = std::set<SourceRange, SourceRangeComparer>(cmp);
+        locationsOfUsedDecls = set<SourceRange, SourceRangeComparer>(cmp);
     }
 
     bool isUsed(Decl* decl) const {
@@ -521,23 +521,12 @@ class OptimizerVisitor: public RecursiveASTVisitor<OptimizerVisitor> {
 private:
     SourceManager& sourceManager;
     const UsageInfo usageInfo;
-    std::set<Decl*> declared;
-    std::set<NamespaceDecl*> usedNamespaces;
+    set<Decl*> declared;
+    set<NamespaceDecl*> usedNamespaces;
     SmartRewriter& rewriter;
 
-    std::string toString(const Decl* decl) const {
-        if (!decl)
-            return "<invalid>";
-        SourceLocation start = sourceManager.getExpansionLoc(decl->getLocStart());
-        bool invalid;
-        const char* b = sourceManager.getCharacterData(start, &invalid);
-        if (invalid || !b)
-            return "<invalid>";
-        SourceLocation end = sourceManager.getExpansionLoc(decl->getLocEnd());
-        const char* e = sourceManager.getCharacterData(end, &invalid);
-        if (invalid || !e)
-            return "<invalid>";
-        return std::string(b, std::min(b+30, e));
+    string toString(const Decl* decl) const {
+        return internal::toString(sourceManager, decl);
     }
 
 public:
@@ -560,7 +549,7 @@ public:
 
     /*
     bool VisitStmt(Stmt* stmt) {
-        cerr << stmt->getStmtClassName() << endl;
+        std::cerr << stmt->getStmtClassName() << endl;
         return true;
     }
     */
@@ -596,7 +585,6 @@ public:
 | |-TemplateArgument type 'int'
 | |-CXXRecordDecl
 | `-CXXMethodDecl...
-
 
      */
 
@@ -728,7 +716,7 @@ private:
         rewriter.removeRange(SourceRange(start, end), opts);
     }
 
-    std::string toString(const SourceLocation& loc) const {
+    string toString(const SourceLocation& loc) const {
         return loc.printToString(sourceManager);
     }
 };
@@ -737,7 +725,7 @@ class OptimizerConsumer: public ASTConsumer {
 public:
     explicit OptimizerConsumer(CompilerInstance& compiler_, SmartRewriter& smartRewriter_,
                 Rewriter& rewriter_, RemoveInactivePreprocessorBlocks& ppCallbacks_,
-                std::string& result_)
+                string& result_)
         : compiler(compiler_)
         , sourceManager(compiler.getSourceManager())
         , smartRewriter(smartRewriter_)
@@ -746,8 +734,8 @@ public:
         , result(result_)
     {}
 
-    virtual void HandleTranslationUnit(ASTContext& Ctx) {
-        //cerr << "Build dependency graph" << std::endl;
+    virtual void HandleTranslationUnit(ASTContext& Ctx) override {
+        //std::cerr << "Build dependency graph" << std::endl;
         DependenciesCollector depsVisitor(sourceManager, srcInfo);
         depsVisitor.TraverseDecl(Ctx.getTranslationUnitDecl());
 
@@ -763,10 +751,10 @@ public:
         }
         sema.getDiagnostics().setSuppressAllDiagnostics(false);
 
-        //cerr << "Search for used decls" << std::endl;
+        //std::cerr << "Search for used decls" << std::endl;
         UsageInfo usageInfo(sourceManager, rewriter);
-        std::set<Decl*> used;
-        std::set<Decl*> queue;
+        set<Decl*> used;
+        set<Decl*> queue;
         for (Decl* decl : srcInfo.declsToKeep)
             queue.insert(decl->getCanonicalDecl());
 
@@ -788,7 +776,7 @@ public:
 
         used.clear();
 
-        //cerr << "Remove unused decls" << std::endl;
+        //std::cerr << "Remove unused decls" << std::endl;
         OptimizerVisitor visitor(sourceManager, usageInfo, smartRewriter);
         visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
 
@@ -798,7 +786,7 @@ public:
 
         smartRewriter.applyChanges();
 
-        //cerr << "Done!" << std::endl;
+        //std::cerr << "Done!" << std::endl;
         result = getResult();
     }
 
@@ -858,32 +846,18 @@ private:
         }
     }
 
-
-    std::string toString(const Decl* decl) const {
-        if (!decl)
-            return "<invalid>";
-        bool invalid;
-        const char* b = sourceManager.getCharacterData(decl->getLocStart(), &invalid);
-        if (invalid || !b)
-            return "<invalid>";
-        const char* e = sourceManager.getCharacterData(decl->getLocEnd(), &invalid);
-        if (invalid || !e)
-            return "<invalid>";
-        return std::string(b, std::min(b+30, e));
-    }
-
-    std::string getResult() const {
+    string getResult() const {
         // At this point the rewriter's buffer should be full with the rewritten
         // file contents.
         if (const RewriteBuffer* rewriteBuf =
                 smartRewriter.getRewriteBufferFor(sourceManager.getMainFileID()))
-            return std::string(rewriteBuf->begin(), rewriteBuf->end());
+            return string(rewriteBuf->begin(), rewriteBuf->end());
 
         // No changes
         bool invalid;
         const llvm::MemoryBuffer* buf = sourceManager.getBuffer(sourceManager.getMainFileID(), &invalid);
         if (buf && !invalid)
-            return std::string(buf->getBufferStart(), buf->getBufferEnd());
+            return string(buf->getBufferStart(), buf->getBufferEnd());
         else
             return "Inliner error"; // something's wrong
     }
@@ -894,7 +868,7 @@ private:
     SmartRewriter& smartRewriter;
     Rewriter& rewriter;
     RemoveInactivePreprocessorBlocks& ppCallbacks;
-    std::string& result;
+    string& result;
     SourceInfo srcInfo;
 };
 
@@ -914,7 +888,7 @@ public:
         , macrosToKeep(macrosToKeep_)
     {}
 
-    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& compiler, StringRef /*file*/)
+    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& compiler, StringRef /*file*/) override
     {
         if (!compiler.hasSourceManager())
             throw "No source manager";
@@ -948,13 +922,13 @@ public:
 
 
 
-Optimizer::Optimizer(const std::vector<std::string>& cmdLineOptions_,
-                     const std::vector<std::string>& macrosToKeep_)
+Optimizer::Optimizer(const vector<string>& cmdLineOptions_,
+                     const vector<string>& macrosToKeep_)
     : cmdLineOptions(cmdLineOptions_)
     , macrosToKeep(macrosToKeep_.begin(), macrosToKeep_.end())
 {}
 
-std::string Optimizer::doOptimize(const std::string& cppFile) {
+string Optimizer::doOptimize(const string& cppFile) {
     std::unique_ptr<tooling::FixedCompilationDatabase> compilationDatabase(
         createCompilationDatabaseFromCommandLine(cmdLineOptions));
 

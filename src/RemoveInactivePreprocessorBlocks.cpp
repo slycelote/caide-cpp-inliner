@@ -11,11 +11,17 @@
 #include <clang/Lex/Preprocessor.h>
 
 #include <map>
+#include <set>
+#include <string>
 #include <vector>
 
 
-using namespace std;
 using namespace clang;
+using std::map;
+using std::set;
+using std::string;
+using std::vector;
+
 
 namespace caide {
 namespace internal {
@@ -265,7 +271,7 @@ private:
     }
 
     SourceLocation changeColumn(SourceLocation loc, unsigned col) const {
-        pair<FileID, unsigned> decomposedLoc = sourceManager.getDecomposedLoc(loc);
+        std::pair<FileID, unsigned> decomposedLoc = sourceManager.getDecomposedLoc(loc);
         FileID fileId = decomposedLoc.first;
         unsigned filePos = decomposedLoc.second;
         unsigned line = sourceManager.getLineNumber(fileId, filePos);

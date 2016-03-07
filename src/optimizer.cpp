@@ -720,6 +720,10 @@ private:
         Rewriter::RewriteOptions opts;
         opts.RemoveLineIfEmpty = true;
         rewriter.removeRange(SourceRange(start, end), opts);
+
+        RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
+        if (comment)
+            rewriter.removeRange(comment->getSourceRange(), opts);
     }
 
     string toString(const SourceLocation& loc) const {
@@ -817,10 +821,10 @@ private:
 
             SourceLocation startOfType = kv.first;
             SourceLocation endOfLastVar = getExpansionEnd(sourceManager, vars.back());
-            SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
 
             if (lastUsed == n) {
                 // all variables are unused
+                SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
                 SourceRange range(startOfType, semiColon);
                 smartRewriter.removeRange(range, opts);
             } else {

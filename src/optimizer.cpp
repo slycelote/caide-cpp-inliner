@@ -112,8 +112,12 @@ private:
     void insertReference(Decl* from, Decl* to) {
         if (!from || !to)
             return;
-        from = from->getCanonicalDecl();
-        to = to->getCanonicalDecl();
+        // Multiple declarations of the same namespace must be distinguished:
+        // it's possible that one of them should be deleted but no the other one.
+        if (!isa<NamespaceDecl>(from))
+            from = from->getCanonicalDecl();
+        if (!isa<NamespaceDecl>(to))
+            to = to->getCanonicalDecl();
         srcInfo.uses[from].insert(to);
         dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
             << "<" << toString(sourceManager, from).substr(0, 30) << ">"
@@ -215,7 +219,7 @@ public:
         dbg("DECL " << decl->getDeclKindName() << " " << decl
             << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
             << toString(sourceManager, getExpansionRange(sourceManager, decl))
-            << endl);
+            << std::endl);
 
         // Mark dependence on enclosing class/namespace.
         Decl* ctx = dyn_cast_or_null<Decl>(decl->getDeclContext());
@@ -497,7 +501,7 @@ public:
                 decl->getDeclKindName() << " " << decl
                 << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
                 << toString(sourceManager, range)
-                << endl);
+                << std::endl);
             usedDecls.insert(decl);
             locationsOfUsedDecls.insert(range);
         }
@@ -550,6 +554,12 @@ public:
     bool VisitEmptyDecl(EmptyDecl* decl) {
         if (sourceManager.isInMainFile(decl->getLocStart()))
             removeDecl(decl);
+        return true;
+    }
+
+    bool VisitNamespaceDecl(NamespaceDecl* namespaceDecl) {
+        if (sourceManager.isInMainFile(namespaceDecl->getLocStart()) && !usageInfo.isUsed(namespaceDecl))
+            removeDecl(namespaceDecl);
         return true;
     }
 
@@ -766,7 +776,7 @@ public:
         set<Decl*> used;
         set<Decl*> queue;
         for (Decl* decl : srcInfo.declsToKeep)
-            queue.insert(decl->getCanonicalDecl());
+            queue.insert(isa<NamespaceDecl>(decl) ? decl : decl->getCanonicalDecl());
 
         while (!queue.empty()) {
             Decl* decl = *queue.begin();

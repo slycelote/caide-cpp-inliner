@@ -10,6 +10,9 @@
 #include <vector>
 
 
+namespace cmdparse {
+
+/// An exception occuring during parsing of a command line
 class CommandLineParserException: public std::runtime_error
 {
 public:
@@ -40,10 +43,13 @@ namespace detail {
 }
 
 
+/// Parses command line arguments into a structure of type Config
 template<typename Config>
 class CommandLineParser
 {
 public:
+    /// Register a command line option. Returns the same instance of CommandLineParser,
+    /// for 'fluent interface'
     template<typename T>
     CommandLineParser& add(const std::string& optionName, T Config::* field)
     {
@@ -52,6 +58,7 @@ public:
         return *this;
     }
 
+    /// Parse command line arguments given in the range [first; last)
     template<typename ArgsIterator>
     Config parse(ArgsIterator first, ArgsIterator last) {
         config = Config();
@@ -103,4 +110,6 @@ private:
     std::vector<std::string>::const_iterator argsIterator;
     std::map<std::string, std::function<void()>> optionHandlers;
 };
+
+} // namespace cmdparse
 

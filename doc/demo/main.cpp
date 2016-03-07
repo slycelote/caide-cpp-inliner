@@ -20,7 +20,7 @@ struct Options {
 
 int main(int argc, const char* argv[]) {
     Options options;
-    CommandLineParser<Options> parser;
+    cmdparse::CommandLineParser<Options> parser;
 
     try {
         parser.add("-name", &Options::name)
@@ -40,7 +40,7 @@ int main(int argc, const char* argv[]) {
 
 #ifdef OPT_FRAME
     if (options.drawFrame)
-        outputInFrame(greeting, std::cout);
+        ascii::outputInFrame(greeting, std::cout);
     else
         std::cout << greeting << std::endl;
 #else

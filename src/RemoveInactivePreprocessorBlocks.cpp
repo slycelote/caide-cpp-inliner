@@ -73,7 +73,7 @@ private:
         return macrosToKeep.find(macroName) != macrosToKeep.end();
     }
 
-    void removeMacro(const Macro& macro) {
+    void removeMacroIfUnused(const Macro& macro) {
         for (const SourceRange& usageRange : macro.usages) {
             if (rewriter.canRemoveRange(usageRange)) {
                 // The usage of the macro has not been removed, so
@@ -83,7 +83,6 @@ private:
         }
 
         Rewriter::RewriteOptions opts;
-        opts.RemoveLineIfEmpty = true;
 
         rewriter.removeRange(macro.definition, opts);
 
@@ -164,15 +163,13 @@ public:
     void Finalize() {
         // Remove unused #defines that don't have a corresponding #undef
         for (auto it = definedMacros.begin(); it != definedMacros.end(); ++it)
-            removeMacro(it->second);
+            removeMacroIfUnused(it->second);
 
         // Remove unused #define / #undef pairs
         for (const Macro& macro : undefinedMacros)
-            removeMacro(macro);
+            removeMacroIfUnused(macro);
 
         Rewriter::RewriteOptions opts;
-        opts.RemoveLineIfEmpty = true;
-
         for (const SourceRange& range: inactiveBranches)
             rewriter.removeRange(range, opts);
     }

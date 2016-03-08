@@ -467,6 +467,14 @@ public:
         insertReference(recordDecl, recordDecl->getDescribedClassTemplate());
         return true;
     }
+
+    // sizeof, alignof
+    bool VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr* expr) {
+        if (expr->isArgumentType())
+            insertReferenceToType(getCurrentDecl(), expr->getArgumentType());
+        // if the argument is a variable it will be processed as DeclRefExpr
+        return true;
+    }
 };
 
 

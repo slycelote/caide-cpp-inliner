@@ -214,6 +214,7 @@ public:
 
     bool shouldVisitImplicitCode() const { return true; }
     bool shouldVisitTemplateInstantiations() const { return true; }
+    bool shouldWalkTypesOfTypeLocs() const { return true; }
 
     bool VisitDecl(Decl* decl) {
         dbg("DECL " << decl->getDeclKindName() << " " << decl

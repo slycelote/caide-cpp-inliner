@@ -131,13 +131,4 @@ SideEffect instance;
   In general, if you find that a declaration is removed incorrectly, mark this
   declaration with `caide keep` (and file an issue :)).
 
-* Integral constants get removed even if they are used as a template argument:
-
-```
-const int N = 42;
-template<int n> void func()
-{}
-func<N>();
-```
-
 

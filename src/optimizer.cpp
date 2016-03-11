@@ -706,6 +706,21 @@ public:
         return true;
     }
 
+    bool VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
+        if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
+            return true;
+        if (aliasDecl->getDescribedAliasTemplate()) {
+            // This is a template alias; will be processed as TypeAliasTemplateDecl
+            return true;
+        }
+
+        Decl* canonicalDecl = aliasDecl->getCanonicalDecl();
+        if (!usageInfo.isUsed(canonicalDecl))
+            removeDecl(aliasDecl);
+
+        return true;
+    }
+
     bool VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasDecl) {
         if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
             return true;

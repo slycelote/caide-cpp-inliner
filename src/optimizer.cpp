@@ -205,6 +205,11 @@ private:
         insertReferenceToType(from, to, seen);
     }
 
+    void insertReferenceToType(Decl* from, const TypeSourceInfo* typeSourceInfo) {
+        if (typeSourceInfo)
+            insertReferenceToType(from, typeSourceInfo->getType());
+    }
+
 public:
     DependenciesCollector(SourceManager& srcMgr, SourceInfo& srcInfo_)
         : sourceManager(srcMgr)
@@ -273,8 +278,7 @@ public:
     }
 
     bool VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* tempExpr) {
-        if (TypeSourceInfo* tsi = tempExpr->getTypeSourceInfo())
-            insertReferenceToType(getCurrentDecl(), tsi->getType());
+        insertReferenceToType(getCurrentDecl(), tempExpr->getTypeSourceInfo());
         return true;
     }
 
@@ -302,8 +306,7 @@ public:
     }
 
     bool VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr* initExpr) {
-        if (TypeSourceInfo* tsi = initExpr->getTypeSourceInfo())
-            insertReferenceToType(getCurrentDecl(), tsi->getType());
+        insertReferenceToType(getCurrentDecl(), initExpr->getTypeSourceInfo());
         return true;
     }
 
@@ -389,6 +392,10 @@ public:
 
     bool VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
         dbg(CAIDE_FUNC);
+        // specDecl is canonical (e.g. all typedefs are removed).
+        // Add reference to the type that is actually written in the code.
+        insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
+
         llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
             instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
@@ -425,8 +432,16 @@ public:
         }
 
         FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo();
-        if (specInfo)
+        if (specInfo) {
             insertReference(f, specInfo->getTemplate()->getTemplatedDecl());
+            // Add references to template argument types as they are written in code, not the canonical types.
+            if (const ASTTemplateArgumentListInfo* templateArgs = specInfo->TemplateArgumentsAsWritten) {
+                for (unsigned i = 0; i < templateArgs->NumTemplateArgs; ++i) {
+                    const TemplateArgumentLoc& arg = (*templateArgs)[i];
+                    insertReferenceToType(f, arg.getTypeSourceInfo());
+                }
+            }
+        }
 
         insertReferenceToType(f, f->getReturnType());
 

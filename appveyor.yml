@@ -1,8 +1,11 @@
 os: Visual Studio 2015
 
+before_build:
+    - git submodule update --init --recursive
+
 build_script:
-    - ci\appveyor-build.ps1
+    - powershell ci\appveyor-build.ps1
 
 test_script:
-    - ci\appveyor-test.ps1
+    - powershell ci\appveyor-test.ps1
 

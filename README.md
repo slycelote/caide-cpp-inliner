@@ -1,6 +1,8 @@
 # Caide C++ inliner
 
-*Caide C++ inliner* transform a C++ program consisting of multiple source
+![Build status](https://travis-ci.org/slycelote/caide-cpp-inliner.svg)
+
+*Caide C++ inliner* transforms a C++ program consisting of multiple source
 files and headers into a single self-contained source file without any
 external dependencies (except for standard system headers). Unused code is not
 included in the resulting file.

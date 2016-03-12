@@ -348,6 +348,7 @@ public:
         return true;
     }
 
+    // X->F and X.F
     bool VisitMemberExpr(MemberExpr* memberExpr) {
         dbg(CAIDE_FUNC);
         insertReference(getCurrentDecl(), memberExpr->getMemberDecl());
@@ -366,6 +367,7 @@ public:
         return true;
     }
 
+    // Includes both typedef and type alias
     bool VisitTypedefNameDecl(TypedefNameDecl* typedefDecl) {
         dbg(CAIDE_FUNC);
         insertReferenceToType(typedefDecl, typedefDecl->getUnderlyingType());
@@ -513,6 +515,23 @@ public:
         if (usedDecls.find(decl) != usedDecls.end())
             return true;
 
+        // This is HACKY. A declaration in a templated context (such as a method of a class template)
+        // is present in multiple instances in the AST: once for the template itself and once for
+        // each *implicit* instantiation. Clearly, it doesn't make sense to 'remove' the
+        // Decl coming from an implicit instantiation: what if another implicit instantiation
+        // of the same code is used? (And we don't: the OptimizerVisitor doesn't visit implicit code.)
+        // The correct way to know if *any* implicit instantiation of the same code is used
+        // would be to add a dependency from each Decl coming from an implicit instantiation to
+        // the one Decl coming from the template itself; then if the one Decl is unreachable
+        // we remove it. Unfortunately, there seems to be no way to say 'find the Decl in
+        // non-instantiated context corresponding to this Decl'.
+        // Our solution is to use the SourceRange of a Decl as its fingerprint. All instances of
+        // a single declaration have the same SourceRange, regardless of where they come from:
+        // the template itself or one of implicit instantiations. We add source ranges of used
+        // Decl's to a set; to check if a declaration is used, look up its SourceRange in the set.
+        //
+        // Note that tracking usedDecls above is not necessary, except (maybe) for optimization
+        // (SourceRangeComparer is relatively slow).
         SourceRange range = getSourceRange(decl);
         return locationsOfUsedDecls.find(range) != locationsOfUsedDecls.end();
     }

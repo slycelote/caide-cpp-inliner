@@ -49,7 +49,7 @@ matrix:
                       - llvm-3.7-dev
 
 
-script:  travis/build-and-test.sh
+script:  ci/build-and-test.sh
 
 notifications:
     on_failure: always

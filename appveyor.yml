@@ -1,0 +1,8 @@
+os: Visual Studio 2015
+
+build_script:
+    - ci\appveyor-build.ps1
+
+test_script:
+    - ci\appveyor-test.ps1
+

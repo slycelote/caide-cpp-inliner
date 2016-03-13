@@ -1,4 +1,5 @@
 /tests/* linguist-documentation
+/doc/* linguist-documentation
 /src/clang/* linguist-vendored
 /src/llvm/* linguist-vendored
 

@@ -24,7 +24,7 @@ matrix:
                       - *default_packages
                       - cmake
 
-        - env: CAIDE_USE_SYSTEM_CLANG=ON
+        - env: CAIDE_USE_SYSTEM_CLANG=ON CAIDE_CLANG_VERSION=3.6
           addons:
               apt:
                   sources:
@@ -36,7 +36,7 @@ matrix:
                       - libclang-3.6-dev
                       - llvm-3.6-dev
 
-        - env: CAIDE_USE_SYSTEM_CLANG=ON
+        - env: CAIDE_USE_SYSTEM_CLANG=ON CAIDE_CLANG_VERSION=3.7
           addons:
               apt:
                   sources:

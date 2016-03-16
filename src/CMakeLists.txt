@@ -120,8 +120,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 
-set(inlinerSources caideInliner.cpp inliner.cpp optimizer.cpp
-    RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp util.cpp)
+set(inlinerSources caideInliner.cpp DependenciesCollector.cpp inliner.cpp optimizer.cpp
+    OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp UsedDeclarations.cpp
+    util.cpp)
 
 if(CAIDE_SHARED_LIBRARY)
     add_library(caideInliner SHARED ${inlinerSources})

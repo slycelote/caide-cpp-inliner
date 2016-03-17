@@ -6,13 +6,18 @@
 
 #pragma once
 
-#include <clang/AST/Decl.h>
 #include <clang/Basic/SourceLocation.h>
 
 #include <map>
 #include <set>
 #include <vector>
 
+
+namespace clang {
+    class Decl;
+    class FunctionDecl;
+    class VarDecl;
+}
 
 namespace caide {
 namespace internal {

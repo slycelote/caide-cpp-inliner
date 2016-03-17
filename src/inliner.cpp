@@ -10,25 +10,17 @@
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
-#include <clang/Basic/Diagnostic.h>
-#include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
-#include <clang/Basic/TargetOptions.h>
-#include <clang/Basic/TargetInfo.h>
-#include <clang/Frontend/ASTConsumers.h>
 #include <clang/Frontend/CompilerInstance.h>
-#include <clang/Frontend/FrontendActions.h>
-#include <clang/Frontend/Utils.h>
-#include <clang/Lex/HeaderSearch.h>
+#include <clang/Frontend/FrontendAction.h>
 #include <clang/Lex/Preprocessor.h>
-#include <clang/Parse/ParseAST.h>
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
-#include <cstdio>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <sstream>
@@ -51,11 +43,11 @@ struct IncludeReplacement {
 
 class TrackMacro: public PPCallbacks {
 public:
-    TrackMacro(SourceManager& _srcManager, set<string>& _includedHeaders,
-               vector<IncludeReplacement>& _replacements)
-        : srcManager(_srcManager)
-        , includedHeaders(_includedHeaders)
-        , replacementStack(_replacements)
+    TrackMacro(SourceManager& srcManager_, set<string>& includedHeaders_,
+               vector<IncludeReplacement>& replacements_)
+        : srcManager(srcManager_)
+        , includedHeaders(includedHeaders_)
+        , replacementStack(replacements_)
     {
         // Setup a placeholder where the result for the whole CPP file will be stored
         replacementStack.resize(1);
@@ -142,8 +134,7 @@ public:
         replacementStack.resize(1);
     }
 
-    // Documentation seems to be wrong: the first parameter is included file rather than parent
-    virtual void FileSkipped(const FileEntry &IncludedFile, const Token &FilenameTok,
+    virtual void FileSkipped(const FileEntry& SkippedFile, const Token &FilenameTok,
                              SrcMgr::CharacteristicKind /*FileType*/) override
     {
         // Don't track system headers including each other
@@ -153,7 +144,7 @@ public:
             // It's important to do a manual check here because in other versions of STL
             // the header may not have been included. In other words, we need to explicitly
             // include every file that we use.
-            if (!markAsIncluded(IncludedFile))
+            if (!markAsIncluded(SkippedFile))
                 replacementStack.back().replaceWith = "";
         }
     }
@@ -165,15 +156,14 @@ public:
             return replacementStack[0].replaceWith;
     }
 
-    virtual ~TrackMacro() override {
-    }
+    virtual ~TrackMacro() override = default;
 
 private:
     SourceManager& srcManager;
 
     /*
-     * Headers that we already included. Since we want to process
-     * multiple CPP files, we need to track this information explicitly.
+     * Headers that have been included explicitly by user code (i.e. from a cpp file or from
+     * a non-system header).
      */
     set<string>& includedHeaders;
 
@@ -260,10 +250,6 @@ private:
         return srcManager.isInSystemHeader(loc);
     }
 
-    bool isSystemHeader(const FileEntry* entry) const {
-        return isSystemHeader(srcManager.translateFile(entry));
-    }
-
     bool isUserFile(SourceLocation loc) const {
         return !srcManager.isInSystemHeader(loc) && loc.isValid();
     }
@@ -303,18 +289,18 @@ private:
     set<string>& includedHeaders;
 
 public:
-    InlinerFrontendActionFactory(vector<IncludeReplacement>& _replacementStack,
-                                 set<string>& _includedHeaders)
-        : replacementStack(_replacementStack)
-        , includedHeaders(_includedHeaders)
+    InlinerFrontendActionFactory(vector<IncludeReplacement>& replacementStack_,
+                                 set<string>& includedHeaders_)
+        : replacementStack(replacementStack_)
+        , includedHeaders(includedHeaders_)
     {}
     FrontendAction* create() {
         return new InlinerFrontendAction(replacementStack, includedHeaders);
     }
 };
 
-Inliner::Inliner(const vector<string>& _cmdLineOptions)
-    : cmdLineOptions(_cmdLineOptions)
+Inliner::Inliner(const vector<string>& cmdLineOptions_)
+    : cmdLineOptions(cmdLineOptions_)
 {}
 
 string Inliner::doInline(const string& cppFile) {

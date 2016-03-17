@@ -108,7 +108,7 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     # Add warnings for g++
-    foreach(flag -Wall -Wextra -Wshadow -Wlogical-op)
+    foreach(flag -Wall -Wextra -Wshadow -Wlogical-op -Werror=return-type)
         if(CMAKE_CXX_FLAGS MATCHES "${flag}")
         else()
             CHECK_CXX_COMPILER_FLAG("${flag}" compiler_supports_flag)
@@ -121,8 +121,8 @@ endif()
 
 
 set(inlinerSources caideInliner.cpp DependenciesCollector.cpp inliner.cpp optimizer.cpp
-    OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp UsedDeclarations.cpp
-    util.cpp)
+    OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
+    SourceLocationComparers.cpp UsedDeclarations.cpp util.cpp)
 
 if(CAIDE_SHARED_LIBRARY)
     add_library(caideInliner SHARED ${inlinerSources})

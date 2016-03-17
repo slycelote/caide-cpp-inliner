@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "SmartRewriter.h"
+#include "SourceLocationComparers.h"
 
 #include <clang/Basic/SourceLocation.h>
 
@@ -26,17 +26,16 @@ namespace internal {
 // Tracks which declarations are 'used', i.e. are called directly or indirectly from int main().
 class UsedDeclarations {
 public:
-    UsedDeclarations(clang::SourceManager& sourceManager_, clang::Rewriter& rewriter_);
+    explicit UsedDeclarations(clang::SourceManager& sourceManager_);
     void addIfInMainFile(clang::Decl* decl);
-    bool isUsed(clang::Decl* decl) const;
+    bool contains(clang::Decl* decl) const;
 
 private:
     clang::SourceRange getSourceRange(clang::Decl* decl) const;
 
     clang::SourceManager& sourceManager;
-    SourceRangeComparer cmp;
     std::set<clang::Decl*> usedDecls;
-    std::set<clang::SourceRange, SourceRangeComparer> locationsOfUsedDecls;
+    std::set<clang::SourceRange, ArbitraryRangeComparer> locationsOfUsedDecls;
 };
 
 

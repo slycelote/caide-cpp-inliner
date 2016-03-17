@@ -419,6 +419,9 @@ bool DependenciesCollector::VisitCXXMethodDecl(CXXMethodDecl* method) {
 
 bool DependenciesCollector::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
     insertReference(recordDecl, recordDecl->getDescribedClassTemplate());
+    // No implicit calls to destructors in AST; assume that
+    // if a class is used, its destructor is used too.
+    insertReference(recordDecl, recordDecl->getDestructor());
     return true;
 }
 

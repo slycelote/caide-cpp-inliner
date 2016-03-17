@@ -23,7 +23,6 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Lex/Preprocessor.h>
-#include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Sema/Sema.h>
 #include <clang/Tooling/Tooling.h>
 
@@ -47,13 +46,12 @@ namespace internal {
 
 class OptimizerConsumer: public ASTConsumer {
 public:
-    explicit OptimizerConsumer(CompilerInstance& compiler_, SmartRewriter& smartRewriter_,
-                Rewriter& rewriter_, RemoveInactivePreprocessorBlocks& ppCallbacks_,
+    explicit OptimizerConsumer(CompilerInstance& compiler_, std::unique_ptr<SmartRewriter> smartRewriter_,
+                RemoveInactivePreprocessorBlocks& ppCallbacks_,
                 string& result_)
         : compiler(compiler_)
         , sourceManager(compiler.getSourceManager())
-        , smartRewriter(smartRewriter_)
-        , rewriter(rewriter_)
+        , smartRewriter(std::move(smartRewriter_))
         , ppCallbacks(ppCallbacks_)
         , result(result_)
     {}
@@ -76,7 +74,7 @@ public:
         sema.getDiagnostics().setSuppressAllDiagnostics(false);
 
         //std::cerr << "Search for used decls" << std::endl;
-        UsedDeclarations usageInfo(sourceManager, rewriter);
+        UsedDeclarations usedDecls(sourceManager);
         set<Decl*> used;
         set<Decl*> queue;
         for (Decl* decl : srcInfo.declsToKeep)
@@ -87,28 +85,21 @@ public:
             queue.erase(queue.begin());
             if (used.insert(decl).second) {
                 queue.insert(srcInfo.uses[decl].begin(), srcInfo.uses[decl].end());
-                usageInfo.addIfInMainFile(decl);
-
-                if (CXXRecordDecl* record = dyn_cast<CXXRecordDecl>(decl)) {
-                    // No implicit calls to destructors in AST; assume that
-                    // if a class is used, its destructor is used too.
-                    if (CXXDestructorDecl* destructor = record->getDestructor())
-                        queue.insert(destructor);
-                }
+                usedDecls.addIfInMainFile(decl);
             }
         }
 
         used.clear();
 
         //std::cerr << "Remove unused decls" << std::endl;
-        OptimizerVisitor visitor(sourceManager, usageInfo, smartRewriter);
+        OptimizerVisitor visitor(sourceManager, usedDecls, *smartRewriter);
         visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
 
-        removeUnusedVariables(usageInfo, Ctx);
+        removeUnusedVariables(usedDecls, Ctx);
 
         ppCallbacks.Finalize();
 
-        smartRewriter.applyChanges();
+        smartRewriter->applyChanges();
 
         //std::cerr << "Done!" << std::endl;
         result = getResult();
@@ -117,7 +108,7 @@ public:
 private:
     // Variables are a special case because there may be many
     // comma separated variables in one definition.
-    void removeUnusedVariables(const UsedDeclarations& usageInfo, ASTContext& ctx) {
+    void removeUnusedVariables(const UsedDeclarations& usedDecls, ASTContext& ctx) {
         Rewriter::RewriteOptions opts;
         opts.RemoveLineIfEmpty = true;
 
@@ -128,7 +119,7 @@ private:
             size_t lastUsed = n;
             for (size_t i = 0; i < n; ++i) {
                 VarDecl* var = vars[i];
-                isUsed[i] = usageInfo.isUsed(var->getCanonicalDecl());
+                isUsed[i] = usedDecls.contains(var->getCanonicalDecl());
                 if (isUsed[i])
                     lastUsed = i;
             }
@@ -140,7 +131,7 @@ private:
                 // all variables are unused
                 SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
                 SourceRange range(startOfType, semiColon);
-                smartRewriter.removeRange(range, opts);
+                smartRewriter->removeRange(range, opts);
             } else {
                 for (size_t i = 0; i < lastUsed; ++i) if (!isUsed[i]) {
                     // beginning of variable name
@@ -156,7 +147,7 @@ private:
 
                     if (beg.isValid() && end.isValid()) {
                         SourceRange range(beg, end);
-                        smartRewriter.removeRange(range, opts);
+                        smartRewriter->removeRange(range, opts);
                     }
                 }
                 if (lastUsed + 1 != n) {
@@ -164,17 +155,15 @@ private:
                     SourceLocation end = getExpansionEnd(sourceManager, vars[lastUsed]);
                     SourceLocation comma = findTokenAfterLocation(end, ctx, tok::comma);
                     SourceRange range(comma, endOfLastVar);
-                    smartRewriter.removeRange(range, opts);
+                    smartRewriter->removeRange(range, opts);
                 }
             }
         }
     }
 
     string getResult() const {
-        // At this point the rewriter's buffer should be full with the rewritten
-        // file contents.
         if (const RewriteBuffer* rewriteBuf =
-                smartRewriter.getRewriteBufferFor(sourceManager.getMainFileID()))
+                smartRewriter->getRewriteBufferFor(sourceManager.getMainFileID()))
             return string(rewriteBuf->begin(), rewriteBuf->end());
 
         // No changes
@@ -189,8 +178,7 @@ private:
 private:
     CompilerInstance& compiler;
     SourceManager& sourceManager;
-    SmartRewriter& smartRewriter;
-    Rewriter& rewriter;
+    std::unique_ptr<SmartRewriter> smartRewriter;
     RemoveInactivePreprocessorBlocks& ppCallbacks;
     string& result;
     SourceInfo srcInfo;
@@ -199,16 +187,11 @@ private:
 
 class OptimizerFrontendAction : public ASTFrontendAction {
 private:
-    Rewriter& rewriter;
-    SmartRewriter& smartRewriter;
     string& result;
     const set<string>& macrosToKeep;
 public:
-    OptimizerFrontendAction(Rewriter& rewriter_, SmartRewriter& smartRewriter_,
-           string& result_, const set<string>& macrosToKeep_)
-        : rewriter(rewriter_)
-        , smartRewriter(smartRewriter_)
-        , result(result_)
+    OptimizerFrontendAction(string& result_, const set<string>& macrosToKeep_)
+        : result(result_)
         , macrosToKeep(macrosToKeep_)
     {}
 
@@ -216,10 +199,12 @@ public:
     {
         if (!compiler.hasSourceManager())
             throw "No source manager";
-        rewriter.setSourceMgr(compiler.getSourceManager(), compiler.getLangOpts());
+        auto smartRewriter = std::unique_ptr<SmartRewriter>(
+            new SmartRewriter(compiler.getSourceManager(), compiler.getLangOpts()));
         auto ppCallbacks = std::unique_ptr<RemoveInactivePreprocessorBlocks>(
-            new RemoveInactivePreprocessorBlocks(compiler.getSourceManager(), smartRewriter, macrosToKeep));
-        auto consumer = std::unique_ptr<OptimizerConsumer>(new OptimizerConsumer(compiler, smartRewriter, rewriter, *ppCallbacks, result));
+            new RemoveInactivePreprocessorBlocks(compiler.getSourceManager(), *smartRewriter, macrosToKeep));
+        auto consumer = std::unique_ptr<OptimizerConsumer>(
+            new OptimizerConsumer(compiler, std::move(smartRewriter), *ppCallbacks, result));
         compiler.getPreprocessor().addPPCallbacks(std::move(ppCallbacks));
         return std::move(consumer);
     }
@@ -227,20 +212,15 @@ public:
 
 class OptimizerFrontendActionFactory: public tooling::FrontendActionFactory {
 private:
-    Rewriter& rewriter;
-    SmartRewriter smartRewriter;
     string& result;
     const set<string>& macrosToKeep;
 public:
-    OptimizerFrontendActionFactory(Rewriter& rewriter_, string& result_,
-                const set<string>& macrosToKeep_)
-        : rewriter(rewriter_)
-        , smartRewriter(rewriter_)
-        , result(result_)
+    OptimizerFrontendActionFactory(string& result_, const set<string>& macrosToKeep_)
+        : result(result_)
         , macrosToKeep(macrosToKeep_)
     {}
     FrontendAction* create() {
-        return new OptimizerFrontendAction(rewriter, smartRewriter, result, macrosToKeep);
+        return new OptimizerFrontendAction(result, macrosToKeep);
     }
 };
 
@@ -260,9 +240,8 @@ string Optimizer::doOptimize(const string& cppFile) {
 
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
 
-    Rewriter rewriter;
     string result;
-    OptimizerFrontendActionFactory factory(rewriter, result, macrosToKeep);
+    OptimizerFrontendActionFactory factory(result, macrosToKeep);
 
     int ret = tool.run(&factory);
     if (ret != 0)

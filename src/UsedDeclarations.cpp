@@ -7,6 +7,7 @@
 #include "UsedDeclarations.h"
 #include "util.h"
 
+//#define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 
 #include <clang/Basic/SourceManager.h>
@@ -21,14 +22,12 @@ namespace caide {
 namespace internal {
 
 
-UsedDeclarations::UsedDeclarations(SourceManager& sourceManager_, Rewriter& rewriter_)
+UsedDeclarations::UsedDeclarations(SourceManager& sourceManager_)
     : sourceManager(sourceManager_)
 {
-    cmp.cmp.rewriter = &rewriter_;
-    locationsOfUsedDecls = std::set<SourceRange, SourceRangeComparer>(cmp);
 }
 
-bool UsedDeclarations::isUsed(Decl* decl) const {
+bool UsedDeclarations::contains(Decl* decl) const {
     if (usedDecls.find(decl) != usedDecls.end())
         return true;
 

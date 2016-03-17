@@ -27,10 +27,10 @@ namespace caide {
 namespace internal {
 
 
-OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarations& usageInfo_,
+OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarations& usedDecls,
                                    SmartRewriter& rewriter_)
     : sourceManager(srcManager)
-    , usageInfo(usageInfo_)
+    , usedDeclarations(usedDecls)
     , rewriter(rewriter_)
 {}
 
@@ -50,7 +50,7 @@ bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
 }
 
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* namespaceDecl) {
-    if (sourceManager.isInMainFile(namespaceDecl->getLocStart()) && !usageInfo.isUsed(namespaceDecl))
+    if (sourceManager.isInMainFile(namespaceDecl->getLocStart()) && !usedDeclarations.contains(namespaceDecl))
         removeDecl(namespaceDecl);
     return true;
 }
@@ -100,7 +100,7 @@ bool OptimizerVisitor::needToRemoveFunction(FunctionDecl* functionDecl) const {
     if (functionDecl->isExplicitlyDefaulted() || functionDecl->isDeleted())
         return false;
     FunctionDecl* canonicalDecl = functionDecl->getCanonicalDecl();
-    const bool funcIsUnused = !usageInfo.isUsed(canonicalDecl);
+    const bool funcIsUnused = !usedDeclarations.contains(canonicalDecl);
     const bool thisIsRedeclaration = !functionDecl->doesThisDeclarationHaveABody()
             && declared.find(canonicalDecl) != declared.end();
     return funcIsUnused || thisIsRedeclaration;
@@ -153,7 +153,7 @@ bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
     if (isTemplated && (specKind == TSK_ImplicitInstantiation || specKind == TSK_Undeclared))
         return true;
     CXXRecordDecl* canonicalDecl = recordDecl->getCanonicalDecl();
-    const bool classIsUnused = !usageInfo.isUsed(canonicalDecl);
+    const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
     const bool thisIsRedeclaration = !recordDecl->isCompleteDefinition() && declared.find(canonicalDecl) != declared.end();
 
     if (classIsUnused || thisIsRedeclaration)
@@ -168,7 +168,7 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
         return true;
     dbg(CAIDE_FUNC);
     ClassTemplateDecl* canonicalDecl = templateDecl->getCanonicalDecl();
-    const bool classIsUnused = !usageInfo.isUsed(canonicalDecl);
+    const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
     const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition() && declared.find(canonicalDecl) != declared.end();
 
     if (classIsUnused || thisIsRedeclaration)
@@ -183,7 +183,7 @@ bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
         return true;
 
     Decl* canonicalDecl = typedefDecl->getCanonicalDecl();
-    if (!usageInfo.isUsed(canonicalDecl))
+    if (!usedDeclarations.contains(canonicalDecl))
         removeDecl(typedefDecl);
 
     return true;
@@ -198,7 +198,7 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
     }
 
     Decl* canonicalDecl = aliasDecl->getCanonicalDecl();
-    if (!usageInfo.isUsed(canonicalDecl))
+    if (!usedDeclarations.contains(canonicalDecl))
         removeDecl(aliasDecl);
 
     return true;
@@ -207,7 +207,7 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
 bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasDecl) {
     if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
         return true;
-    if (!usageInfo.isUsed(aliasDecl))
+    if (!usedDeclarations.contains(aliasDecl))
         removeDecl(aliasDecl);
     return true;
 }
@@ -237,8 +237,7 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
     opts.RemoveLineIfEmpty = true;
     rewriter.removeRange(SourceRange(start, end), opts);
 
-    RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
-    if (comment)
+    if (RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl))
         rewriter.removeRange(comment->getSourceRange(), opts);
 }
 

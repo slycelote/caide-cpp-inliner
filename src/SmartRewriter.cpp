@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "SmartRewriter.h"
+#include "SourceLocationComparers.h"
 
 #include <clang/Basic/SourceManager.h>
 
@@ -15,25 +16,20 @@ using namespace clang;
 namespace caide {
 namespace internal {
 
-bool SourceLocationComparer::operator() (const SourceLocation& lhs, const SourceLocation& rhs) const {
-    return rewriter->getSourceMgr().isBeforeInTranslationUnit(lhs, rhs);
-}
-
-bool SourceRangeComparer::operator() (const clang::SourceRange& lhs, const clang::SourceRange& rhs) const {
-    return cmp(lhs.getBegin(), rhs.getBegin()) ||
-            (lhs.getBegin() == rhs.getBegin() && cmp(lhs.getEnd(), rhs.getEnd()));
-}
+RewriteItemComparer::RewriteItemComparer(const clang::SourceManager& sourceManager)
+    : cmp(sourceManager)
+{}
 
 bool RewriteItemComparer::operator() (const RewriteItem& lhs, const RewriteItem& rhs) const {
     return cmp(lhs.range.getBegin(), rhs.range.getBegin());
 }
 
-SmartRewriter::SmartRewriter(clang::Rewriter& rewriter_)
-    : rewriter(rewriter_)
+SmartRewriter::SmartRewriter(clang::SourceManager& srcManager, const clang::LangOptions& langOptions)
+    : rewriter(srcManager, langOptions)
+    , comparer(srcManager)
+    , removed(comparer)
     , changesApplied(false)
 {
-    comparer.cmp.rewriter = &rewriter_;
-    removed = std::set<RewriteItem, RewriteItemComparer>(comparer);
 }
 
 bool SmartRewriter::removeRange(const SourceRange& range, Rewriter::RewriteOptions opts) {

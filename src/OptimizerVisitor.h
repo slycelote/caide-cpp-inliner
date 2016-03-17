@@ -24,7 +24,7 @@ class UsedDeclarations;
 
 class OptimizerVisitor: public clang::RecursiveASTVisitor<OptimizerVisitor> {
 public:
-    OptimizerVisitor(clang::SourceManager& srcManager, const UsedDeclarations& usageInfo_,
+    OptimizerVisitor(clang::SourceManager& srcManager, const UsedDeclarations& usedDecls,
             SmartRewriter& rewriter_);
 
     bool shouldVisitImplicitCode() const;
@@ -50,7 +50,7 @@ private:
 
 
     clang::SourceManager& sourceManager;
-    const UsedDeclarations& usageInfo;
+    const UsedDeclarations& usedDeclarations;
     std::set<clang::Decl*> declared;
     std::set<clang::NamespaceDecl*> usedNamespaces;
     SmartRewriter& rewriter;

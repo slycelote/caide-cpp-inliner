@@ -258,20 +258,22 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
     if (!decl)
         return;
     removed.insert(decl);
+
     SourceLocation start = getExpansionStart(sourceManager, decl);
     SourceLocation end = getExpansionEnd(sourceManager, decl);
-
     SourceLocation semicolonAfterDefinition = findSemiAfterLocation(end, decl->getASTContext());
+
     dbg("REMOVE " << decl->getDeclKindName() << " "
         << decl << ": " << toString(start) << " " << toString(end)
         << " ; " << toString(semicolonAfterDefinition) << std::endl);
+
     if (semicolonAfterDefinition.isValid())
         end = semicolonAfterDefinition;
-    Rewriter::RewriteOptions opts;
-    rewriter.removeRange(SourceRange(start, end), opts);
+
+    rewriter.removeRange(start, end);
 
     if (RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl))
-        rewriter.removeRange(comment->getSourceRange(), opts);
+        rewriter.removeRange(comment->getSourceRange());
 }
 
 string OptimizerVisitor::toString(SourceLocation loc) const {

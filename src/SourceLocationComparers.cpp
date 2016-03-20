@@ -21,7 +21,7 @@ SourceLocationComparer::SourceLocationComparer(const clang::SourceManager& sourc
     : sourceManager(sourceManager_)
 {}
 
-bool SourceLocationComparer::operator() (const SourceLocation& lhs, const SourceLocation& rhs) const {
+bool SourceLocationComparer::operator() (SourceLocation lhs, SourceLocation rhs) const {
     return sourceManager.isBeforeInTranslationUnit(lhs, rhs);
 }
 

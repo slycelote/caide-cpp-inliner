@@ -149,9 +149,6 @@ private:
     // Variables are a special case because there may be many
     // comma separated variables in one definition.
     void removeUnusedVariables(const UsedDeclarations& usedDecls, ASTContext& ctx) {
-        Rewriter::RewriteOptions opts;
-        opts.RemoveLineIfEmpty = true;
-
         for (const auto& kv : srcInfo.staticVariables) {
             const vector<VarDecl*>& vars = kv.second;
             const size_t n = vars.size();
@@ -169,8 +166,7 @@ private:
             if (lastUsed == n) {
                 // all variables are unused
                 SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
-                SourceRange range(startOfType, semiColon);
-                smartRewriter->removeRange(range, opts);
+                smartRewriter->removeRange(startOfType, semiColon);
             } else {
                 for (size_t i = 0; i < lastUsed; ++i) if (!isUsed[i]) {
                     // beginning of variable name
@@ -184,17 +180,14 @@ private:
                         end = findTokenAfterLocation(end, ctx, tok::comma);
                     }
 
-                    if (beg.isValid() && end.isValid()) {
-                        SourceRange range(beg, end);
-                        smartRewriter->removeRange(range, opts);
-                    }
+                    if (beg.isValid() && end.isValid())
+                        smartRewriter->removeRange(beg, end);
                 }
                 if (lastUsed + 1 != n) {
                     // clear all remaining variables, starting with comma
                     SourceLocation end = getExpansionEnd(sourceManager, vars[lastUsed]);
                     SourceLocation comma = findTokenAfterLocation(end, ctx, tok::comma);
-                    SourceRange range(comma, endOfLastVar);
-                    smartRewriter->removeRange(range, opts);
+                    smartRewriter->removeRange(comma, endOfLastVar);
                 }
             }
         }

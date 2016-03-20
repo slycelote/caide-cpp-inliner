@@ -27,8 +27,9 @@ public:
     SmartRewriter(SmartRewriter&&) = delete;
     SmartRewriter& operator=(SmartRewriter&&) = delete;
 
-    bool canRemoveRange(const clang::SourceRange& range) const;
-    bool removeRange(const clang::SourceRange& range, clang::Rewriter::RewriteOptions opts);
+    bool isPartOfRangeRemoved(const clang::SourceRange& range) const;
+    void removeRange(clang::SourceLocation begin, clang::SourceLocation end);
+    void removeRange(const clang::SourceRange& range);
     const clang::RewriteBuffer* getRewriteBufferFor(clang::FileID fileID) const;
     void applyChanges();
 

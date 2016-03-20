@@ -6,8 +6,9 @@
 
 #pragma once
 
+#include <clang/Basic/SourceLocation.h>
+
 namespace clang {
-    class SourceLocation;
     class SourceManager;
     class SourceRange;
 }
@@ -21,7 +22,7 @@ struct SourceLocationComparer {
     SourceLocationComparer(const SourceLocationComparer&) = default;
     SourceLocationComparer(SourceLocationComparer&&) = default;
 
-    bool operator() (const clang::SourceLocation& lhs, const clang::SourceLocation& rhs) const;
+    bool operator() (clang::SourceLocation lhs, clang::SourceLocation rhs) const;
     const clang::SourceManager& sourceManager;
 };
 

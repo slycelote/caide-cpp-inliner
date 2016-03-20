@@ -16,7 +16,7 @@ using namespace clang;
 namespace caide {
 namespace internal {
 
-SmartRewriter::SmartRewriter(clang::SourceManager& srcManager, const clang::LangOptions& langOptions)
+SmartRewriter::SmartRewriter(SourceManager& srcManager, const LangOptions& langOptions)
     : rewriter(srcManager, langOptions)
     , comparer(srcManager)
     , removed(comparer)
@@ -24,13 +24,16 @@ SmartRewriter::SmartRewriter(clang::SourceManager& srcManager, const clang::Lang
 {
 }
 
-bool SmartRewriter::removeRange(const SourceRange& range, Rewriter::RewriteOptions /*opts*/) {
-    removed.add(range.getBegin(), range.getEnd());
-    return true;
+void SmartRewriter::removeRange(SourceLocation begin, SourceLocation end) {
+    removed.add(begin, end);
 }
 
-bool SmartRewriter::canRemoveRange(const SourceRange& range) const {
-    return !removed.intersects(range.getBegin(), range.getEnd());
+void SmartRewriter::removeRange(const SourceRange& range) {
+    removeRange(range.getBegin(), range.getEnd());
+}
+
+bool SmartRewriter::isPartOfRangeRemoved(const SourceRange& range) const {
+    return removed.intersects(range.getBegin(), range.getEnd());
 }
 
 const RewriteBuffer* SmartRewriter::getRewriteBufferFor(FileID fileID) const {

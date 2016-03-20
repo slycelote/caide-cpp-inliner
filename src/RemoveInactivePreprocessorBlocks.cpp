@@ -75,21 +75,19 @@ private:
 
     void removeMacroIfUnused(const Macro& macro) {
         for (const SourceRange& usageRange : macro.usages) {
-            if (rewriter.canRemoveRange(usageRange)) {
+            if (!rewriter.isPartOfRangeRemoved(usageRange)) {
                 // The usage of the macro has not been removed, so
                 // we can't remove the definition
                 return;
             }
         }
 
-        Rewriter::RewriteOptions opts;
-
-        rewriter.removeRange(macro.definition, opts);
+        rewriter.removeRange(macro.definition);
 
         if (macro.undefinition.isValid()) {
             SourceLocation b = changeColumn(macro.undefinition, 1);
             SourceLocation e = changeColumn(macro.undefinition, 10000);
-            rewriter.removeRange(SourceRange(b, e), opts);
+            rewriter.removeRange(b, e);
         }
     }
 
@@ -169,9 +167,8 @@ public:
         for (const Macro& macro : undefinedMacros)
             removeMacroIfUnused(macro);
 
-        Rewriter::RewriteOptions opts;
         for (const SourceRange& range: inactiveBranches)
-            rewriter.removeRange(range, opts);
+            rewriter.removeRange(range);
     }
 
     void If(SourceLocation Loc, SourceRange ConditionRange, ConditionValueKind ConditionValue) {

@@ -49,12 +49,8 @@ Decl* DependenciesCollector::getParentDecl(Decl* decl) const {
 void DependenciesCollector::insertReference(Decl* from, Decl* to) {
     if (!from || !to)
         return;
-    // Multiple declarations of the same namespace must be distinguished:
-    // it's possible that one of them should be deleted but no the other one.
-    if (!isa<NamespaceDecl>(from))
-        from = from->getCanonicalDecl();
-    if (!isa<NamespaceDecl>(to))
-        to = to->getCanonicalDecl();
+    from = from->getCanonicalDecl();
+    to = to->getCanonicalDecl();
     srcInfo.uses[from].insert(to);
     dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
         << "<" << toString(sourceManager, from).substr(0, 30) << ">"
@@ -390,7 +386,7 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
     {
         dbg("Moving to ";
             DeclarationName DeclName = f->getNameInfo().getName();
-            string FuncName = DeclName.getAsString();
+            std::string FuncName = DeclName.getAsString();
             std::cerr << FuncName << " at " <<
                 toString(sourceManager, f->getLocation()) << std::endl;
         );

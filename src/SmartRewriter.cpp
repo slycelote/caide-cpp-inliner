@@ -16,14 +16,6 @@ using namespace clang;
 namespace caide {
 namespace internal {
 
-RewriteItemComparer::RewriteItemComparer(const clang::SourceManager& sourceManager)
-    : cmp(sourceManager)
-{}
-
-bool RewriteItemComparer::operator() (const RewriteItem& lhs, const RewriteItem& rhs) const {
-    return cmp(lhs.range.getBegin(), rhs.range.getBegin());
-}
-
 SmartRewriter::SmartRewriter(clang::SourceManager& srcManager, const clang::LangOptions& langOptions)
     : rewriter(srcManager, langOptions)
     , comparer(srcManager)
@@ -32,35 +24,13 @@ SmartRewriter::SmartRewriter(clang::SourceManager& srcManager, const clang::Lang
 {
 }
 
-bool SmartRewriter::removeRange(const SourceRange& range, Rewriter::RewriteOptions opts) {
-    if (!canRemoveRange(range))
-        return false;
-    removed.insert({range, opts});
+bool SmartRewriter::removeRange(const SourceRange& range, Rewriter::RewriteOptions /*opts*/) {
+    removed.add(range.getBegin(), range.getEnd());
     return true;
 }
 
 bool SmartRewriter::canRemoveRange(const SourceRange& range) const {
-    if (removed.empty())
-        return true;
-
-    RewriteItem ri;
-    ri.range = range;
-
-    auto i = removed.lower_bound(ri);
-    // i->range.getBegin() >= range.getBegin()
-
-    const SourceManager& srcManager = rewriter.getSourceMgr();
-
-    if (i != removed.end() && !srcManager.isBeforeInTranslationUnit(range.getEnd(), i->range.getBegin()))
-        return false;
-
-    if (i == removed.begin())
-        return true;
-
-    --i;
-    // i->range.getBegin() < range.getBegin()
-
-    return srcManager.isBeforeInTranslationUnit(i->range.getEnd(), range.getBegin());
+    return !removed.intersects(range.getBegin(), range.getEnd());
 }
 
 const RewriteBuffer* SmartRewriter::getRewriteBufferFor(FileID fileID) const {
@@ -71,8 +41,9 @@ void SmartRewriter::applyChanges() {
     if (changesApplied)
         throw std::logic_error("Rewriter changes have already been applied");
     changesApplied = true;
-    for (const RewriteItem& ri : removed)
-        rewriter.RemoveText(ri.range, ri.opts);
+    Rewriter::RewriteOptions opts;
+    for (const auto& range : removed)
+        rewriter.RemoveText(SourceRange(range.first, range.second), opts);
 }
 
 }

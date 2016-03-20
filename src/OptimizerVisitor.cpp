@@ -43,15 +43,35 @@ string OptimizerVisitor::toString(const Decl* decl) const {
 bool OptimizerVisitor::shouldVisitImplicitCode() const { return false; }
 bool OptimizerVisitor::shouldVisitTemplateInstantiations() const { return false; }
 
+bool OptimizerVisitor::TraverseDecl(Decl* decl) {
+    bool ret = RecursiveASTVisitor<OptimizerVisitor>::TraverseDecl(decl);
+
+    if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
+        // We need to visit NamespaceDecl *after* visiting it children. Tree traversal is in
+        // pre-order, so processing NamespaceDecl is done here instead of in VisitNamespaceDecl.
+        if (auto* nsDecl = dyn_cast<NamespaceDecl>(decl)) {
+            if (nonEmptyLexicalNamespaces.find(nsDecl) == nonEmptyLexicalNamespaces.end())
+                removeDecl(nsDecl);
+        }
+
+        if (removed.find(decl) == removed.end()) {
+            // Mark parent namespace as non-empty.
+            if (auto* lexicalNamespace = dyn_cast_or_null<NamespaceDecl>(decl->getLexicalDeclContext()))
+                nonEmptyLexicalNamespaces.insert(lexicalNamespace);
+        }
+    }
+
+    return ret;
+}
+
 bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
     if (sourceManager.isInMainFile(decl->getLocStart()))
         removeDecl(decl);
     return true;
 }
 
-bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* namespaceDecl) {
-    if (sourceManager.isInMainFile(namespaceDecl->getLocStart()) && !usedDeclarations.contains(namespaceDecl))
-        removeDecl(namespaceDecl);
+bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl*) {
+    // NamespaceDecl is processed in TraverseDecl
     return true;
 }
 
@@ -99,6 +119,7 @@ bool OptimizerVisitor::VisitStmt(Stmt* stmt) {
 bool OptimizerVisitor::needToRemoveFunction(FunctionDecl* functionDecl) const {
     if (functionDecl->isExplicitlyDefaulted() || functionDecl->isDeleted())
         return false;
+
     FunctionDecl* canonicalDecl = functionDecl->getCanonicalDecl();
     const bool funcIsUnused = !usedDeclarations.contains(canonicalDecl);
     const bool thisIsRedeclaration = !functionDecl->doesThisDeclarationHaveABody()
@@ -125,6 +146,7 @@ bool OptimizerVisitor::VisitFunctionTemplateDecl(FunctionTemplateDecl* templateD
     if (!sourceManager.isInMainFile(templateDecl->getLocStart()))
         return true;
     dbg(CAIDE_FUNC);
+
     FunctionDecl* functionDecl = templateDecl->getTemplatedDecl();
 
     // Correct source range may be given by either this template decl
@@ -148,6 +170,8 @@ bool OptimizerVisitor::VisitFunctionTemplateDecl(FunctionTemplateDecl* templateD
 bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
     if (!sourceManager.isInMainFile(recordDecl->getLocStart()))
         return true;
+    dbg(CAIDE_FUNC);
+
     bool isTemplated = recordDecl->getDescribedClassTemplate() != 0;
     TemplateSpecializationKind specKind = recordDecl->getTemplateSpecializationKind();
     if (isTemplated && (specKind == TSK_ImplicitInstantiation || specKind == TSK_Undeclared))
@@ -167,6 +191,7 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
     if (!sourceManager.isInMainFile(templateDecl->getLocStart()))
         return true;
     dbg(CAIDE_FUNC);
+
     ClassTemplateDecl* canonicalDecl = templateDecl->getCanonicalDecl();
     const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
     const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition() && declared.find(canonicalDecl) != declared.end();
@@ -181,6 +206,7 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
 bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
     if (!sourceManager.isInMainFile(typedefDecl->getLocStart()))
         return true;
+    dbg(CAIDE_FUNC);
 
     Decl* canonicalDecl = typedefDecl->getCanonicalDecl();
     if (!usedDeclarations.contains(canonicalDecl))
@@ -192,6 +218,8 @@ bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
 bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
     if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
         return true;
+    dbg(CAIDE_FUNC);
+
     if (aliasDecl->getDescribedAliasTemplate()) {
         // This is a template alias; will be processed as TypeAliasTemplateDecl
         return true;
@@ -207,16 +235,21 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
 bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasDecl) {
     if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
         return true;
+    dbg(CAIDE_FUNC);
+
     if (!usedDeclarations.contains(aliasDecl))
         removeDecl(aliasDecl);
     return true;
 }
 
+// 'using namespace Ns;'
 bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
     if (!sourceManager.isInMainFile(usingDecl->getLocStart()))
         return true;
+    dbg(CAIDE_FUNC);
+
     NamespaceDecl* ns = usingDecl->getNominatedNamespace();
-    if (ns && !usedNamespaces.insert(ns).second)
+    if (!ns || !usedDeclarations.contains(ns->getCanonicalDecl()) || !usedNamespaces.insert(ns).second)
         removeDecl(usingDecl);
     return true;
 }
@@ -224,6 +257,7 @@ bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
 void OptimizerVisitor::removeDecl(Decl* decl) {
     if (!decl)
         return;
+    removed.insert(decl);
     SourceLocation start = getExpansionStart(sourceManager, decl);
     SourceLocation end = getExpansionEnd(sourceManager, decl);
 
@@ -234,7 +268,6 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
     if (semicolonAfterDefinition.isValid())
         end = semicolonAfterDefinition;
     Rewriter::RewriteOptions opts;
-    opts.RemoveLineIfEmpty = true;
     rewriter.removeRange(SourceRange(start, end), opts);
 
     if (RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl))
@@ -242,7 +275,7 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
 }
 
 string OptimizerVisitor::toString(SourceLocation loc) const {
-    return loc.printToString(sourceManager);
+    return internal::toString(sourceManager, loc);
 }
 
 }

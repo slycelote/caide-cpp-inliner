@@ -8,8 +8,8 @@
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceLocation.h>
 
-#include <set>
 #include <string>
+#include <unordered_set>
 
 namespace clang {
     class SourceManager;
@@ -29,6 +29,8 @@ public:
 
     bool shouldVisitImplicitCode() const;
     bool shouldVisitTemplateInstantiations() const;
+
+    bool TraverseDecl(clang::Decl* decl);
 
     bool VisitEmptyDecl(clang::EmptyDecl* decl);
     bool VisitNamespaceDecl(clang::NamespaceDecl* namespaceDecl);
@@ -51,9 +53,17 @@ private:
 
     clang::SourceManager& sourceManager;
     const UsedDeclarations& usedDeclarations;
-    std::set<clang::Decl*> declared;
-    std::set<clang::NamespaceDecl*> usedNamespaces;
     SmartRewriter& rewriter;
+
+    std::unordered_set<clang::Decl*> declared;
+    std::unordered_set<clang::Decl*> removed;
+
+    // Parent namespaces of non-removed Decls
+    std::unordered_set<clang::NamespaceDecl*> nonEmptyLexicalNamespaces;
+
+    // namespaces for which 'using namespace' declaration has been issued.
+    // FIXME: this should depend on current scope
+    std::unordered_set<clang::NamespaceDecl*> usedNamespaces;
 };
 
 }

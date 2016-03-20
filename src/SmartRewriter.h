@@ -6,12 +6,10 @@
 
 #pragma once
 
+#include "IntervalSet.h"
 #include "SourceLocationComparers.h"
 
 #include <clang/Rewrite/Core/Rewriter.h>
-
-#include <set>
-#include <vector>
 
 namespace clang {
     class LangOptions;
@@ -20,21 +18,6 @@ namespace clang {
 
 namespace caide {
 namespace internal {
-
-struct RewriteItem {
-    clang::SourceRange range;
-    clang::Rewriter::RewriteOptions opts;
-};
-
-struct RewriteItemComparer {
-    explicit RewriteItemComparer(const clang::SourceManager& sourceManager);
-    RewriteItemComparer(const RewriteItemComparer&) = default;
-    RewriteItemComparer(RewriteItemComparer&&) = default;
-
-    bool operator() (const RewriteItem& lhs, const RewriteItem& rhs) const;
-    SourceLocationComparer cmp;
-};
-
 
 class SmartRewriter {
 public:
@@ -51,8 +34,8 @@ public:
 
 private:
     clang::Rewriter rewriter;
-    RewriteItemComparer comparer;
-    std::set<RewriteItem, RewriteItemComparer> removed;
+    SourceLocationComparer comparer;
+    IntervalSet<clang::SourceLocation, SourceLocationComparer> removed;
     bool changesApplied;
 };
 

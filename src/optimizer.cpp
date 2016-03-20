@@ -128,8 +128,7 @@ public:
         {
             OptimizerVisitor visitor(sourceManager, usedDecls, *smartRewriter);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
-
-            removeUnusedVariables(usedDecls, Ctx);
+            visitor.Finalize(Ctx);
         }
 
         // 4. Remove inactive preprocessor branches that have not yet been removed.
@@ -146,53 +145,6 @@ public:
     }
 
 private:
-    // Variables are a special case because there may be many
-    // comma separated variables in one definition.
-    void removeUnusedVariables(const UsedDeclarations& usedDecls, ASTContext& ctx) {
-        for (const auto& kv : srcInfo.staticVariables) {
-            const vector<VarDecl*>& vars = kv.second;
-            const size_t n = vars.size();
-            vector<bool> isUsed(n, true);
-            size_t lastUsed = n;
-            for (size_t i = 0; i < n; ++i) {
-                isUsed[i] = usedDecls.contains(vars[i]->getCanonicalDecl());
-                if (isUsed[i])
-                    lastUsed = i;
-            }
-
-            SourceLocation startOfType = kv.first;
-            SourceLocation endOfLastVar = getExpansionEnd(sourceManager, vars.back());
-
-            if (lastUsed == n) {
-                // all variables are unused
-                SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
-                smartRewriter->removeRange(startOfType, semiColon);
-            } else {
-                for (size_t i = 0; i < lastUsed; ++i) if (!isUsed[i]) {
-                    // beginning of variable name
-                    SourceLocation beg = vars[i]->getLocation();
-
-                    // end of initializer
-                    SourceLocation end = getExpansionEnd(sourceManager, vars[i]);
-
-                    if (i+1 < n) {
-                        // comma
-                        end = findTokenAfterLocation(end, ctx, tok::comma);
-                    }
-
-                    if (beg.isValid() && end.isValid())
-                        smartRewriter->removeRange(beg, end);
-                }
-                if (lastUsed + 1 != n) {
-                    // clear all remaining variables, starting with comma
-                    SourceLocation end = getExpansionEnd(sourceManager, vars[lastUsed]);
-                    SourceLocation comma = findTokenAfterLocation(end, ctx, tok::comma);
-                    smartRewriter->removeRange(comma, endOfLastVar);
-                }
-            }
-        }
-    }
-
     string getResult() const {
         if (const RewriteBuffer* rewriteBuf =
                 smartRewriter->getRewriteBufferFor(sourceManager.getMainFileID()))

@@ -34,10 +34,6 @@ struct SourceInfo {
 
     // Delayed parsed functions.
     std::vector<clang::FunctionDecl*> delayedParsedFunctions;
-
-    // Declarations of static variables, grouped by their start location
-    // (so comma separated declarations go into the same group).
-    std::map<clang::SourceLocation, std::vector<clang::VarDecl*>> staticVariables;
 };
 
 }

@@ -44,7 +44,6 @@ public:
     bool VisitCXXScalarValueInitExpr(clang::CXXScalarValueInitExpr* initExpr);
     bool VisitExplicitCastExpr(clang::ExplicitCastExpr* castExpr);
     bool VisitValueDecl(clang::ValueDecl* valueDecl);
-    bool VisitVarDecl(clang::VarDecl* varDecl);
     bool VisitMemberExpr(clang::MemberExpr* memberExpr);
     bool VisitLambdaExpr(clang::LambdaExpr* lambdaExpr);
     bool VisitFieldDecl(clang::FieldDecl* field);

@@ -8,15 +8,20 @@
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceLocation.h>
 
+#include <map>
 #include <string>
 #include <unordered_set>
+#include <vector>
+
 
 namespace clang {
     class SourceManager;
+    class ASTContext;
 }
 
 namespace caide {
 namespace internal {
+
 
 class SmartRewriter;
 class UsedDeclarations;
@@ -42,6 +47,11 @@ public:
     bool VisitTypeAliasDecl(clang::TypeAliasDecl* aliasDecl);
     bool VisitTypeAliasTemplateDecl(clang::TypeAliasTemplateDecl* aliasDecl);
     bool VisitUsingDirectiveDecl(clang::UsingDirectiveDecl* usingDecl);
+    bool VisitVarDecl(clang::VarDecl* varDecl);
+
+    // Apply changes that require some 'global' knowledge.
+    // Called after traversal of the whole AST.
+    void Finalize(clang::ASTContext& ctx);
 
 private:
     bool needToRemoveFunction(clang::FunctionDecl* functionDecl) const;
@@ -64,7 +74,12 @@ private:
     // namespaces for which 'using namespace' declaration has been issued.
     // FIXME: this should depend on current scope
     std::unordered_set<clang::NamespaceDecl*> usedNamespaces;
+
+    // Declarations of static variables, grouped by their start location
+    // (so comma separated declarations go into the same group).
+    std::map<clang::SourceLocation, std::vector<clang::VarDecl*>> staticVariables;
 };
+
 
 }
 }

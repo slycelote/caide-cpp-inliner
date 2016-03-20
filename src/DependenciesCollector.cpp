@@ -257,29 +257,6 @@ bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
     return true;
 }
 
-bool DependenciesCollector::VisitVarDecl(VarDecl* varDecl) {
-    SourceLocation start = getExpansionStart(sourceManager, varDecl);
-    if (!varDecl->isLocalVarDeclOrParm() && sourceManager.isInMainFile(start)) {
-        srcInfo.staticVariables[start].push_back(varDecl);
-        /*
-        Technically, we cannot remove global static variables because
-        their initializers may have side effects.
-        The following code marks too many expressions as having side effects
-        (e.g. it will mark an std::vector constructor as such):
-
-        VarDecl* definition = varDecl->getDefinition();
-        Expr* initExpr = definition ? definition->getInit() : nullptr;
-        if (initExpr && initExpr->HasSideEffects(varDecl->getASTContext()))
-            srcInfo.declsToKeep.insert(varDecl);
-
-        The analysis of which functions *really* have side effects seems too
-        complicated. So currently we simply remove unreferenced global static
-        variables unless they are marked with a '/// caide keep' comment.
-        */
-    }
-    return true;
-}
-
 // X->F and X.F
 bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
     dbg(CAIDE_FUNC);

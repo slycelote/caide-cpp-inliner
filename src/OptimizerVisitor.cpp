@@ -22,6 +22,7 @@
 using namespace clang;
 
 using std::string;
+using std::vector;
 
 namespace caide {
 namespace internal {
@@ -36,6 +37,10 @@ OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarat
 
 string OptimizerVisitor::toString(const Decl* decl) const {
     return internal::toString(sourceManager, decl);
+}
+
+string OptimizerVisitor::toString(SourceLocation loc) const {
+    return internal::toString(sourceManager, loc);
 }
 
 // When we remove code, we're only interested in the real code,
@@ -254,6 +259,31 @@ bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
     return true;
 }
 
+// Variables are a special case because there may be many comma separated variables in one definition.
+// We remove them separately in Finalize() method.
+bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
+    SourceLocation start = getExpansionStart(sourceManager, varDecl);
+    if (!varDecl->isLocalVarDeclOrParm() && sourceManager.isInMainFile(start)) {
+        staticVariables[start].push_back(varDecl);
+        /*
+        Technically, we cannot remove global static variables because
+        their initializers may have side effects.
+        The following code marks too many expressions as having side effects
+        (e.g. it will mark an std::vector constructor as such):
+
+        VarDecl* definition = varDecl->getDefinition();
+        Expr* initExpr = definition ? definition->getInit() : nullptr;
+        if (initExpr && initExpr->HasSideEffects(varDecl->getASTContext()))
+            srcInfo.declsToKeep.insert(varDecl);
+
+        The analysis of which functions *really* have side effects seems too
+        complicated. So currently we simply remove unreferenced global static
+        variables unless they are marked with a '/// caide keep' comment.
+        */
+    }
+    return true;
+}
+
 void OptimizerVisitor::removeDecl(Decl* decl) {
     if (!decl)
         return;
@@ -276,9 +306,52 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
         rewriter.removeRange(comment->getSourceRange());
 }
 
-string OptimizerVisitor::toString(SourceLocation loc) const {
-    return internal::toString(sourceManager, loc);
+void OptimizerVisitor::Finalize(ASTContext& ctx) {
+    for (const auto& kv : staticVariables) {
+        SourceLocation startOfType = kv.first;
+        const vector<VarDecl*>& vars = kv.second;
+
+        const size_t n = vars.size();
+        vector<bool> isUsed(n, true);
+        size_t lastUsed = n;
+        for (size_t i = 0; i < n; ++i) {
+            isUsed[i] = usedDeclarations.contains(vars[i]->getCanonicalDecl());
+            if (isUsed[i])
+                lastUsed = i;
+        }
+
+        SourceLocation endOfLastVar = getExpansionEnd(sourceManager, vars.back());
+
+        if (lastUsed == n) {
+            // all variables are unused
+            SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
+            rewriter.removeRange(startOfType, semiColon);
+        } else {
+            for (size_t i = 0; i < lastUsed; ++i) if (!isUsed[i]) {
+                // beginning of variable name
+                SourceLocation beg = vars[i]->getLocation();
+
+                // end of initializer
+                SourceLocation end = getExpansionEnd(sourceManager, vars[i]);
+
+                if (i+1 < n) {
+                    // comma
+                    end = findTokenAfterLocation(end, ctx, tok::comma);
+                }
+
+                if (beg.isValid() && end.isValid())
+                    rewriter.removeRange(beg, end);
+            }
+            if (lastUsed + 1 != n) {
+                // clear all remaining variables, starting with comma
+                SourceLocation end = getExpansionEnd(sourceManager, vars[lastUsed]);
+                SourceLocation comma = findTokenAfterLocation(end, ctx, tok::comma);
+                rewriter.removeRange(comma, endOfLastVar);
+            }
+        }
+    }
 }
+
 
 }
 }

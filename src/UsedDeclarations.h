@@ -27,7 +27,7 @@ namespace internal {
 class UsedDeclarations {
 public:
     explicit UsedDeclarations(clang::SourceManager& sourceManager_);
-    void addIfInMainFile(clang::Decl* decl);
+    void add(clang::Decl* decl);
     bool contains(clang::Decl* decl) const;
 
 private:

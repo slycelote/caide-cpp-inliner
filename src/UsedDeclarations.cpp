@@ -52,18 +52,20 @@ bool UsedDeclarations::contains(Decl* decl) const {
     return locationsOfUsedDecls.find(range) != locationsOfUsedDecls.end();
 }
 
-void UsedDeclarations::addIfInMainFile(Decl* decl) {
+void UsedDeclarations::add(Decl* decl) {
     SourceRange range = getSourceRange(decl);
 
-    if (sourceManager.isInMainFile(range.getBegin())) {
-        dbg("USAGEINFO " <<
-            decl->getDeclKindName() << " " << decl
-            << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
-            << toString(sourceManager, range)
-            << std::endl);
-        usedDecls.insert(decl);
-        locationsOfUsedDecls.insert(range);
-    }
+    // Typically we are only interested in Decls defined in user code. However, in case user code
+    // contains using directives such as 'using namespace std' or 'using std::vector', we need to
+    // know whether those are used. For now, keep track of all Decls; in the future we might store
+    // only namespaces and types, in addition to Decls defined in user code.
+    dbg("USAGEINFO " <<
+        decl->getDeclKindName() << " " << decl
+        << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
+        << toString(sourceManager, range)
+        << std::endl);
+    usedDecls.insert(decl);
+    locationsOfUsedDecls.insert(range);
 }
 
 SourceRange UsedDeclarations::getSourceRange(Decl* decl) const {

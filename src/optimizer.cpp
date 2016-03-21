@@ -119,7 +119,7 @@ public:
                 queue.erase(queue.begin());
                 if (seen.insert(decl).second) {
                     queue.insert(srcInfo.uses[decl].begin(), srcInfo.uses[decl].end());
-                    usedDecls.addIfInMainFile(decl);
+                    usedDecls.add(decl);
                 }
             }
         }

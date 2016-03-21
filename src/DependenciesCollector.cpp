@@ -159,7 +159,7 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
         << toString(sourceManager, getExpansionRange(sourceManager, decl))
         << std::endl);
 
-    // Mark dependence on enclosing class/namespace.
+    // Mark dependence on enclosing (semantic) class/namespace.
     Decl* ctx = dyn_cast_or_null<Decl>(decl->getDeclContext());
     if (ctx && !isa<FunctionDecl>(ctx))
         insertReference(decl, ctx);

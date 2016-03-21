@@ -253,9 +253,11 @@ bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
         return true;
     dbg(CAIDE_FUNC);
 
-    NamespaceDecl* ns = usingDecl->getNominatedNamespace();
-    if (!ns || !usedDeclarations.contains(ns->getCanonicalDecl()) || !usedNamespaces.insert(ns).second)
-        removeDecl(usingDecl);
+    if (NamespaceDecl* ns = usingDecl->getNominatedNamespace()) {
+        ns = ns->getCanonicalDecl();
+        if (!usedDeclarations.contains(ns) || !usedNamespaces.insert(ns).second)
+            removeDecl(usingDecl);
+    }
     return true;
 }
 

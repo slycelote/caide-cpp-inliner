@@ -276,6 +276,11 @@ bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
         complicated. So currently we simply remove unreferenced global static
         variables unless they are marked with a '/// caide keep' comment.
         */
+        if (!usedDeclarations.contains(varDecl)) {
+            // Mark this variable as removed, but the actual code deletion is done in
+            // removeVariables() method.
+            removed.insert(varDecl);
+        }
     }
     return true;
 }

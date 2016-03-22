@@ -39,6 +39,10 @@ namespace outer1 {
     }
 }
 
+namespace outer1 {
+    static int unusedVariable = 1;
+}
+
 namespace outer2 {
     namespace inner1 {
         void used() {}

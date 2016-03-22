@@ -43,6 +43,11 @@ namespace outer1 {
     static int unusedVariable = 1;
 }
 
+namespace outer1 {
+    template<typename T>
+    using UnusedTypeAlias = T;
+}
+
 namespace outer2 {
     namespace inner1 {
         void used() {}

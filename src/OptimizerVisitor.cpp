@@ -57,9 +57,10 @@ bool OptimizerVisitor::TraverseDecl(Decl* decl) {
         }
 
         if (auto* lexicalNamespace = dyn_cast_or_null<NamespaceDecl>(decl->getLexicalDeclContext())) {
-            if (removed.find(decl) == removed.end())
+            // Lexical context of template parameters of template type aliases is the namespace
+            if (removed.find(decl) == removed.end() && !isa<TemplateTypeParmDecl>(decl))
             {
-                // Mark parent namespace as non-empty.
+                dbg("Marking the parent namespace as non-empty" << std::endl);
                 nonEmptyLexicalNamespaces.insert(lexicalNamespace);
             }
         }
@@ -219,7 +220,9 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
         return true;
     dbg(CAIDE_FUNC);
 
-    if (aliasDecl->getDescribedAliasTemplate()) {
+    if (TypeAliasTemplateDecl* aliasTemplate = aliasDecl->getDescribedAliasTemplate()) {
+        if (!usedDeclarations.contains(aliasTemplate))
+            removeDecl(aliasDecl);
         // This is a template alias; will be processed as TypeAliasTemplateDecl
         return true;
     }
@@ -231,13 +234,13 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
     return true;
 }
 
-bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasDecl) {
-    if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
+bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTemplate) {
+    if (!sourceManager.isInMainFile(aliasTemplate->getLocStart()))
         return true;
     dbg(CAIDE_FUNC);
 
-    if (!usedDeclarations.contains(aliasDecl))
-        removeDecl(aliasDecl);
+    if (!usedDeclarations.contains(aliasTemplate))
+        removeDecl(aliasTemplate);
     return true;
 }
 

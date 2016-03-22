@@ -4,7 +4,6 @@
 // the Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version. See LICENSE.TXT for details.
 
-
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceLocation.h>
 
@@ -56,10 +55,6 @@ public:
 private:
     bool needToRemoveFunction(clang::FunctionDecl* functionDecl) const;
     void removeDecl(clang::Decl* decl);
-
-    std::string toString(const clang::Decl* decl) const;
-    std::string toString(clang::SourceLocation loc) const;
-
 
     clang::SourceManager& sourceManager;
     const UsedDeclarations& usedDeclarations;

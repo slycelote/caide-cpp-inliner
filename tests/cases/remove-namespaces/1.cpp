@@ -16,7 +16,26 @@ namespace ns2 {
 
 namespace outer1 {
     namespace inner1 {
-        void unused() {}
+        template<typename T>
+        struct void_t {};
+    }
+}
+
+namespace outer1 {
+    namespace inner1 {
+        template<typename T>
+        struct UsedClass {
+            template<typename U>
+            void UnusedMethod(U u);
+        };
+    }
+}
+
+namespace outer1 {
+    namespace inner1 {
+        template<typename T>
+        template<typename U>
+        void UsedClass<T>::UnusedMethod(U u) {}
     }
 }
 
@@ -39,6 +58,9 @@ int main() {
     ns1::used();
     ns2::used();
     outer2::inner1::used();
+    {
+    outer1::inner1::UsedClass<int> x;
+    }
     return 0;
 }
 

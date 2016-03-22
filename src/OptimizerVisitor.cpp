@@ -35,14 +35,6 @@ OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarat
     , rewriter(rewriter_)
 {}
 
-string OptimizerVisitor::toString(const Decl* decl) const {
-    return internal::toString(sourceManager, decl);
-}
-
-string OptimizerVisitor::toString(SourceLocation loc) const {
-    return internal::toString(sourceManager, loc);
-}
-
 // When we remove code, we're only interested in the real code,
 // so no implicit instantiantions.
 bool OptimizerVisitor::shouldVisitImplicitCode() const { return false; }
@@ -50,6 +42,11 @@ bool OptimizerVisitor::shouldVisitTemplateInstantiations() const { return false;
 
 bool OptimizerVisitor::TraverseDecl(Decl* decl) {
     bool ret = RecursiveASTVisitor<OptimizerVisitor>::TraverseDecl(decl);
+
+    dbg("DECL " << decl->getDeclKindName() << " " << decl
+        << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
+        << toString(sourceManager, getExpansionRange(sourceManager, decl))
+        << std::endl);
 
     if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
         // We need to visit NamespaceDecl *after* visiting it children. Tree traversal is in
@@ -59,10 +56,12 @@ bool OptimizerVisitor::TraverseDecl(Decl* decl) {
                 removeDecl(nsDecl);
         }
 
-        if (removed.find(decl) == removed.end()) {
-            // Mark parent namespace as non-empty.
-            if (auto* lexicalNamespace = dyn_cast_or_null<NamespaceDecl>(decl->getLexicalDeclContext()))
+        if (auto* lexicalNamespace = dyn_cast_or_null<NamespaceDecl>(decl->getLexicalDeclContext())) {
+            if (removed.find(decl) == removed.end())
+            {
+                // Mark parent namespace as non-empty.
                 nonEmptyLexicalNamespaces.insert(lexicalNamespace);
+            }
         }
     }
 
@@ -75,17 +74,16 @@ bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
     return true;
 }
 
-bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl*) {
-    // NamespaceDecl is processed in TraverseDecl
+bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
+    if (sourceManager.isInMainFile(nsDecl->getLocStart())
+        && !usedDeclarations.contains(nsDecl->getCanonicalDecl()))
+    {
+        removeDecl(nsDecl);
+    }
+    // The case when nsDecl is semantically used but this specific decl must be removed
+    // is handled in TraverseDecl
     return true;
 }
-
-/*
-bool OptimizerVisitor::VisitStmt(Stmt* stmt) {
-    std::cerr << stmt->getStmtClassName() << endl;
-    return true;
-}
-*/
 
 /*
  Here's how template functions and classes are represented in the AST.
@@ -102,7 +100,7 @@ bool OptimizerVisitor::VisitStmt(Stmt* stmt) {
 |-ClassTemplateDecl <-- root template
 | |-TemplateTypeParmDecl
 | |-CXXRecordDecl  <-- non-specialized root template class
-| | |-CXXRecordDecl
+| | |-CXXRecordDecl (implicit)
 | | `-CXXMethodDecl...
 | |-ClassTemplateSpecialization <-- non-instantiated explicit specialization (?)
 | `-ClassTemplateSpecializationDecl <-- implicit instantiation of root template
@@ -154,19 +152,6 @@ bool OptimizerVisitor::VisitFunctionTemplateDecl(FunctionTemplateDecl* templateD
 
     FunctionDecl* functionDecl = templateDecl->getTemplatedDecl();
 
-    // Correct source range may be given by either this template decl
-    // or corresponding CXXMethodDecl, in case of template method of
-    // template class. Choose the one that starts earlier.
-    const bool processAsCXXMethod = sourceManager.isBeforeInTranslationUnit(
-            getExpansionStart(sourceManager, functionDecl),
-            getExpansionStart(sourceManager, templateDecl)
-    );
-
-    if (processAsCXXMethod) {
-        // Will be processed as FunctionDecl later.
-        return true;
-    }
-
     if (needToRemoveFunction(functionDecl))
         removeDecl(templateDecl);
     return true;
@@ -177,13 +162,21 @@ bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
         return true;
     dbg(CAIDE_FUNC);
 
-    bool isTemplated = recordDecl->getDescribedClassTemplate() != 0;
-    TemplateSpecializationKind specKind = recordDecl->getTemplateSpecializationKind();
-    if (isTemplated && (specKind == TSK_ImplicitInstantiation || specKind == TSK_Undeclared))
-        return true;
+    if (ClassTemplateDecl* classTemplate = recordDecl->getDescribedClassTemplate()) {
+        if (removed.find(classTemplate) != removed.end())
+            removeDecl(recordDecl);
+        const TemplateSpecializationKind specKind = recordDecl->getTemplateSpecializationKind();
+        if (specKind == TSK_Undeclared) {
+            // This record corresponds to a non-specialized class template; it was processed as
+            // ClassTemplateDecl.
+            return true;
+        }
+    }
+
     CXXRecordDecl* canonicalDecl = recordDecl->getCanonicalDecl();
     const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
-    const bool thisIsRedeclaration = !recordDecl->isCompleteDefinition() && declared.find(canonicalDecl) != declared.end();
+    const bool thisIsRedeclaration = !recordDecl->isCompleteDefinition()
+        && declared.find(canonicalDecl) != declared.end();
 
     if (classIsUnused || thisIsRedeclaration)
         removeDecl(recordDecl);
@@ -199,7 +192,8 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
 
     ClassTemplateDecl* canonicalDecl = templateDecl->getCanonicalDecl();
     const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
-    const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition() && declared.find(canonicalDecl) != declared.end();
+    const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition()
+        && declared.find(canonicalDecl) != declared.end();
 
     if (classIsUnused || thisIsRedeclaration)
         removeDecl(templateDecl);
@@ -296,8 +290,8 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
     SourceLocation semicolonAfterDefinition = findSemiAfterLocation(end, decl->getASTContext());
 
     dbg("REMOVE " << decl->getDeclKindName() << " "
-        << decl << ": " << toString(start) << " " << toString(end)
-        << " ; " << toString(semicolonAfterDefinition) << std::endl);
+        << decl << ": " << toString(sourceManager, start) << " " << toString(sourceManager, end)
+        << " ; " << toString(sourceManager, semicolonAfterDefinition) << std::endl);
 
     if (semicolonAfterDefinition.isValid())
         end = semicolonAfterDefinition;

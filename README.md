@@ -10,10 +10,9 @@ included in the resulting file.
 
 ## Demo
 
-The directory
-[doc/demo](https://github.com/slycelote/caide-cpp-inliner/tree/master/doc/demo)
-contains a small sample application. We will write a program using
-caideInliner library that processes the source code of this application:
+The directory [doc/demo](tree/master/doc/demo) contains a small sample
+application. We will write a program using caideInliner library that processes
+the source code of this application:
 
 
     #include "caideInliner.hpp"
@@ -56,7 +55,7 @@ caideInliner library that processes the source code of this application:
 
 
 The above code, after including the [caideInliner
-header](https://github.com/slycelote/caide-cpp-inliner/blob/master/src/caideInliner.hpp):
+header](blob/master/src/caideInliner.hpp):
 
 1. specifies a directory for temporary files (it must already exist)
 2. sets up compilation options (they may vary depending on the application)
@@ -69,10 +68,9 @@ header](https://github.com/slycelote/caide-cpp-inliner/blob/master/src/caideInli
 
 Compile and run this code. (You will need to link against caideInliner library
 and several clang and LLVM static libraries.) Alternatively, a [simple
-command-line
-utility](https://github.com/slycelote/caide-cpp-inliner/tree/master/src/cmd)
-is included that you can run like this: `./cmd -std=c++11 -I . -isystem
-../../src/clang/lib/Headers/ -- main.cpp ascii_graphics.cpp`.
+command-line utility](tree/master/src/cmd) is included that you can run like
+this: `./cmd -std=c++11 -I . -isystem ../../src/clang/lib/Headers/ -- main.cpp
+ascii_graphics.cpp`.
 
 Inspect the resulting code in the file `result.cpp`. Note how unused parts of
 the code (e.g. one of the constructors of `CommandLineParserException` or
@@ -93,8 +91,8 @@ command: `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release /path/to/src`.
 Replace "Unix Makefiles" with "Visual Studio 12 2013" or another
 [generator](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)
 suitable for your platform. Replace the last argument with the full path to
-[src](https://github.com/slycelote/caide-cpp-inliner/tree/master/src)
-directory. You can also use [cmake-gui](https://cmake.org/runningcmake/).
+[src](tree/master/src) directory. You can also use
+[cmake-gui](https://cmake.org/runningcmake/).
 
 Once build files are generated, build as usual (run `make`, open the VS
 solution etc.)
@@ -111,7 +109,7 @@ When the build is done, run `ctest` to execute the test suite.
 ## Documentation
 
 Refer to Doxygen comments in [caideInliner
-header](https://github.com/slycelote/caide-cpp-inliner/blob/master/src/caideInliner.hpp)
+header](blob/master/src/caideInliner.hpp)
 
 
 ## Known issues

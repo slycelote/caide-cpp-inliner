@@ -9,6 +9,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -56,6 +57,13 @@ private:
     bool needToRemoveFunction(clang::FunctionDecl* functionDecl) const;
     void removeDecl(clang::Decl* decl);
 
+    // Process 'using namespace ns;' or 'using ns::identifier;' declaration
+    // canonicalDecl is the namespace or the identifier that is the target of the using declaration
+    // declContext is the declaration context where the using declaration is issued.
+    // Return value is true when this using declaration is redundant.
+    bool processUsingDirective(clang::Decl* canonicalDecl, clang::DeclContext* declContext);
+
+
     clang::SourceManager& sourceManager;
     const UsedDeclarations& usedDeclarations;
     SmartRewriter& rewriter;
@@ -66,9 +74,10 @@ private:
     // Parent namespaces of non-removed Decls
     std::unordered_set<clang::NamespaceDecl*> nonEmptyLexicalNamespaces;
 
-    // namespaces for which 'using namespace' declaration has been issued.
-    // FIXME: this should depend on current scope
-    std::unordered_set<clang::NamespaceDecl*> usedNamespaces;
+    // For each semantic declaraction context, keep track of which namespaces have been seen in
+    // 'using namespace ns;' directives in this declaraction context (TODO: and which identifiers
+    // have been seen in 'using ns::identifier' declaractions).
+    std::unordered_map<clang::DeclContext*, std::unordered_set<clang::Decl*>> seenInUsingDirectives;
 
     // Declarations of static variables, grouped by their start location
     // (so comma separated declarations go into the same group).

@@ -244,17 +244,31 @@ bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTe
     return true;
 }
 
+bool OptimizerVisitor::processUsingDirective(Decl* canonicalDecl, DeclContext* declContext) {
+    bool usingIsRedundant = !usedDeclarations.contains(canonicalDecl);
+    if (declContext) {
+        DeclContext* canonicalContext = declContext->getPrimaryContext();
+        bool seenInCurrentContext = !seenInUsingDirectives[canonicalContext].insert(canonicalDecl).second;
+        usingIsRedundant |= seenInCurrentContext;
+
+        while (!usingIsRedundant && (declContext = declContext->getParent())) { // semantic parent
+            canonicalContext = declContext->getPrimaryContext();
+            usingIsRedundant |= seenInUsingDirectives[canonicalContext].count(canonicalDecl) > 0;
+        }
+    }
+    return usingIsRedundant;
+}
+
 // 'using namespace Ns;'
 bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
     if (!sourceManager.isInMainFile(usingDecl->getLocStart()))
         return true;
     dbg(CAIDE_FUNC);
 
-    if (NamespaceDecl* ns = usingDecl->getNominatedNamespace()) {
-        ns = ns->getCanonicalDecl();
-        if (!usedDeclarations.contains(ns) || !usedNamespaces.insert(ns).second)
+    if (NamespaceDecl* ns = usingDecl->getNominatedNamespace())
+        if (processUsingDirective(ns->getCanonicalDecl(), usingDecl->getDeclContext()))
             removeDecl(usingDecl);
-    }
+
     return true;
 }
 

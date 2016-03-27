@@ -23,9 +23,6 @@ namespace ns4 {
             }
         }
     }
-}
-
-namespace ns4 {
     using namespace ns3;
 }
 

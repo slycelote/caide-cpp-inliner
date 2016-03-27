@@ -6,6 +6,7 @@
 
 #include "optimizer.h"
 #include "DependenciesCollector.h"
+#include "MergeNamespacesVisitor.h"
 #include "OptimizerVisitor.h"
 #include "RemoveInactivePreprocessorBlocks.h"
 #include "SmartRewriter.h"
@@ -125,10 +126,15 @@ public:
         }
 
         // 3. Remove unnecessary lexical declarations.
+        std::unordered_set<Decl*> removedDecls;
         {
-            OptimizerVisitor visitor(sourceManager, usedDecls, *smartRewriter);
+            OptimizerVisitor visitor(sourceManager, usedDecls, removedDecls, *smartRewriter);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
             visitor.Finalize(Ctx);
+        }
+        {
+            MergeNamespacesVisitor visitor(sourceManager, removedDecls, *smartRewriter);
+            visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
         }
 
         // 4. Remove inactive preprocessor branches that have not yet been removed.

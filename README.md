@@ -10,7 +10,7 @@ included in the resulting file.
 
 ## Demo
 
-The directory [doc/demo](../../tree/master/doc/demo) contains a small sample
+The directory [doc/demo](./../../tree/master/doc/demo) contains a small sample
 application. We will write a program using caideInliner library that processes
 the source code of this application:
 
@@ -68,8 +68,8 @@ header](src/caideInliner.hpp):
 
 Compile and run this code. (You will need to link against caideInliner library
 and several clang and LLVM static libraries.) Alternatively, a [simple
-command-line utility](../../tree/master/src/cmd) is included that you can run
-like this: `./cmd -std=c++11 -I . -isystem ../../src/clang/lib/Headers/ --
+command-line utility](./../../tree/master/src/cmd) is included that you can
+run like this: `./cmd -std=c++11 -I . -isystem ../../src/clang/lib/Headers/ --
 main.cpp ascii_graphics.cpp`.
 
 Inspect the resulting code in the file `result.cpp`. Note how unused parts of
@@ -91,7 +91,7 @@ command: `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release /path/to/src`.
 Replace "Unix Makefiles" with "Visual Studio 12 2013" or another
 [generator](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)
 suitable for your platform. Replace the last argument with the full path to
-[src](../../tree/master/src) directory. You can also use
+[src](./../../tree/master/src) directory. You can also use
 [cmake-gui](https://cmake.org/runningcmake/).
 
 Once build files are generated, build as usual (run `make`, open the VS

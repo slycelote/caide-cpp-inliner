@@ -30,7 +30,7 @@ class UsedDeclarations;
 class OptimizerVisitor: public clang::RecursiveASTVisitor<OptimizerVisitor> {
 public:
     OptimizerVisitor(clang::SourceManager& srcManager, const UsedDeclarations& usedDecls,
-            SmartRewriter& rewriter_);
+            std::unordered_set<clang::Decl*>& removedDecls, SmartRewriter& rewriter_);
 
     bool shouldVisitImplicitCode() const;
     bool shouldVisitTemplateInstantiations() const;
@@ -69,7 +69,7 @@ private:
     SmartRewriter& rewriter;
 
     std::unordered_set<clang::Decl*> declared;
-    std::unordered_set<clang::Decl*> removed;
+    std::unordered_set<clang::Decl*>& removed;
 
     // Parent namespaces of non-removed Decls
     std::unordered_set<clang::NamespaceDecl*> nonEmptyLexicalNamespaces;

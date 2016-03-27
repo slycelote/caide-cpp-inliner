@@ -29,10 +29,11 @@ namespace internal {
 
 
 OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarations& usedDecls,
-                                   SmartRewriter& rewriter_)
+            std::unordered_set<Decl*>& removedDecls, SmartRewriter& rewriter_)
     : sourceManager(srcManager)
     , usedDeclarations(usedDecls)
     , rewriter(rewriter_)
+    , removed(removedDecls)
 {}
 
 // When we remove code, we're only interested in the real code,

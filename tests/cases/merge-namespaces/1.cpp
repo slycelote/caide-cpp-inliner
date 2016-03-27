@@ -11,6 +11,7 @@ namespace ns2 {
         void used1() {}
     }
     int unused = 0;
+    void unused2(int a) {}
 }
 
 namespace ns2 {

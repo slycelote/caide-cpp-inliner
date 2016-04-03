@@ -34,6 +34,8 @@ public:
 
     bool TraverseDecl(clang::Decl* decl);
 
+    bool VisitStmt(clang::Stmt* stmt);
+
     bool VisitDecl(clang::Decl* decl);
     bool VisitCallExpr(clang::CallExpr* callExpr);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr* constructorExpr);
@@ -57,6 +59,8 @@ public:
     bool VisitCXXMethodDecl(clang::CXXMethodDecl* method);
     bool VisitCXXRecordDecl(clang::CXXRecordDecl* recordDecl);
     bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr* expr);
+    bool VisitUsingDecl(clang::UsingDecl* usingDecl);
+    bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
 
 private:
     clang::Decl* getCurrentDecl() const;
@@ -70,6 +74,7 @@ private:
     void insertReferenceToType(clang::Decl* from, const clang::Type* to);
     void insertReferenceToType(clang::Decl* from, const clang::TypeSourceInfo* typeSourceInfo);
 
+    void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 
     clang::SourceManager& sourceManager;
     SourceInfo& srcInfo;

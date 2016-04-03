@@ -225,15 +225,18 @@ bool DependenciesCollector::VisitCXXNewExpr(CXXNewExpr* newExpr) {
     return true;
 }
 
-bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
-    dbg(CAIDE_FUNC);
-    Decl* parent = getCurrentDecl();
-    insertReference(parent, ref->getDecl());
-    NestedNameSpecifier* specifier = ref->getQualifier();
+void DependenciesCollector::insertReference(Decl* from, NestedNameSpecifier* specifier) {
     while (specifier) {
-        insertReferenceToType(parent, specifier->getAsType());
+        insertReferenceToType(from, specifier->getAsType());
         specifier = specifier->getPrefix();
     }
+}
+
+bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
+    dbg(CAIDE_FUNC);
+    Decl* currentDecl = getCurrentDecl();
+    insertReference(currentDecl, ref->getDecl());
+    insertReference(currentDecl, ref->getQualifier());
     return true;
 }
 
@@ -260,7 +263,22 @@ bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
 // X->F and X.F
 bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
     dbg(CAIDE_FUNC);
-    insertReference(getCurrentDecl(), memberExpr->getMemberDecl());
+    Decl* currentDecl = getCurrentDecl();
+    // getFoundDecl() returns either MemberDecl itself or UsingShadowDecl corresponding to a UsingDecl
+    insertReference(currentDecl, memberExpr->getFoundDecl().getDecl());
+    insertReference(currentDecl, memberExpr->getQualifier());
+    return true;
+}
+
+bool DependenciesCollector::VisitUsingShadowDecl(UsingShadowDecl* usingShadowDecl) {
+    insertReference(usingShadowDecl, usingShadowDecl->getUsingDecl());
+    return true;
+}
+
+// using ns::identifier, using BaseType::identifier
+bool DependenciesCollector::VisitUsingDecl(UsingDecl* usingDecl) {
+    insertReference(usingDecl, usingDecl->getQualifier());
+    insertReferenceToType(usingDecl, usingDecl->getNameInfo().getNamedTypeInfo());
     return true;
 }
 
@@ -406,6 +424,12 @@ bool DependenciesCollector::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitEx
     return true;
 }
 
+bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
+    (void)stmt;
+    //dbg(stmt->getStmtClassName() << std::endl);
+    //stmt->dump();
+    return true;
+}
 
 }
 }

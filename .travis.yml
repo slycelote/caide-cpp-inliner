@@ -48,11 +48,23 @@ matrix:
                       - libclang-3.7-dev
                       - llvm-3.7-dev
 
+        - env: CAIDE_USE_SYSTEM_CLANG=ON CAIDE_CLANG_VERSION=3.8
+          addons:
+              apt:
+                  sources:
+                      - *default_sources
+                      - llvm-toolchain-precise-3.8
+                  packages:
+                      - *default_packages
+                      - libedit-dev
+                      - libclang-3.8-dev
+                      - llvm-3.8-dev
+
 
 script:  travis/build-and-test.sh
 
 notifications:
     on_failure: always
     email:
-        on_success: always
+        on_failure: always
 

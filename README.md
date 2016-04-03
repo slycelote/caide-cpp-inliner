@@ -101,7 +101,8 @@ By default all necessary parts of libclang and LLVM will be built from
 scratch. This may take up to 30 minutes on a weak machine. If you have those
 libraries installed in the system (in Linux, search for packages
 libclang-3.6-dev and llvm-3.6-dev or similar), you can use them instead by
-passing `-DCAIDE_USE_SYSTEM_CLANG=OFF` option to cmake.
+passing `-DCAIDE_USE_SYSTEM_CLANG=OFF` option to cmake. However, **it's not
+recommended**.
 
 When the build is done, run `ctest` to execute the test suite.
 

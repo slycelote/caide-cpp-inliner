@@ -25,6 +25,14 @@ struct E: private D {
     using Base::f;
 };
 
+struct F {
+    static int i;
+};
+int F::i = 0;
+struct F1: private F {
+    using F::i;
+};
+
 int main() {
     B b;
     b.g();
@@ -32,5 +40,7 @@ int main() {
     c.g();
     E e;
     e.f();
+    int i = F1::i;
+    (void)i;
 }
 

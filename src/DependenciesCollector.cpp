@@ -235,7 +235,7 @@ void DependenciesCollector::insertReference(Decl* from, NestedNameSpecifier* spe
 bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     dbg(CAIDE_FUNC);
     Decl* currentDecl = getCurrentDecl();
-    insertReference(currentDecl, ref->getDecl());
+    insertReference(currentDecl, ref->getFoundDecl());
     insertReference(currentDecl, ref->getQualifier());
     return true;
 }
@@ -272,13 +272,13 @@ bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
 
 bool DependenciesCollector::VisitUsingShadowDecl(UsingShadowDecl* usingShadowDecl) {
     insertReference(usingShadowDecl, usingShadowDecl->getUsingDecl());
+    insertReference(usingShadowDecl, usingShadowDecl->getTargetDecl());
     return true;
 }
 
 // using ns::identifier, using BaseType::identifier
 bool DependenciesCollector::VisitUsingDecl(UsingDecl* usingDecl) {
     insertReference(usingDecl, usingDecl->getQualifier());
-    insertReferenceToType(usingDecl, usingDecl->getNameInfo().getNamedTypeInfo());
     return true;
 }
 

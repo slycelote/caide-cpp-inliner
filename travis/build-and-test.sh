@@ -15,5 +15,5 @@ mkdir build
 cd build
 cmake -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG ../src
 make -j2
-ctest
+ctest --verbose
 

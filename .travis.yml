@@ -48,7 +48,6 @@ matrix:
                       - libclang-3.7-dev
                       - llvm-3.7-dev
 
-    allow_failures:
         - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
           addons:
               apt:
@@ -60,6 +59,9 @@ matrix:
                       - libedit-dev
                       - libclang-3.8-dev
                       - llvm-3.8-dev
+    allow_failures:
+        - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
+    fast_finish: true
 
 
 script:  travis/build-and-test.sh

@@ -9,6 +9,7 @@
 
 #include <clang/AST/RecursiveASTVisitor.h>
 
+#include <iosfwd>
 #include <set>
 #include <stack>
 
@@ -61,6 +62,8 @@ public:
     bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr* expr);
     bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
+
+    void printGraph(std::ostream& out) const;
 
 private:
     clang::Decl* getCurrentDecl() const;

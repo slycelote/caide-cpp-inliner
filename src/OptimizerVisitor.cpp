@@ -42,12 +42,16 @@ bool OptimizerVisitor::shouldVisitImplicitCode() const { return false; }
 bool OptimizerVisitor::shouldVisitTemplateInstantiations() const { return false; }
 
 bool OptimizerVisitor::TraverseDecl(Decl* decl) {
-    bool ret = RecursiveASTVisitor<OptimizerVisitor>::TraverseDecl(decl);
+#ifdef CAIDE_DEBUG_MODE
+    if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
+        dbg("DECL " << decl->getDeclKindName() << " " << decl
+            << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
+            << toString(sourceManager, getExpansionRange(sourceManager, decl))
+            << std::endl);
+    }
+#endif
 
-    dbg("DECL " << decl->getDeclKindName() << " " << decl
-        << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
-        << toString(sourceManager, getExpansionRange(sourceManager, decl))
-        << std::endl);
+    bool ret = RecursiveASTVisitor<OptimizerVisitor>::TraverseDecl(decl);
 
     if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
         // We need to visit NamespaceDecl *after* visiting it children. Tree traversal is in

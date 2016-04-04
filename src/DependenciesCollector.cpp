@@ -16,6 +16,8 @@
 #include <clang/AST/RawCommentList.h>
 #include <clang/Basic/SourceManager.h>
 
+#include <ostream>
+#include <sstream>
 #include <string>
 
 
@@ -430,6 +432,40 @@ bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
     //stmt->dump();
     return true;
 }
+
+void DependenciesCollector::printGraph(std::ostream& out) const {
+    auto locToStr = [&](const SourceLocation loc) {
+        std::ostringstream str;
+        str << sourceManager.getExpansionLineNumber(loc) << ":"
+            << sourceManager.getExpansionColumnNumber(loc);
+        return str.str();
+    };
+    auto getNodeId = [&](const Decl* decl) {
+        SourceRange range = decl->getSourceRange();
+        std::ostringstream str;
+        str << '"' << decl->getDeclKindName() << "\\n";
+
+        if (const auto* namedDecl = dyn_cast<NamedDecl>(decl))
+            str << namedDecl->getNameAsString() << "\\n";
+
+        str << decl << "\\n"
+            << "<" << locToStr(range.getBegin()) << "-" << locToStr(range.getEnd()) << ">"
+            << '"';
+        return str.str();
+    };
+
+    const auto& graph = srcInfo.uses;
+    out << "digraph {\n";
+    for (const auto& it : graph) if (it.first) {
+        std::string fromStr = getNodeId(it.first);
+        out << fromStr << "\n";
+        for (const Decl* to : it.second) if (to)
+            out << fromStr << " -> " << getNodeId(to) << "\n";
+    }
+
+    out << "}\n";
+}
+
 
 }
 }

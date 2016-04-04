@@ -28,6 +28,7 @@
 #include <clang/Tooling/Tooling.h>
 
 
+#include <fstream>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -89,6 +90,10 @@ public:
     {}
 
     virtual void HandleTranslationUnit(ASTContext& Ctx) override {
+#ifdef CAIDE_DEBUG_MODE
+        Ctx.getTranslationUnitDecl()->dump();
+#endif
+
         // 1. Build dependency graph for semantic declarations.
         {
             DependenciesCollector depsVisitor(sourceManager, srcInfo);
@@ -105,6 +110,11 @@ public:
                 sema.LateTemplateParser(sema.OpaqueParser, *lpt);
             }
             sema.getDiagnostics().setSuppressAllDiagnostics(false);
+
+#ifdef CAIDE_DEBUG_MODE
+            std::ofstream file("graph.dot");
+            depsVisitor.printGraph(file);
+#endif
         }
 
         // 2. Find semantic declarations that are reachable from main function in the graph.

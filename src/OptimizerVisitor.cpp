@@ -7,7 +7,6 @@
 #include "OptimizerVisitor.h"
 
 #include "SmartRewriter.h"
-#include "UsedDeclarations.h"
 #include "util.h"
 
 //#define CAIDE_DEBUG_MODE
@@ -28,7 +27,7 @@ namespace caide {
 namespace internal {
 
 
-OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const UsedDeclarations& usedDecls,
+OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const std::unordered_set<Decl*>& usedDecls,
             std::unordered_set<Decl*>& removedDecls, SmartRewriter& rewriter_)
     : sourceManager(srcManager)
     , usedDeclarations(usedDecls)
@@ -82,7 +81,7 @@ bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
 
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
     if (sourceManager.isInMainFile(nsDecl->getLocStart())
-        && !usedDeclarations.contains(nsDecl->getCanonicalDecl()))
+        && usedDeclarations.count(nsDecl->getCanonicalDecl()) == 0)
     {
         removeDecl(nsDecl);
     }
@@ -130,7 +129,7 @@ bool OptimizerVisitor::needToRemoveFunction(FunctionDecl* functionDecl) const {
         return false;
 
     FunctionDecl* canonicalDecl = functionDecl->getCanonicalDecl();
-    const bool funcIsUnused = !usedDeclarations.contains(canonicalDecl);
+    const bool funcIsUnused = usedDeclarations.count(canonicalDecl) == 0;
     const bool thisIsRedeclaration = !functionDecl->doesThisDeclarationHaveABody()
             && declared.find(canonicalDecl) != declared.end();
     return funcIsUnused || thisIsRedeclaration;
@@ -180,7 +179,7 @@ bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
     }
 
     CXXRecordDecl* canonicalDecl = recordDecl->getCanonicalDecl();
-    const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
+    const bool classIsUnused = usedDeclarations.count(canonicalDecl) == 0;
     const bool thisIsRedeclaration = !recordDecl->isCompleteDefinition()
         && declared.find(canonicalDecl) != declared.end();
 
@@ -197,7 +196,7 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
     dbg(CAIDE_FUNC);
 
     ClassTemplateDecl* canonicalDecl = templateDecl->getCanonicalDecl();
-    const bool classIsUnused = !usedDeclarations.contains(canonicalDecl);
+    const bool classIsUnused = usedDeclarations.count(canonicalDecl) == 0;
     const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition()
         && declared.find(canonicalDecl) != declared.end();
 
@@ -214,7 +213,7 @@ bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
     dbg(CAIDE_FUNC);
 
     Decl* canonicalDecl = typedefDecl->getCanonicalDecl();
-    if (!usedDeclarations.contains(canonicalDecl))
+    if (usedDeclarations.count(canonicalDecl) == 0)
         removeDecl(typedefDecl);
 
     return true;
@@ -226,14 +225,14 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
     dbg(CAIDE_FUNC);
 
     if (TypeAliasTemplateDecl* aliasTemplate = aliasDecl->getDescribedAliasTemplate()) {
-        if (!usedDeclarations.contains(aliasTemplate))
+        if (usedDeclarations.count(aliasTemplate) == 0)
             removeDecl(aliasDecl);
         // This is a template alias; will be processed as TypeAliasTemplateDecl
         return true;
     }
 
     Decl* canonicalDecl = aliasDecl->getCanonicalDecl();
-    if (!usedDeclarations.contains(canonicalDecl))
+    if (usedDeclarations.count(canonicalDecl) == 0)
         removeDecl(aliasDecl);
 
     return true;
@@ -244,13 +243,13 @@ bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTe
         return true;
     dbg(CAIDE_FUNC);
 
-    if (!usedDeclarations.contains(aliasTemplate))
+    if (usedDeclarations.count(aliasTemplate) == 0)
         removeDecl(aliasTemplate);
     return true;
 }
 
 bool OptimizerVisitor::processUsingDirective(Decl* canonicalDecl, DeclContext* declContext) {
-    bool usingIsRedundant = !usedDeclarations.contains(canonicalDecl);
+    bool usingIsRedundant = usedDeclarations.count(canonicalDecl) == 0;
     if (declContext) {
         DeclContext* canonicalContext = declContext->getPrimaryContext();
         bool seenInCurrentContext = !seenInUsingDirectives[canonicalContext].insert(canonicalDecl).second;
@@ -298,7 +297,7 @@ bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
         complicated. So currently we simply remove unreferenced global static
         variables unless they are marked with a '/// caide keep' comment.
         */
-        if (!usedDeclarations.contains(varDecl)) {
+        if (usedDeclarations.count(varDecl) == 0) {
             // Mark this variable as removed, but the actual code deletion is done in
             // removeVariables() method.
             removed.insert(varDecl);
@@ -338,7 +337,7 @@ void OptimizerVisitor::Finalize(ASTContext& ctx) {
         vector<bool> isUsed(n, true);
         size_t lastUsed = n;
         for (size_t i = 0; i < n; ++i) {
-            isUsed[i] = usedDeclarations.contains(vars[i]->getCanonicalDecl());
+            isUsed[i] = usedDeclarations.count(vars[i]->getCanonicalDecl()) != 0;
             if (isUsed[i])
                 lastUsed = i;
         }

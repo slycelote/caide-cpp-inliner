@@ -11,7 +11,6 @@
 #include "RemoveInactivePreprocessorBlocks.h"
 #include "SmartRewriter.h"
 #include "SourceInfo.h"
-#include "UsedDeclarations.h"
 #include "util.h"
 
 //#define CAIDE_DEBUG_MODE
@@ -33,6 +32,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 
@@ -118,9 +118,8 @@ public:
         }
 
         // 2. Find semantic declarations that are reachable from main function in the graph.
-        UsedDeclarations usedDecls(sourceManager);
+        std::unordered_set<Decl*> used;
         {
-            set<Decl*> seen;
             set<Decl*> queue;
             for (Decl* decl : srcInfo.declsToKeep)
                 queue.insert(decl->getCanonicalDecl());
@@ -128,17 +127,15 @@ public:
             while (!queue.empty()) {
                 Decl* decl = *queue.begin();
                 queue.erase(queue.begin());
-                if (seen.insert(decl).second) {
+                if (used.insert(decl).second)
                     queue.insert(srcInfo.uses[decl].begin(), srcInfo.uses[decl].end());
-                    usedDecls.add(decl);
-                }
             }
         }
 
         // 3. Remove unnecessary lexical declarations.
         std::unordered_set<Decl*> removedDecls;
         {
-            OptimizerVisitor visitor(sourceManager, usedDecls, removedDecls, *smartRewriter);
+            OptimizerVisitor visitor(sourceManager, used, removedDecls, *smartRewriter);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
             visitor.Finalize(Ctx);
         }

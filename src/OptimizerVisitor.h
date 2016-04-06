@@ -24,12 +24,11 @@ namespace internal {
 
 
 class SmartRewriter;
-class UsedDeclarations;
 
 
 class OptimizerVisitor: public clang::RecursiveASTVisitor<OptimizerVisitor> {
 public:
-    OptimizerVisitor(clang::SourceManager& srcManager, const UsedDeclarations& usedDecls,
+    OptimizerVisitor(clang::SourceManager& srcManager, const std::unordered_set<clang::Decl*>& usedDecls,
             std::unordered_set<clang::Decl*>& removedDecls, SmartRewriter& rewriter_);
 
     bool shouldVisitImplicitCode() const;
@@ -65,7 +64,7 @@ private:
 
 
     clang::SourceManager& sourceManager;
-    const UsedDeclarations& usedDeclarations;
+    const std::unordered_set<clang::Decl*>& usedDeclarations;
     SmartRewriter& rewriter;
 
     std::unordered_set<clang::Decl*> declared;

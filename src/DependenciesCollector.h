@@ -6,12 +6,15 @@
 
 #pragma once
 
+#include "SourceLocationComparers.h"
 
 #include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Basic/SourceLocation.h>
 
 #include <iosfwd>
 #include <set>
 #include <stack>
+#include <map>
 
 
 namespace clang {
@@ -70,6 +73,8 @@ private:
     clang::FunctionDecl* getCurrentFunction(clang::Decl* decl) const;
     clang::Decl* getParentDecl(clang::Decl* decl) const;
 
+    clang::Decl* getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl);
+
     void insertReference(clang::Decl* from, clang::Decl* to);
     void insertReferenceToType(clang::Decl* from, const clang::Type* to, std::set<const clang::Type*>& seen);
     void insertReferenceToType(clang::Decl* from, clang::QualType to, std::set<const clang::Type*>& seen);
@@ -86,6 +91,8 @@ private:
     // with inner-most active Decl at the top of the stack.
     // \sa TraverseDecl().
     std::stack<clang::Decl*> declStack;
+
+    std::map<clang::SourceRange, clang::Decl*, ArbitraryRangeComparer> declsInTemplateContext;
 };
 
 }

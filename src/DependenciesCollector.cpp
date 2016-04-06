@@ -48,6 +48,27 @@ Decl* DependenciesCollector::getParentDecl(Decl* decl) const {
     return dyn_cast_or_null<Decl>(decl->getLexicalDeclContext());
 }
 
+// A declaration in a templated context (such as a method or a field of a class template) is present
+// as multiple instances in the AST: once for the template itself and once for each *implicit*
+// instantiation. Clearly, it doesn't make sense to 'remove' a Decl coming from an implicit
+// instantiation: what if another implicit instantiation of the same code is used? (And we don't:
+// the OptimizerVisitor doesn't visit implicit code.)
+// We, therefore, need to add a dependency from each Decl that comes from an implicit instantiation to
+// the one Decl that comes from the template itself; then if the one Decl is unreachable
+// we remove it.
+Decl* DependenciesCollector::getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) {
+    // The implementation is HACKY. It relies on the following assumptions:
+    // 1. A Decl inside an implicit instantiation and the corresponding Decl in the non-instantiated
+    // context have the same source range.
+    // 2. The Decl in the non-instantiated context is visited first.
+    SourceRange sourceRange = semanticDecl->getSourceRange();
+    auto it = declsInTemplateContext.find(sourceRange);
+    if (it != declsInTemplateContext.end())
+        return it->second;
+    declsInTemplateContext.emplace_hint(it, sourceRange, semanticDecl);
+    return semanticDecl;
+}
+
 void DependenciesCollector::insertReference(Decl* from, Decl* to) {
     if (!from || !to)
         return;
@@ -168,6 +189,13 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
 
     if (!sourceManager.isInMainFile(decl->getLocStart()))
         return true;
+
+    // If this declaration is inside a template instantiation, mark dependence on the corresponding
+    // declaration in a non-instantiated context.
+    Decl* canonicalDecl = decl->getCanonicalDecl();
+    Decl* nonInstantiatedDecl = getCorrespondingDeclInNonInstantiatedContext(canonicalDecl);
+    if (canonicalDecl != nonInstantiatedDecl)
+        insertReference(canonicalDecl, nonInstantiatedDecl);
 
     RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
     if (!comment)

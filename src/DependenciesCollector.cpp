@@ -381,8 +381,9 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
         // Add references to template argument types as they are written in code, not the canonical types.
         if (const ASTTemplateArgumentListInfo* templateArgs = specInfo->TemplateArgumentsAsWritten) {
             for (unsigned i = 0; i < templateArgs->NumTemplateArgs; ++i) {
-                const TemplateArgumentLoc& arg = (*templateArgs)[i];
-                insertReferenceToType(f, arg.getTypeSourceInfo());
+                const TemplateArgumentLoc& argLoc = (*templateArgs)[i];
+                if (argLoc.getArgument().getKind() == TemplateArgument::Type)
+                    insertReferenceToType(f, argLoc.getTypeSourceInfo());
             }
         }
     }

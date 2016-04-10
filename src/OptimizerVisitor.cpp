@@ -79,6 +79,15 @@ bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
     return true;
 }
 
+bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
+    if (sourceManager.isInMainFile(enumDecl->getLocStart())
+        && usedDeclarations.count(enumDecl->getCanonicalDecl()) == 0)
+    {
+        removeDecl(enumDecl);
+    }
+    return true;
+}
+
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
     if (sourceManager.isInMainFile(nsDecl->getLocStart())
         && usedDeclarations.count(nsDecl->getCanonicalDecl()) == 0)

@@ -448,6 +448,20 @@ bool DependenciesCollector::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitEx
     return true;
 }
 
+bool DependenciesCollector::VisitEnumDecl(EnumDecl* enumDecl) {
+    // Removing an unused enum constant can change values of used constants of the same enum.
+    // So we assume that either the whole enum is used or it is unused. For this purpose, insert
+    // bidirectional dependency links connecting the enum and each enum constant.
+    for (auto it = enumDecl->enumerator_begin(); it != enumDecl->enumerator_end(); ++it) {
+        insertReference(enumDecl, *it);
+        insertReference(*it, enumDecl);
+    }
+
+    // reference to underlying type
+    insertReferenceToType(enumDecl, enumDecl->getIntegerType());
+    return true;
+}
+
 bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
     (void)stmt;
     //dbg(stmt->getStmtClassName() << std::endl);

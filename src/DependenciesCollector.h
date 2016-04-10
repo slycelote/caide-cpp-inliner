@@ -65,6 +65,7 @@ public:
     bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr* expr);
     bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
+    bool VisitEnumDecl(clang::EnumDecl* enumDecl);
 
     void printGraph(std::ostream& out) const;
 

@@ -47,6 +47,7 @@ public:
     bool VisitTypeAliasTemplateDecl(clang::TypeAliasTemplateDecl* aliasDecl);
     bool VisitUsingDirectiveDecl(clang::UsingDirectiveDecl* usingDecl);
     bool VisitVarDecl(clang::VarDecl* varDecl);
+    bool VisitEnumDecl(clang::EnumDecl* enumDecl);
 
     // Apply changes that require some 'global' knowledge.
     // Called after traversal of the whole AST.

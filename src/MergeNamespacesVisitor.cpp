@@ -32,18 +32,16 @@ bool MergeNamespacesVisitor::shouldVisitTemplateInstantiations() const { return 
 bool MergeNamespacesVisitor::TraverseDecl(Decl* decl) {
     bool ret = RecursiveASTVisitor<MergeNamespacesVisitor>::TraverseDecl(decl);
 
-    // Check that decl was not removed. We don't mark all declarations as removed, so check
-    // the lexical context of the decl too.
-    // Note: a type alias is not a declaration context, so the lexical context of its template
-    // arguments is the enclosing namespace/class/function etc. It means that this check may give a
-    // false positive. So we skip TemplateTypeParmDecl (it's always attached to another Decl anyway).
-    if (decl && sourceManager.isInMainFile(decl->getLocStart()) && removed.count(decl) == 0
-        && removed.count(dyn_cast_or_null<Decl>(decl->getLexicalDeclContext())) == 0)
-    {
+    if (decl && sourceManager.isInMainFile(decl->getLocStart()) && removed.count(decl) == 0) {
         if (auto* nsDecl = dyn_cast<NamespaceDecl>(decl))
             closedNamespaces.push(nsDecl);
-        else if (!isa<TemplateTypeParmDecl>(decl))
+        // Note: a type alias is not a declaration context, so the lexical context of its template
+        // arguments is the enclosing namespace/class/function etc. It means that this check may give a
+        // false positive. So we skip TemplateTypeParmDecl (it's always attached to another Decl anyway).
+        else if (!isa<TemplateTypeParmDecl>(decl) && isa<NamespaceDecl>(decl->getLexicalDeclContext())) {
+            // A non-removed declaration interrupts the chain of closed namespaces
             closedNamespaces = std::stack<NamespaceDecl*>{};
+        }
     }
 
     return ret;

@@ -112,7 +112,7 @@ public:
             sema.getDiagnostics().setSuppressAllDiagnostics(false);
 
 #ifdef CAIDE_DEBUG_MODE
-            std::ofstream file("graph.dot");
+            std::ofstream file("caide-graph.dot");
             depsVisitor.printGraph(file);
 #endif
         }

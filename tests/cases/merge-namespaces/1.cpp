@@ -27,6 +27,17 @@ namespace ns2 {
     }
 }
 
+namespace ns3 {
+    void used1() {}
+}
+
+struct Unused {
+    Unused(const Unused& u) = delete;
+};
+
+namespace ns3 {
+    void used2() {}
+}
 
 int main() {
     ns1::used1();
@@ -35,5 +46,7 @@ int main() {
     ns2::internal::used2();
     ns2::internal::used3();
     (void)ns2::used;
+    ns3::used1();
+    ns3::used2();
 }
 

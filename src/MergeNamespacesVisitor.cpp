@@ -35,12 +35,18 @@ bool MergeNamespacesVisitor::TraverseDecl(Decl* decl) {
     if (decl && sourceManager.isInMainFile(decl->getLocStart()) && removed.count(decl) == 0) {
         if (auto* nsDecl = dyn_cast<NamespaceDecl>(decl))
             closedNamespaces.push(nsDecl);
-        // Note: a type alias is not a declaration context, so the lexical context of its template
-        // arguments is the enclosing namespace/class/function etc. It means that this check may give a
-        // false positive. So we skip TemplateTypeParmDecl (it's always attached to another Decl anyway).
-        else if (!isa<TemplateTypeParmDecl>(decl) && isa<NamespaceDecl>(decl->getLexicalDeclContext())) {
-            // A non-removed declaration interrupts the chain of closed namespaces
-            closedNamespaces = std::stack<NamespaceDecl*>{};
+        else {
+            auto* parentContext = decl->getLexicalDeclContext();
+            // Note: a type alias is not a declaration context, so the lexical context of its template
+            // arguments is the enclosing namespace/class/function etc. It means that this check may give a
+            // false positive. So we skip TemplateTypeParmDecl (it's always attached to another Decl anyway).
+            // We also skip non-top-level Decls (they might have been removed as part of a parent Decl).
+            if (!isa<TemplateTypeParmDecl>(decl) &&
+                (isa<NamespaceDecl>(parentContext) || isa<TranslationUnitDecl>(parentContext)))
+            {
+                // A non-removed declaration interrupts the chain of closed namespaces
+                closedNamespaces = std::stack<NamespaceDecl*>{};
+            }
         }
     }
 

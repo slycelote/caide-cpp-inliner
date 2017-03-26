@@ -7,7 +7,7 @@ addons:
     apt:
         sources: &default_sources
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://ppa.launchpad.net/devin122/cmake/ubuntu precise main'
+            - sourceline: 'ppa:devin122/cmake'
         packages: &default_packages
             - g++-4.9
             - gcc-4.9

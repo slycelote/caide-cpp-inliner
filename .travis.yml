@@ -1,5 +1,5 @@
 language: cpp
-sudo: false
+sudo: required
 git:
     submodules: false
 
@@ -7,23 +7,16 @@ addons:
     apt:
         sources: &default_sources
             - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://ppa.launchpad.net/devin122/cmake/ubuntu precise main'
         packages: &default_packages
             - g++-4.9
             - gcc-4.9
             - binutils
+            - cmake
 
 matrix:
     include:
         - env: CAIDE_USE_SYSTEM_CLANG=OFF
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - kubuntu-backports
-                  packages:
-                      - *default_packages
-                      - cmake
-
         - env: CAIDE_CLANG_VERSION=3.6 CAIDE_USE_SYSTEM_CLANG=ON
           addons:
               apt:
@@ -77,7 +70,8 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - llvm-toolchain-precise-4.0
+                      - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+                        key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
                   packages:
                       - *default_packages
                       - libedit-dev

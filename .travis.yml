@@ -1,14 +1,15 @@
 language: cpp
-dist: trusty
 sudo: required
 git:
     submodules: false
+
+before_install:
+  - sudo apt-add-repository -y ppa:george-edison55/cmake-3.x
 
 addons:
     apt:
         sources: &default_sources
             - ubuntu-toolchain-r-test
-            - sourceline: 'ppa:george-edison55/cmake-3.x'
         packages: &default_packages
             - g++-4.9
             - gcc-4.9

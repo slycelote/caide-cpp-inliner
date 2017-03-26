@@ -1,10 +1,13 @@
 language: cpp
+dist: trusty
 sudo: required
 git:
     submodules: false
 
 before_install:
   - sudo apt-add-repository -y ppa:george-edison55/cmake-3.x
+  - sudo apt-get -qq update
+  - sudo apt-get install -y cmake
 
 addons:
     apt:
@@ -14,7 +17,6 @@ addons:
             - g++-4.9
             - gcc-4.9
             - binutils
-            - cmake
 
 matrix:
     include:
@@ -24,7 +26,7 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - llvm-toolchain-precise-3.6
+                      - llvm-toolchain-trusty-3.6
                   packages:
                       - *default_packages
                       - libedit-dev
@@ -36,7 +38,7 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - llvm-toolchain-precise-3.7
+                      - llvm-toolchain-trusty-3.7
                   packages:
                       - *default_packages
                       - libedit-dev
@@ -48,7 +50,7 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - llvm-toolchain-precise-3.8
+                      - llvm-toolchain-trusty-3.8
                   packages:
                       - *default_packages
                       - libedit-dev
@@ -60,7 +62,7 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - llvm-toolchain-precise-3.9
+                      - llvm-toolchain-trusty-3.9
                   packages:
                       - *default_packages
                       - libedit-dev
@@ -72,7 +74,7 @@ matrix:
               apt:
                   sources:
                       - *default_sources
-                      - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+                      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main'
                         key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
                   packages:
                       - *default_packages

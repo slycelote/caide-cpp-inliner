@@ -4,6 +4,10 @@ set -ev
 export CXX=g++-4.9
 export CC=gcc-4.9
 
+cmake --version
+"$(CXX)" --version
+"$(CC)" --version
+
 git submodule init
 git submodule update src/clang
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]

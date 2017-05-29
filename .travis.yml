@@ -74,10 +74,7 @@ matrix:
                       - libclang-4.0-dev
                       - llvm-4.0-dev
     allow_failures:
-        # CMake packaging for these is broken in Travis
-        - env: CAIDE_CLANG_VERSION=3.6 CAIDE_USE_SYSTEM_CLANG=ON
         - env: CAIDE_CLANG_VERSION=3.7 CAIDE_USE_SYSTEM_CLANG=ON
-        - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
     fast_finish: true
 
 

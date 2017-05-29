@@ -6,8 +6,8 @@ export CC=gcc-4.9
 
 env
 cmake --version
-"${CXX}" --version
-"${CC}" --version
+"$CXX" --version
+"$CC" --version
 date
 
 git submodule init
@@ -19,7 +19,8 @@ else
     # Tell CMake where to look for LLVMConfig
     case "$CAIDE_CLANG_VERSION" in
         3.6|3.7|3.8)
-            export LLVM_DIR=/usr/share/llvm-$CAIDE_CLANG_VERSION/
+            # CMake packaging for these is broken in Ubuntu
+            export LLVM_DIR="$TRAVIS_BUILD_DIR/travis/cmake/$CAIDE_CLANG_VERSION/"
             ;;
 
         *)

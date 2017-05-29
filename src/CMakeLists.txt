@@ -61,7 +61,11 @@ set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangPa
 if(CAIDE_USE_SYSTEM_CLANG)
     # Find the libraries that correspond to the LLVM components that we wish to use.
     # Run `llvm-config --libs <components>' to get the actual list of libraries.
-    llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
+    if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
+        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
+    else()
+        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option profiledata)
+    endif()
 
     # There is no function similar to llvm_map_components_to_libnames for clang libraries.
     # Find them manually.

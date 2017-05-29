@@ -18,12 +18,12 @@ then
 else
     # Tell CMake where to look for LLVMConfig
     case "$CAIDE_CLANG_VERSION" in
-        3.9|4.0)
-            export LLVM_DIR=/usr/lib/llvm-${CAIDE_CLANG_VERSION}/
+        3.6|3.7|3.8)
+            export LLVM_DIR=/usr/share/llvm-$CAIDE_CLANG_VERSION/
             ;;
 
         *)
-            export LLVM_DIR=/usr/lib/llvm-${CAIDE_CLANG_VERSION}/
+            export LLVM_DIR=/usr/lib/llvm-$CAIDE_CLANG_VERSION/
             ;;
     esac
 fi

@@ -171,7 +171,7 @@ set(LLVM_CMAKE_DIR "/usr/share/llvm-3.8/cmake")
 set(LLVM_TOOLS_BINARY_DIR "${LLVM_INSTALL_PREFIX}/bin")
 
 if(NOT TARGET LLVMSupport)
-  include("${LLVM_CMAKE_DIR}/LLVMExports.cmake")
+  include("LLVMExports.cmake")
 endif()
 
 include(${LLVM_CMAKE_DIR}/LLVM-Config.cmake)

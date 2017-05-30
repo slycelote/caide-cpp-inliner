@@ -35,7 +35,7 @@ mkdir build
 cd build
 cmake -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG ../src
 # First build may run out of memory
-make -j2 || make -j1
+make -j3 || make -j1
 
 date
 

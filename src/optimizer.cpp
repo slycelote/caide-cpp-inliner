@@ -106,7 +106,7 @@ public:
             clang::Sema& sema = compiler.getSema();
             sema.getDiagnostics().setSuppressAllDiagnostics(true);
             for (FunctionDecl* f : srcInfo.delayedParsedFunctions) {
-                clang::LateParsedTemplate* lpt = sema.LateParsedTemplateMap[f];
+                auto& /*ptr to clang::LateParsedTemplate*/ lpt = sema.LateParsedTemplateMap[f];
                 sema.LateTemplateParser(sema.OpaqueParser, *lpt);
             }
             sema.getDiagnostics().setSuppressAllDiagnostics(false);

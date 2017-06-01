@@ -39,21 +39,20 @@ else()
     # TODO: can we do this instead of hardcoding LLVM_ variables below?
     #include("${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/LLVMConfig.cmake")
 
-    set(LLVM_PACKAGE_VERSION "3.8")
+    set(LLVM_PACKAGE_VERSION "4.0.1")
     message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
 
     set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm/lib")
     set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm/include"
         "${CMAKE_CURRENT_BINARY_DIR}/llvm/tools/clang/include")
-    set(LLVM_DEFINITIONS "-D__STDC_LIMIT_MACROS" "-D__STDC_CONSTANT_MACROS")
 endif()
 
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
-    message(WARNING "A too old clang/llvm version is detected. Build failure is possible.")
+    message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "3.8.255")
-    message(WARNING "A too new clang/llvm version is detected. Build failure is possible.")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "4.0.255")
+    message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
@@ -62,7 +61,11 @@ set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangPa
 if(CAIDE_USE_SYSTEM_CLANG)
     # Find the libraries that correspond to the LLVM components that we wish to use.
     # Run `llvm-config --libs <components>' to get the actual list of libraries.
-    llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
+    if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
+        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
+    else()
+        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option profiledata)
+    endif()
 
     # There is no function similar to llvm_map_components_to_libnames for clang libraries.
     # Find them manually.

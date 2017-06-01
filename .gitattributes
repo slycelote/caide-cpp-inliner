@@ -2,4 +2,5 @@
 /doc/* linguist-documentation
 /src/clang/* linguist-vendored
 /src/llvm/* linguist-vendored
+/travis/cmake/* linguist-vendored
 

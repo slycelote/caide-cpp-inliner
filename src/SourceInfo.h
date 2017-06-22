@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <clang/AST/DeclBase.h>
 #include <clang/Basic/SourceLocation.h>
 
 #include <map>
 #include <set>
+#include <utility>
 #include <vector>
 
 
@@ -22,18 +24,23 @@ namespace clang {
 namespace caide {
 namespace internal {
 
-// Contains dependency graph and other information that DependenciesCollector passes to the next stage
+// Contains dependency graph and other information shared between optimizer stages.
 struct SourceInfo {
     // key: Decl, value: what the key uses.
     std::map<clang::Decl*, std::set<clang::Decl*>> uses;
 
-    // 'Roots of the dependency tree':
+    // 'Roots of the dependency graph':
     // - int main()
     // - declarations marked with a comment '/// caide keep'
     std::set<clang::Decl*> declsToKeep;
 
     // Delayed parsed functions.
     std::vector<clang::FunctionDecl*> delayedParsedFunctions;
+
+    // value: non-implicit Decl, key: location and kind of the decl.
+    std::map<std::pair<clang::SourceLocation, clang::Decl::Kind>, clang::Decl*> nonImplicitDecls;
+
+    static std::pair<clang::SourceLocation, clang::Decl::Kind> makeKey(clang::Decl* nonImplicitDecl);
 };
 
 }

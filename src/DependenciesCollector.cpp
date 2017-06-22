@@ -8,7 +8,7 @@
 #include "SourceInfo.h"
 #include "util.h"
 
-//#define CAIDE_DEBUG_MODE
+// #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 
 
@@ -52,21 +52,19 @@ Decl* DependenciesCollector::getParentDecl(Decl* decl) const {
 // as multiple instances in the AST: once for the template itself and once for each *implicit*
 // instantiation. Clearly, it doesn't make sense to 'remove' a Decl coming from an implicit
 // instantiation: what if another implicit instantiation of the same code is used? (And we don't:
-// the OptimizerVisitor doesn't visit implicit code.)
+// OptimizerVisitor doesn't visit implicit code.)
 // We, therefore, need to add a dependency from each Decl that comes from an implicit instantiation to
 // the one Decl that comes from the template itself; then if the one Decl is unreachable
 // we remove it.
-Decl* DependenciesCollector::getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) {
-    // The implementation is HACKY. It relies on the following assumptions:
-    // 1. A Decl inside an implicit instantiation and the corresponding Decl in the non-instantiated
-    // context have the same source range.
-    // 2. The Decl in the non-instantiated context is visited first.
-    SourceRange sourceRange = semanticDecl->getSourceRange();
-    auto it = declsInTemplateContext.find(sourceRange);
-    if (it != declsInTemplateContext.end())
+Decl* DependenciesCollector::getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) const {
+    // The implementation is HACKY. It relies on the assumption that a Decl inside an implicit
+    // instantiation and the corresponding Decl in the non-instantiated context have the same
+    // source range.
+    auto key = SourceInfo::makeKey(semanticDecl);
+    auto it = srcInfo.nonImplicitDecls.find(key);
+    if (it != srcInfo.nonImplicitDecls.end())
         return it->second;
-    declsInTemplateContext.emplace_hint(it, sourceRange, semanticDecl);
-    return semanticDecl;
+    return nullptr;
 }
 
 void DependenciesCollector::insertReference(Decl* from, Decl* to) {
@@ -199,7 +197,7 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
     static const std::string caideKeepComment = "caide keep";
     StringRef haystack(beg, end - beg + 1);
     StringRef needle(caideKeepComment);
-    //std::cerr << toString(sourceManager, decl) << ": " << haystack.str() << std::endl;
+    dbg(toString(sourceManager, decl) << ": " << haystack.str() << std::endl);
     if (haystack.find(needle) != StringRef::npos)
         srcInfo.declsToKeep.insert(decl);
 

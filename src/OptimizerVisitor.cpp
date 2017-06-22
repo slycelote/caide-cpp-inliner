@@ -9,7 +9,7 @@
 #include "SmartRewriter.h"
 #include "util.h"
 
-//#define CAIDE_DEBUG_MODE
+// #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 
 
@@ -36,7 +36,7 @@ OptimizerVisitor::OptimizerVisitor(SourceManager& srcManager, const std::unorder
 {}
 
 // When we remove code, we're only interested in the real code,
-// so no implicit instantiantions.
+// so no implicit instantiations.
 bool OptimizerVisitor::shouldVisitImplicitCode() const { return false; }
 bool OptimizerVisitor::shouldVisitTemplateInstantiations() const { return false; }
 

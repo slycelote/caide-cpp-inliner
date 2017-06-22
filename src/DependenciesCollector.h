@@ -74,7 +74,7 @@ private:
     clang::FunctionDecl* getCurrentFunction(clang::Decl* decl) const;
     clang::Decl* getParentDecl(clang::Decl* decl) const;
 
-    clang::Decl* getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl);
+    clang::Decl* getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) const;
 
     void insertReference(clang::Decl* from, clang::Decl* to);
     void insertReferenceToType(clang::Decl* from, const clang::Type* to, std::set<const clang::Type*>& seen);
@@ -92,8 +92,6 @@ private:
     // with inner-most active Decl at the top of the stack.
     // \sa TraverseDecl().
     std::stack<clang::Decl*> declStack;
-
-    std::map<clang::SourceRange, clang::Decl*, ArbitraryRangeComparer> declsInTemplateContext;
 };
 
 }

@@ -13,7 +13,7 @@
 #include "SourceInfo.h"
 #include "util.h"
 
-//#define CAIDE_DEBUG_MODE
+// #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 
 
@@ -77,6 +77,31 @@ namespace internal {
 //
 //
 
+
+
+class BuildNonImplicitDeclMap: public clang::RecursiveASTVisitor<BuildNonImplicitDeclMap> {
+public:
+    BuildNonImplicitDeclMap(SourceInfo& srcInfo_)
+        : srcInfo(srcInfo_)
+    {}
+
+    bool shouldVisitImplicitCode() const { return false; }
+    bool shouldVisitTemplateInstantiations() const { return false; }
+    bool shouldWalkTypesOfTypeLocs() const { return false; }
+
+
+    bool VisitDecl(clang::Decl* decl) {
+        auto key = SourceInfo::makeKey(decl);
+        auto it = srcInfo.nonImplicitDecls.lower_bound(key);
+        if (it->first != key)
+            srcInfo.nonImplicitDecls.emplace_hint(it, std::move(key), decl);
+        return true;
+    }
+
+private:
+    SourceInfo& srcInfo;
+};
+
 class OptimizerConsumer: public ASTConsumer {
 public:
     OptimizerConsumer(CompilerInstance& compiler_, std::unique_ptr<SmartRewriter> smartRewriter_,
@@ -93,6 +118,11 @@ public:
 #ifdef CAIDE_DEBUG_MODE
         Ctx.getTranslationUnitDecl()->dump();
 #endif
+        // 0. Collect auxiliary information.
+        {
+            BuildNonImplicitDeclMap visitor(srcInfo);
+            visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
+        }
 
         // 1. Build dependency graph for semantic declarations.
         {

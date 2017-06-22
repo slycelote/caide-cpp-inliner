@@ -125,7 +125,7 @@ endif()
 
 set(inlinerSources caideInliner.cpp DependenciesCollector.cpp inliner.cpp MergeNamespacesVisitor.cpp
     optimizer.cpp OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
-    SourceLocationComparers.cpp util.cpp)
+    SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
 
 if(CAIDE_SHARED_LIBRARY)
     add_library(caideInliner SHARED ${inlinerSources})

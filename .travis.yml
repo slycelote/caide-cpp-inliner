@@ -75,6 +75,7 @@ matrix:
                       - llvm-4.0-dev
     allow_failures:
         - env: CAIDE_CLANG_VERSION=3.7 CAIDE_USE_SYSTEM_CLANG=ON
+        - env: CAIDE_CLANG_VERSION=3.9 CAIDE_USE_SYSTEM_CLANG=ON
     fast_finish: true
 
 

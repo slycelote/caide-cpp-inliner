@@ -43,6 +43,7 @@ public:
     bool VisitDecl(clang::Decl* decl);
     bool VisitCallExpr(clang::CallExpr* callExpr);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr* constructorExpr);
+    bool VisitCXXConstructorDecl(clang::CXXConstructorDecl* ctorDecl);
     bool VisitCXXTemporaryObjectExpr(clang::CXXTemporaryObjectExpr* tempExpr);
     bool VisitTemplateTypeParmDecl(clang::TemplateTypeParmDecl* paramDecl);
     bool VisitCXXNewExpr(clang::CXXNewExpr* newExpr);

@@ -222,6 +222,16 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
     return true;
 }
 
+bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
+    for (auto it = ctorDecl->init_begin(); it != ctorDecl->init_end(); ++it) {
+        CXXCtorInitializer* ctorInit = *it;
+        insertReferenceToType(getCurrentDecl(), ctorInit->getBaseClass());
+        insertReferenceToType(getCurrentDecl(), ctorInit->getTypeSourceInfo());
+    }
+
+    return true;
+}
+
 bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* tempExpr) {
     insertReferenceToType(getCurrentDecl(), tempExpr->getTypeSourceInfo());
     return true;

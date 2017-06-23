@@ -194,12 +194,36 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
     if (!end || invalid)
         return true;
 
-    static const std::string caideKeepComment = "caide keep";
     StringRef haystack(beg, end - beg + 1);
-    StringRef needle(caideKeepComment);
-    dbg(toString(sourceManager, decl) << ": " << haystack.str() << std::endl);
-    if (haystack.find(needle) != StringRef::npos)
-        srcInfo.declsToKeep.insert(decl);
+
+    {
+        static const std::string caideKeepComment = "caide keep";
+        StringRef needle(caideKeepComment);
+        dbg(toString(sourceManager, decl) << ": " << haystack.str() << std::endl);
+        if (haystack.find(needle) != StringRef::npos)
+            srcInfo.declsToKeep.insert(decl);
+    }
+
+    if (ctx)
+    {
+        // The following is useful for classes implementing a standard C++ concept.
+        // For instance, a custom iterator passed to std::shuffle must be a RandomAccessIterator,
+        // which means that it must provide a certain number of member functions/type aliases.
+        // However, there is no way to detect this requirement, unless both the language and
+        // the standard library have full concept support (which we don't want to rely on).
+        // That's because some of the functions/type aliases required by the concept might
+        // not actually be used by a particular STL implementation. If we remove them, the
+        // program becomes technically illegal and may not even compile in another compiler.
+        //
+        // To work around that, it's possible to mark declarations required by some Concept
+        // with a comment '/// caide concept'. This will ensure these declarations don't get
+        // removed as long as the class containing them is used.
+        static const std::string caideConceptComment = "caide concept";
+        StringRef needle(caideConceptComment);
+        dbg(toString(sourceManager, decl) << ": " << haystack.str() << std::endl);
+        if (haystack.find(needle) != StringRef::npos)
+            insertReference(ctx, decl);
+    }
 
     return true;
 }

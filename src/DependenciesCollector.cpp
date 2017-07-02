@@ -91,6 +91,13 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     if (!seen.insert(to).second)
         return;
 
+    dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
+        << "<" << toString(sourceManager, from).substr(0, 20) << ">"
+        << toString(sourceManager, from->getSourceRange())
+        << "     TO TYPE " << to->getTypeClassName() << " " << to
+        << " " << QualType(to, 0).getAsString()
+        << std::endl);
+
     if (const ElaboratedType* elaboratedType = dyn_cast<ElaboratedType>(to)) {
         insertReferenceToType(from, elaboratedType->getNamedType(), seen);
         return;

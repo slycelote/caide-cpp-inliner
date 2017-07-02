@@ -74,10 +74,10 @@ void DependenciesCollector::insertReference(Decl* from, Decl* to) {
     to = to->getCanonicalDecl();
     srcInfo.uses[from].insert(to);
     dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
-        << "<" << toString(sourceManager, from).substr(0, 30) << ">"
+        << "<" << toString(sourceManager, from).substr(0, 20) << ">"
         << toString(sourceManager, from->getSourceRange())
         << "     TO     " << to->getDeclKindName() << " " << to
-        << "<" << toString(sourceManager, to).substr(0, 30) << ">"
+        << "<" << toString(sourceManager, to).substr(0, 20) << ">"
         << toString(sourceManager, to->getSourceRange())
         << std::endl);
 }
@@ -107,8 +107,10 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     if (const PointerType* pointerType = dyn_cast<PointerType>(to))
         insertReferenceToType(from, pointerType->getPointeeType(), seen);
 
-    if (const ReferenceType* refType = dyn_cast<ReferenceType>(to))
+    if (const ReferenceType* refType = dyn_cast<ReferenceType>(to)) {
+        insertReferenceToType(from, refType->getPointeeTypeAsWritten(), seen);
         insertReferenceToType(from, refType->getPointeeType(), seen);
+    }
 
     if (const TypedefType* typedefType = dyn_cast<TypedefType>(to))
         insertReference(from, typedefType->getDecl());
@@ -116,6 +118,8 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     if (const TemplateSpecializationType* tempSpecType =
             dyn_cast<TemplateSpecializationType>(to))
     {
+        if (tempSpecType->isTypeAlias())
+            insertReferenceToType(from, tempSpecType->getAliasedType());
         if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl())
             insertReference(from, tempDecl);
         for (unsigned i = 0; i < tempSpecType->getNumArgs(); ++i) {
@@ -212,12 +216,13 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
         // However, there is no way to detect this requirement, unless both the language and
         // the standard library have full concept support (which we don't want to rely on).
         // That's because some of the functions/type aliases required by the concept might
-        // not actually be used by a particular STL implementation. If we remove them, the
-        // program becomes technically illegal and may not even compile in another compiler.
+        // not actually be used by a particular implementation of std::shuffle. If we remove
+        // them, the program becomes technically illegal and may not even compile in another
+        // compiler.
         //
         // To work around that, it's possible to mark declarations required by some Concept
-        // with a comment '/// caide concept'. This will ensure these declarations don't get
-        // removed as long as the class containing them is used.
+        // with a comment '/// caide concept'. This will ensure that these declarations don't
+        // get removed as long as the class containing them is used.
         static const std::string caideConceptComment = "caide concept";
         StringRef needle(caideConceptComment);
         dbg(toString(sourceManager, decl) << ": " << haystack.str() << std::endl);

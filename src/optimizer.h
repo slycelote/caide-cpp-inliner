@@ -4,6 +4,8 @@
 // the Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version. See LICENSE.TXT for details.
 
+#pragma once
+
 #include <vector>
 #include <set>
 #include <string>

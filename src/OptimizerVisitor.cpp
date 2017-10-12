@@ -141,7 +141,9 @@ bool OptimizerVisitor::needToRemoveFunction(FunctionDecl* functionDecl) const {
     const bool funcIsUnused = usedDeclarations.count(canonicalDecl) == 0;
     const bool thisIsRedeclaration = !functionDecl->doesThisDeclarationHaveABody()
             && declared.find(canonicalDecl) != declared.end();
-    return funcIsUnused || thisIsRedeclaration;
+    const bool thisIsFriendDeclaration = functionDecl->getFriendObjectKind() != Decl::FOK_None;
+    // TODO: Are we actually used by this friend?
+    return funcIsUnused || (thisIsRedeclaration && !thisIsFriendDeclaration);
 }
 
 bool OptimizerVisitor::VisitFunctionDecl(FunctionDecl* functionDecl) {
@@ -208,8 +210,10 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
     const bool classIsUnused = usedDeclarations.count(canonicalDecl) == 0;
     const bool thisIsRedeclaration = !templateDecl->isThisDeclarationADefinition()
         && declared.find(canonicalDecl) != declared.end();
+    const bool thisIsFriendDeclaration = templateDecl->getFriendObjectKind() != Decl::FOK_None;
 
-    if (classIsUnused || thisIsRedeclaration)
+    // TODO: Are we actually used by this friend?
+    if (classIsUnused || (thisIsRedeclaration && !thisIsFriendDeclaration))
         removeDecl(templateDecl);
 
     declared.insert(canonicalDecl);

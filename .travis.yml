@@ -73,9 +73,22 @@ matrix:
                       - libedit-dev
                       - libclang-4.0-dev
                       - llvm-4.0-dev
+
+        - env: CAIDE_CLANG_VERSION=5.0 CAIDE_USE_SYSTEM_CLANG=ON
+          addons:
+              apt:
+                  sources:
+                      - *default_sources
+                      - llvm-toolchain-trusty-5.0
+                  packages:
+                      - *default_packages
+                      - libedit-dev
+                      - libclang-5.0-dev
+                      - llvm-5.0-dev
     allow_failures:
         - env: CAIDE_CLANG_VERSION=3.7 CAIDE_USE_SYSTEM_CLANG=ON
         - env: CAIDE_CLANG_VERSION=3.9 CAIDE_USE_SYSTEM_CLANG=ON
+        - env: CAIDE_CLANG_VERSION=5.0 CAIDE_USE_SYSTEM_CLANG=ON
     fast_finish: true
 
 

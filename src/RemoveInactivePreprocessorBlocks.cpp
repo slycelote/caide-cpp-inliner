@@ -122,12 +122,7 @@ public:
         }
     }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
-    void MacroUndefined(const Token& MacroNameTok, const MacroDefinition& MacroDef) {
-        const DefMacroDirective* MD = MacroDef.getLocalDirective();
-#else
     void MacroUndefined(const Token& MacroNameTok, const MacroDirective* MD) {
-#endif
         definedMacroNames.erase(getTokenName(MacroNameTok));
 
         if (!MD || !isInMainFile(MD->getLocation()))
@@ -142,16 +137,8 @@ public:
         }
     }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
-    void MacroExpands(const Token& /*MacroNameTok*/, const MacroDefinition& MacroDef,
-                      SourceRange Range, const MacroArgs* /*Args*/)
+    void MacroExpands(const MacroDirective* MD, SourceRange Range)
     {
-        const DefMacroDirective* MD = MacroDef.getLocalDirective();
-#else
-    void MacroExpands(const Token& /*MacroNameTok*/, const MacroDirective* MD,
-                      SourceRange Range, const MacroArgs* /*Args*/)
-    {
-#endif
         if (!MD || !isInMainFile(MD->getLocation()))
             return;
 
@@ -181,11 +168,7 @@ public:
             activeClauses.back().keepAllBranches = true;
     }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
-    void Ifdef(SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& /*MD*/) {
-#else
-    void Ifdef(SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* /*MD*/) {
-#endif
+    void Ifdef(SourceLocation Loc, const Token& MacroNameTok) {
         if (!isInMainFile(Loc))
             return;
         activeClauses.push_back(IfDefClause(Loc));
@@ -196,11 +179,7 @@ public:
             activeClauses.back().keepAllBranches = true;
     }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
-    void Ifndef(SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& /*MD*/) {
-#else
-    void Ifndef(SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* /*MD*/) {
-#endif
+    void Ifndef(SourceLocation Loc, const Token& MacroNameTok) {
         if (!isInMainFile(Loc))
             return;
         activeClauses.push_back(IfDefClause(Loc));
@@ -301,66 +280,81 @@ void RemoveInactivePreprocessorBlocks::MacroDefined(
     impl->MacroDefined(MacroNameTok, MD);
 }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
+#if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
 void RemoveInactivePreprocessorBlocks::MacroUndefined(
-        const Token& MacroNameTok, const MacroDefinition& MD)
+    const Token& MacroNameTok, const MacroDefinition& MacroDef, const MacroDirective* /*Undef*/)
+{
+    const DefMacroDirective* MD = MacroDef.getLocalDirective();
+    impl->MacroUndefined(MacroNameTok, MD);
+}
+#elif CAIDE_CLANG_VERSION_AT_LEAST(3,7)
+void RemoveInactivePreprocessorBlocks::MacroUndefined(
+    const Token& MacroNameTok, const MacroDefinition& MacroDef)
+{
+    const DefMacroDirective* MD = MacroDef.getLocalDirective();
+    impl->MacroUndefined(MacroNameTok, MD);
+}
 #else
 void RemoveInactivePreprocessorBlocks::MacroUndefined(
-        const Token& MacroNameTok, const MacroDirective* MD)
-#endif
+    const Token& MacroNameTok, const MacroDirective* MD)
 {
     impl->MacroUndefined(MacroNameTok, MD);
 }
+#endif
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
 void RemoveInactivePreprocessorBlocks::MacroExpands(
-        const Token& MacroNameTok, const MacroDefinition& MD,
-        SourceRange Range, const MacroArgs* Args)
+    const Token& /*MacroNameTok*/, const MacroDefinition& MacroDef,
+    SourceRange Range, const MacroArgs* /*Args*/)
+{
+    const DefMacroDirective* MD = MacroDef.getLocalDirective();
+    impl->MacroExpands(MD, Range);
+}
 #else
 void RemoveInactivePreprocessorBlocks::MacroExpands(
-        const Token& MacroNameTok, const MacroDirective* MD,
-        SourceRange Range, const MacroArgs* Args)
-#endif
+    const Token& /*MacroNameTok*/, const MacroDirective* MD,
+    SourceRange Range, const MacroArgs* /*Args*/)
 {
-    impl->MacroExpands(MacroNameTok, MD, Range, Args);
+    impl->MacroExpands(MD, Range);
 }
+#endif
 
 void RemoveInactivePreprocessorBlocks::Finalize() {
     impl->Finalize();
 }
 
 void RemoveInactivePreprocessorBlocks::If(
-        SourceLocation Loc, SourceRange ConditionRange,
-        ConditionValueKind ConditionValue)
+    SourceLocation Loc, SourceRange ConditionRange,
+    ConditionValueKind ConditionValue)
 {
     impl->If(Loc, ConditionRange, ConditionValue);
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
 void RemoveInactivePreprocessorBlocks::Ifdef(
-        SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& MD)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition&)
 #else
 void RemoveInactivePreprocessorBlocks::Ifdef(
-        SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* MD)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective*)
 #endif
 {
-    impl->Ifdef(Loc, MacroNameTok, MD);
+    impl->Ifdef(Loc, MacroNameTok);
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
 void RemoveInactivePreprocessorBlocks::Ifndef(
-        SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& MD)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition&)
 #else
 void RemoveInactivePreprocessorBlocks::Ifndef(
-        SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* MD)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective*)
 #endif
 {
-    impl->Ifndef(Loc, MacroNameTok, MD);
+    impl->Ifndef(Loc, MacroNameTok);
 }
 
 void RemoveInactivePreprocessorBlocks::Elif(
-        SourceLocation Loc, SourceRange ConditionRange,
-        ConditionValueKind ConditionValue, SourceLocation IfLoc)
+    SourceLocation Loc, SourceRange ConditionRange,
+    ConditionValueKind ConditionValue, SourceLocation IfLoc)
 {
     impl->Elif(Loc, ConditionRange, ConditionValue, IfLoc);
 }

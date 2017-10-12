@@ -39,7 +39,7 @@ else()
     # TODO: can we do this instead of hardcoding LLVM_ variables below?
     #include("${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/LLVMConfig.cmake")
 
-    set(LLVM_PACKAGE_VERSION "4.0.1")
+    set(LLVM_PACKAGE_VERSION "5.0.1")
     message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
 
     set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm/lib")
@@ -51,7 +51,7 @@ endif()
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "4.0.255")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "5.0.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 

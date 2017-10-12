@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "util.h"
+#include "clang_version.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/FileManager.h>
@@ -13,6 +14,7 @@
 #include <clang/Lex/Preprocessor.h>
 
 #include <sstream>
+#include <string>
 
 using namespace clang;
 
@@ -72,7 +74,7 @@ SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx) {
     return SemiLoc.getLocWithOffset(1);
 }
 
-clang::tooling::FixedCompilationDatabase* createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine)
+std::unique_ptr<tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine)
 {
     int argc = cmdLine.size() + 1;
     std::vector<const char*> argv(argc);
@@ -81,7 +83,13 @@ clang::tooling::FixedCompilationDatabase* createCompilationDatabaseFromCommandLi
     for (int i = 1; i < argc; ++i)
         argv[i] = cmdLine[i-1].c_str();
 
-    return clang::tooling::FixedCompilationDatabase::loadFromCommandLine(argc, &argv[0]);
+#if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
+    std::string errorMessage;
+    return tooling::FixedCompilationDatabase::loadFromCommandLine(argc, &argv[0], errorMessage);
+#else
+    tooling::FixedCompilationDatabase* rawPtr = tooling::FixedCompilationDatabase::loadFromCommandLine(argc, &argv[0]);
+    return std::unique_ptr<tooling::FixedCompilationDatabase>(rawPtr);
+#endif
 }
 
 std::string rangeToString(SourceManager& sourceManager, const SourceLocation& start, const SourceLocation& end) {

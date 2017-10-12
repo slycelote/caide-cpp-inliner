@@ -36,12 +36,18 @@ public:
 
     void MacroDefined(const clang::Token& MacroNameTok, const clang::MacroDirective* MD) override;
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
+#if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
+    void MacroUndefined(const clang::Token& MacroNameTok, const clang::MacroDefinition& MD, const clang::MacroDirective* Undef) override;
+#elif CAIDE_CLANG_VERSION_AT_LEAST(3,7)
     void MacroUndefined(const clang::Token& MacroNameTok, const clang::MacroDefinition& MD) override;
+#else
+    void MacroUndefined(const clang::Token& MacroNameTok, const clang::MacroDirective* MD) override;
+#endif
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
     void MacroExpands(const clang::Token& /*MacroNameTok*/, const clang::MacroDefinition& MD,
                       clang::SourceRange Range, const clang::MacroArgs* /*Args*/) override;
 #else
-    void MacroUndefined(const clang::Token& MacroNameTok, const clang::MacroDirective* MD) override;
     void MacroExpands(const clang::Token& /*MacroNameTok*/, const clang::MacroDirective* MD,
                       clang::SourceRange Range, const clang::MacroArgs* /*Args*/) override;
 #endif

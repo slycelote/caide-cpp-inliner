@@ -72,6 +72,8 @@ void DependenciesCollector::insertReference(Decl* from, Decl* to) {
         return;
     from = from->getCanonicalDecl();
     to = to->getCanonicalDecl();
+    if (from == to)
+        return;
     srcInfo.uses[from].insert(to);
     dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
         << "<" << toString(sourceManager, from).substr(0, 20) << ">"
@@ -186,10 +188,7 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
 
     // If this declaration is inside a template instantiation, mark dependence on the corresponding
     // declaration in a non-instantiated context.
-    Decl* canonicalDecl = decl->getCanonicalDecl();
-    Decl* nonInstantiatedDecl = getCorrespondingDeclInNonInstantiatedContext(canonicalDecl);
-    if (canonicalDecl != nonInstantiatedDecl)
-        insertReference(canonicalDecl, nonInstantiatedDecl);
+    insertReference(decl, getCorrespondingDeclInNonInstantiatedContext(decl));
 
     RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
     if (!comment)

@@ -289,6 +289,14 @@ bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
     return true;
 }
 
+bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
+    // Tricky: friend declaration should be removed if private members of current class
+    // are not used by the friend function/class.
+    // For now, always keep the friend declaration.
+    (void)friendDecl;
+    return true;
+}
+
 // Variables are a special case because there may be many comma separated variables in one definition.
 // We remove them separately in Finalize() method.
 bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {

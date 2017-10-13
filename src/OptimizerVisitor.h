@@ -50,6 +50,7 @@ public:
     bool VisitUsingDirectiveDecl(clang::UsingDirectiveDecl* usingDecl);
     bool VisitVarDecl(clang::VarDecl* varDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
+    bool VisitFriendDecl(clang::FriendDecl* friendDecl);
 
     // Apply changes that require some 'global' knowledge.
     // Called after traversal of the whole AST.

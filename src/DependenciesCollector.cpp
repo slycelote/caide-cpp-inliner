@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "DependenciesCollector.h"
+#include "clang_version.h"
 #include "SourceInfo.h"
 #include "util.h"
 
@@ -258,7 +259,12 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
 }
 
 bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
-    insertReference(ctorDecl, ctorDecl->getInheritedConstructor().getConstructor());
+#if CAIDE_CLANG_VERSION_AT_LEAST(3,9)
+    CXXConstructorDecl* inheritedCtor = ctorDecl->getInheritedConstructor().getConstructor();
+#else
+    auto* inheritedCtor = const_cast<CXXConstructorDecl*>(ctorDecl->getInheritedConstructor());
+#endif
+    insertReference(ctorDecl, inheritedCtor);
     for (auto it = ctorDecl->init_begin(); it != ctorDecl->init_end(); ++it) {
         CXXCtorInitializer* ctorInit = *it;
         insertReferenceToType(getCurrentDecl(), ctorInit->getBaseClass());

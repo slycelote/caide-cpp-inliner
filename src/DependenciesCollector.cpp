@@ -258,6 +258,7 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
 }
 
 bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
+    insertReference(ctorDecl, ctorDecl->getInheritedConstructor().getConstructor());
     for (auto it = ctorDecl->init_begin(); it != ctorDecl->init_end(); ++it) {
         CXXCtorInitializer* ctorInit = *it;
         insertReferenceToType(getCurrentDecl(), ctorInit->getBaseClass());

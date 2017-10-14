@@ -302,7 +302,7 @@ bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
 bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
     SourceLocation start = getExpansionStart(sourceManager, varDecl);
     if (!varDecl->isLocalVarDeclOrParm() && sourceManager.isInMainFile(start)) {
-        staticVariables[start].push_back(varDecl);
+        variables[start].push_back(varDecl);
         /*
         Technically, we cannot remove global static variables because
         their initializers may have side effects.
@@ -323,6 +323,17 @@ bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
             // removeVariables() method.
             removed.insert(varDecl);
         }
+    }
+    return true;
+}
+
+bool OptimizerVisitor::VisitFieldDecl(clang::FieldDecl* fieldDecl) {
+    SourceLocation start = getExpansionStart(sourceManager, fieldDecl);
+    if (sourceManager.isInMainFile(start)) {
+        // Comments from VisitVarDecl apply to fields too.
+        variables[start].push_back(fieldDecl);
+        if (usedDeclarations.count(fieldDecl) == 0)
+            removed.insert(fieldDecl);
     }
     return true;
 }
@@ -350,9 +361,9 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
 }
 
 void OptimizerVisitor::Finalize(ASTContext& ctx) {
-    for (const auto& kv : staticVariables) {
+    for (const auto& kv : variables) {
         SourceLocation startOfType = kv.first;
-        const vector<VarDecl*>& vars = kv.second;
+        const vector<DeclaratorDecl*>& vars = kv.second;
 
         const size_t n = vars.size();
         vector<bool> isUsed(n, true);

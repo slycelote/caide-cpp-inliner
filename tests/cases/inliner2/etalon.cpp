@@ -23,12 +23,14 @@ void goF(const T& t) {
 class Vertex {
 public:
     Vertex() {}
+    
 };
 
 struct Y {
     bool operator ++ (int x) {
         return true;
     }
+    
 };
 
 bool operator + (Y a, Y b) {
@@ -45,15 +47,14 @@ struct Used {
 
 
 struct UsedTypedefedStruct {
-    int a;
+    
 };
 
 typedef UsedTypedefedStruct UsedTypedef;
 
 
-
 struct UsedTypedefedStruct2 {
-    int a;
+    
 };
 
 typedef UsedTypedefedStruct2 UsedTypedef2;
@@ -71,12 +72,14 @@ struct V {
 
 template<typename T>
 struct V2 {
-    T t;
+    
 };
+
 
 struct S1 {
     typedef int type;
 };
+
 
 template<typename T>
 struct S3 {
@@ -89,6 +92,7 @@ struct S3 {
 struct S4 {
     typedef V2<int> type;
 };
+
 
 template<typename T>
 struct S6 {
@@ -141,7 +145,6 @@ int main() {
         S4::type v2;
     }
 
-
     {
         S6<ll> s6;
         S6<S7> s6_s7;
@@ -153,11 +156,15 @@ int main() {
 
     {
         typedef int ta;
+        
         ta i = 2;
         struct LocalUsed {
+            
             void used() {}
+            
         } lu;
         lu.used();
+        
     }
 
     {
@@ -169,4 +176,5 @@ int main() {
 
     return 0;
 }
+
 

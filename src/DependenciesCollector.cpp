@@ -267,6 +267,8 @@ bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl
     insertReference(ctorDecl, inheritedCtor);
     for (auto it = ctorDecl->init_begin(); it != ctorDecl->init_end(); ++it) {
         CXXCtorInitializer* ctorInit = *it;
+        if (ctorInit->isWritten())
+            insertReference(getCurrentDecl(), ctorInit->getMember());
         insertReferenceToType(getCurrentDecl(), ctorInit->getBaseClass());
         insertReferenceToType(getCurrentDecl(), ctorInit->getTypeSourceInfo());
     }

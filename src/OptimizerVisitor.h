@@ -51,6 +51,7 @@ public:
     bool VisitVarDecl(clang::VarDecl* varDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
     bool VisitFriendDecl(clang::FriendDecl* friendDecl);
+    bool VisitFieldDecl(clang::FieldDecl* fieldDecl);
 
     // Apply changes that require some 'global' knowledge.
     // Called after traversal of the whole AST.
@@ -82,9 +83,9 @@ private:
     // have been seen in 'using ns::identifier' declaractions).
     std::unordered_map<clang::DeclContext*, std::unordered_set<clang::Decl*>> seenInUsingDirectives;
 
-    // Declarations of static variables, grouped by their start location
+    // Declarations of fields and static variables, grouped by their start location
     // (so comma separated declarations go into the same group).
-    std::map<clang::SourceLocation, std::vector<clang::VarDecl*>> staticVariables;
+    std::map<clang::SourceLocation, std::vector<clang::DeclaratorDecl*>> variables;
 };
 
 

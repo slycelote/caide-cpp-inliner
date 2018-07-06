@@ -47,6 +47,7 @@ struct Macro {
     SourceRange definition;
     vector<SourceRange> usages;
     SourceLocation undefinition;
+    bool isWhitelisted = false;
 };
 
 struct RemoveInactivePreprocessorBlocks::RemoveInactivePreprocessorBlocksImpl {
@@ -74,6 +75,9 @@ private:
     }
 
     void removeMacroIfUnused(const Macro& macro) {
+        if (macro.isWhitelisted)
+            return;
+
         for (const SourceRange& usageRange : macro.usages) {
             if (!rewriter.isPartOfRangeRemoved(usageRange)) {
                 // The usage of the macro has not been removed, so
@@ -107,7 +111,9 @@ public:
     }
 
     void MacroDefined(const Token& MacroNameTok, const MacroDirective* MD) {
-        definedMacroNames.insert(getTokenName(MacroNameTok));
+        string macroName = getTokenName(MacroNameTok);
+        bool isWhitelisted = isWhitelistedMacro(macroName);
+        definedMacroNames.insert(std::move(macroName));
 
         if (MD && isInMainFile(MD->getLocation())) {
             SourceLocation b = MD->getLocation(), e;
@@ -118,7 +124,10 @@ public:
 
             b = changeColumn(b, 1);
 
-            definedMacros[MD].definition = SourceRange(b, e);
+            Macro macro;
+            macro.definition = SourceRange(b, e);
+            macro.isWhitelisted = isWhitelisted;
+            definedMacros[MD] = std::move(macro);
         }
     }
 

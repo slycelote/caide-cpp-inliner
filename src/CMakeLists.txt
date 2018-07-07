@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(CaideInliner)
 
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
-option(CAIDE_SHARED_LIBRARY "Build and link to shared library instead of static" OFF)
 
 if(CAIDE_USE_SYSTEM_CLANG)
     # Detect LLVM version
@@ -58,15 +57,15 @@ endif()
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
     clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
 
-if(CAIDE_USE_SYSTEM_CLANG)
-    # Find the libraries that correspond to the LLVM components that we wish to use.
-    # Run `llvm-config --libs <components>' to get the actual list of libraries.
-    if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
-        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option)
-    else()
-        llvm_map_components_to_libnames(llvm_libs bitreader core mcparser option profiledata)
-    endif()
+# Find the libraries corresponding to the LLVM components that clang_libs (recursively) depend on.
+# Run `llvm-config --link-static --libs <components>' to get the actual list of libraries.
+if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
+    llvm_map_components_to_libnames(llvm_libs bitreader mc mcparser option core support)
+else()
+    llvm_map_components_to_libnames(llvm_libs bitreader mc mcparser option profiledata core support)
+endif()
 
+if(CAIDE_USE_SYSTEM_CLANG)
     # There is no function similar to llvm_map_components_to_libnames for clang libraries.
     # Find them manually.
     foreach(clang_lib IN LISTS clang_libs)
@@ -80,10 +79,11 @@ if(CAIDE_USE_SYSTEM_CLANG)
             IMPORTED_LOCATION "${${var_name}}"
         )
     endforeach()
-else()
-    set(llvm_libs "LLVMOption;LLVMMCParser;LLVMMC;LLVMBitReader;LLVMCore;LLVMSupport")
 endif()
 
+message(STATUS "LLVM libs: ${llvm_libs}")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/caide-libs.txt" "${clang_libs};${llvm_libs}")
 
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
@@ -127,11 +127,7 @@ set(inlinerSources caideInliner.cpp DependenciesCollector.cpp inliner.cpp MergeN
     optimizer.cpp OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
     SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
 
-if(CAIDE_SHARED_LIBRARY)
-    add_library(caideInliner SHARED ${inlinerSources})
-else()
-    add_library(caideInliner STATIC ${inlinerSources})
-endif()
+add_library(caideInliner STATIC ${inlinerSources})
 
 if(NOT CAIDE_USE_SYSTEM_CLANG)
     # caideInliner requires some headers that are generated during the build of clang and llvm

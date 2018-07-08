@@ -4,7 +4,6 @@ project(CaideInliner)
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
 
 if(CAIDE_USE_SYSTEM_CLANG)
-    # Detect LLVM version
     find_package(LLVM REQUIRED CONFIG)
     if(NOT LLVM_FOUND)
         message(FATAL_ERROR "LLVM not found! Make sure packages llvm-dev and libclang-dev are installed")
@@ -36,7 +35,7 @@ else()
     add_subdirectory(llvm EXCLUDE_FROM_ALL)
 
     # TODO: can we do this instead of hardcoding LLVM_ variables below?
-    #include("${CMAKE_BINARY_DIR}/llvm/share/llvm/cmake/LLVMConfig.cmake")
+    #include("${CMAKE_BINARY_DIR}/cmake/modules/CMakeFiles/LLVMConfig.cmake")
 
     set(LLVM_PACKAGE_VERSION "6.0.1")
     message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
@@ -54,16 +53,19 @@ if(LLVM_PACKAGE_VERSION VERSION_GREATER "6.0.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 
+# List of clang libraries that we use, including recursive dependencies.
+# Must be in topological order.
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
     clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
 
-# Find the libraries corresponding to the LLVM components that clang_libs (recursively) depend on.
-# Run `llvm-config --link-static --libs <components>' to get the actual list of libraries.
+# LLVM components that clang_libs depend on.
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
-    llvm_map_components_to_libnames(llvm_libs bitreader mc mcparser option core support)
+    set(llvm_components bitreader mc mcparser option core support)
 else()
-    llvm_map_components_to_libnames(llvm_libs bitreader mc mcparser option profiledata core support)
+    set(llvm_components bitreader mc mcparser option core support profiledata)
 endif()
+
+llvm_map_components_to_libnames(llvm_libs ${llvm_components})
 
 if(CAIDE_USE_SYSTEM_CLANG)
     # There is no function similar to llvm_map_components_to_libnames for clang libraries.
@@ -81,44 +83,38 @@ if(CAIDE_USE_SYSTEM_CLANG)
     endforeach()
 endif()
 
-message(STATUS "LLVM libs: ${llvm_libs}")
+# Find libraries corresponding to LLVM components that clang_libs (recursively) depend on.
+# The result is in topological order.
+# Equivalent of `llvm-config --link-static --libs <components>'.
+explicit_map_components_to_libraries(all_llvm_libs ${llvm_components})
+message(STATUS "LLVM libs: ${all_llvm_libs}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/caide-libs.txt" "${clang_libs};${all_llvm_libs}")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/caide-libs.txt" "${clang_libs};${llvm_libs}")
-
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 
+include(CheckCXXCompilerFlag)
+
+function(add_compiler_option_if_supported opt)
+    CHECK_CXX_COMPILER_FLAG("${opt}" compiler_supports_option)
+    if(compiler_supports_option)
+        add_compile_options("${opt}")
+    endif()
+endfunction(add_compiler_option_if_supported)
+
 # CXX_STANDARD() is available only in cmake >= 3
 # Set c++11 flag explicitly
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-    # Ignore. It may be VS compiler that doesn't need any special flag
-endif()
-
+add_compiler_option_if_supported("-std=c++11")
 
 if(MSVC)
     # Use the highest warning level for Visual Studio.
-    if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-        string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-    endif()
+    add_compile_options("/W4")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     # Add warnings for g++
     foreach(flag -Wall -Wextra -Wshadow -Wlogical-op -Werror=return-type)
-        if(CMAKE_CXX_FLAGS MATCHES "${flag}")
-        else()
-            CHECK_CXX_COMPILER_FLAG("${flag}" compiler_supports_flag)
-            if(compiler_supports_flag)
-                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-            endif()
-        endif()
+        add_compiler_option_if_supported("${flag}")
     endforeach()
 endif()
 
@@ -129,11 +125,8 @@ set(inlinerSources caideInliner.cpp DependenciesCollector.cpp inliner.cpp MergeN
 
 add_library(caideInliner STATIC ${inlinerSources})
 
-if(NOT CAIDE_USE_SYSTEM_CLANG)
-    # caideInliner requires some headers that are generated during the build of clang and llvm
-    add_dependencies(caideInliner ${llvm_libs})
-    add_dependencies(caideInliner ${clang_libs})
-endif()
+target_include_directories(caideInliner SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_link_libraries(caideInliner PRIVATE ${clang_libs} ${llvm_libs})
 
 add_subdirectory(cmd)
 

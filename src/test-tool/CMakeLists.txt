@@ -1,6 +1,6 @@
 add_executable(test-tool test-tool.cpp)
 
-target_link_libraries(test-tool caideInliner ${clang_libs} ${llvm_libs})
+target_link_libraries(test-tool caideInliner)
 
 set(tests_dir "${CMAKE_SOURCE_DIR}/../tests/cases")
 set(tests_temp_dir "${CMAKE_SOURCE_DIR}/../tests/temp")

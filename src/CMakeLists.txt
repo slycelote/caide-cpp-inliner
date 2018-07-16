@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 project(CaideInliner)
 
 option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
@@ -44,6 +44,7 @@ else()
     set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm/include"
         "${CMAKE_CURRENT_BINARY_DIR}/llvm/tools/clang/include")
+    set(LLVM_DEFINITIONS "-D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGEFILE_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS")
 endif()
 
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
@@ -55,6 +56,7 @@ endif()
 
 # List of clang libraries that we use, including recursive dependencies.
 # Must be in topological order.
+# Need to include only libraries required for linking.
 set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
     clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
 
@@ -82,6 +84,9 @@ if(CAIDE_USE_SYSTEM_CLANG)
         )
     endforeach()
 endif()
+
+message(STATUS "LLVM_INCLUDE_DIRS=${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM_DEFINITIONS=${LLVM_DEFINITIONS}")
 
 # Find libraries corresponding to LLVM components that clang_libs (recursively) depend on.
 # The result is in topological order.

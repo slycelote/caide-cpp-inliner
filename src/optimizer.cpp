@@ -92,9 +92,7 @@ public:
 
     bool VisitDecl(clang::Decl* decl) {
         auto key = SourceInfo::makeKey(decl);
-        auto it = srcInfo.nonImplicitDecls.lower_bound(key);
-        if (it->first != key)
-            srcInfo.nonImplicitDecls.emplace_hint(it, std::move(key), decl);
+        srcInfo.nonImplicitDecls.emplace(std::move(key), decl);
         return true;
     }
 

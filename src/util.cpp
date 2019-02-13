@@ -138,17 +138,35 @@ std::string toString(SourceManager& sourceManager, const Decl* decl) {
     return std::string(b, std::min(b+30, e));
 }
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+static SourceLocation getBegin(const CharSourceRange& charSourceRange) {
+    return charSourceRange.getBegin();
+}
+
+static SourceLocation getEnd(const CharSourceRange& charSourceRange) {
+    return charSourceRange.getEnd();
+}
+#else
+static SourceLocation getBegin(const std::pair<SourceLocation, SourceLocation>& charSourceRange) {
+    return charSourceRange.first;
+}
+
+static SourceLocation getEnd(const std::pair<SourceLocation, SourceLocation>& charSourceRange) {
+    return charSourceRange.second;
+}
+#endif
+
 SourceLocation getExpansionStart(SourceManager& sourceManager, const Decl* decl) {
     SourceLocation start = decl->getLocStart();
     if (start.isMacroID())
-        start = sourceManager.getExpansionRange(start).first;
+        start = getBegin(sourceManager.getExpansionRange(start));
     return start;
 }
 
 SourceLocation getExpansionEnd(SourceManager& sourceManager, const Decl* decl) {
     SourceLocation end = decl->getLocEnd();
     if (end.isMacroID())
-        end = sourceManager.getExpansionRange(end).second;
+        end = getEnd(sourceManager.getExpansionRange(end));
     return end;
 }
 

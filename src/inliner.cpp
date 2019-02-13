@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "inliner.h"
+#include "clang_version.h"
 #include "util.h"
 
 #include <clang/AST/ASTConsumer.h>
@@ -62,7 +63,11 @@ public:
                                     const FileEntry *File,
                                     StringRef /*SearchPath*/,
                                     StringRef /*RelativePath*/,
-                                    const Module* /*Imported*/) override
+                                    const Module* /*Imported*/
+#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+                                    , SrcMgr::CharacteristicKind /*FileType*/
+#endif
+                                    ) override
     {
         if (FileName.empty())
             return;

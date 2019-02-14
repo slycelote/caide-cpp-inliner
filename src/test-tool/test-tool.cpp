@@ -54,17 +54,18 @@ static string pathConcat(const string& directory, const string& fileName) {
     return directory + "/" + fileName;
 }
 
-static vector<string> heuristicIncludeSearchPaths(const string& tempDirectory) {
-    vector<string> res;
+static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<string>& compilationOptions) {
+    vector<string> searchPaths;
 #ifdef _MSC_VER
 #if _MSC_VER >= 1900
     // VS 2015
     // https://social.msdn.microsoft.com/Forums/vstudio/en-US/86bc577b-528c-469c-a506-15383a44c111/missing-corecrth-from-the-default-include-folder-for-vs215?forum=vcgeneral
-    res.push_back("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.10150.0\\ucrt");
+    searchPaths.push_back("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.10150.0\\ucrt");
 #endif
 #endif
 
     // Try to infer for g++
+    bool foundGccIncludeDirectories = false;
     const char* cxx = ::getenv("CXX");
     if (!cxx)
         cxx = "g++";
@@ -86,11 +87,20 @@ static vector<string> heuristicIncludeSearchPaths(const string& tempDirectory) {
 
         if (endsWith(line, "search starts here:"))
             isSearchList = true;
-        else if (isSearchList)
-            res.push_back(trim(line));
+        else if (isSearchList) {
+            foundGccIncludeDirectories = true;
+            searchPaths.push_back(trim(line));
+        }
     }
 
-    return res;
+    if (foundGccIncludeDirectories)
+        compilationOptions.push_back("-nostdinc");
+
+    for (string& s : searchPaths) {
+        // std::cout << "Search path: '" << s << "'" << std::endl;
+        compilationOptions.push_back("-isystem");
+        compilationOptions.push_back(std::move(s));
+    }
 }
 
 static bool runTest(const string& testDirectory, const string& tempDirectory) {
@@ -126,12 +136,10 @@ static bool runTest(const string& testDirectory, const string& tempDirectory) {
     inliner.clangCompilationOptions.push_back(mscVersionOption.str());
 #endif
 
-    std::vector<string> searchPaths = heuristicIncludeSearchPaths(tempDirectory);
-    for (string& s : searchPaths) {
-        std::cout << "Search path: '" << s << "'" << std::endl;
-        inliner.clangCompilationOptions.push_back("-isystem");
-        inliner.clangCompilationOptions.push_back(std::move(s));
-    }
+    heuristicIncludeSearchPaths(tempDirectory, inliner.clangCompilationOptions);
+    const char* verbose = std::getenv("CAIDE_TEST_VERBOSE");
+    if (verbose && *verbose == '1')
+        inliner.clangCompilationOptions.push_back("-v");
 
     inliner.macrosToKeep = readNonEmptyLines(pathConcat(testDirectory, "macrosToKeep.txt"));
 

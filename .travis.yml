@@ -9,8 +9,8 @@ addons:
         sources: &default_sources
             - ubuntu-toolchain-r-test
         packages: &default_packages
-            - g++-4.9
-            - gcc-4.9
+            - g++-7
+            - gcc-7
             - binutils
 
 matrix:

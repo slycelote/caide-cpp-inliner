@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "util.h"
+#include "clang_compat.h"
 #include "clang_version.h"
 
 #include <clang/AST/ASTContext.h>
@@ -126,12 +127,12 @@ std::string toString(SourceManager& sourceManager, SourceRange range) {
 std::string toString(SourceManager& sourceManager, const Decl* decl) {
     if (!decl)
         return "<invalid>";
-    SourceLocation start = sourceManager.getExpansionLoc(decl->getLocStart());
+    SourceLocation start = sourceManager.getExpansionLoc(getBeginLoc(decl));
     bool invalid;
     const char* b = sourceManager.getCharacterData(start, &invalid);
     if (invalid || !b)
         return "<invalid>";
-    SourceLocation end = sourceManager.getExpansionLoc(decl->getLocEnd());
+    SourceLocation end = sourceManager.getExpansionLoc(getEndLoc(decl));
     const char* e = sourceManager.getCharacterData(end, &invalid);
     if (invalid || !e)
         return "<invalid>";
@@ -157,14 +158,14 @@ static SourceLocation getEnd(const std::pair<SourceLocation, SourceLocation>& ch
 #endif
 
 SourceLocation getExpansionStart(SourceManager& sourceManager, const Decl* decl) {
-    SourceLocation start = decl->getLocStart();
+    SourceLocation start = getBeginLoc(decl);
     if (start.isMacroID())
         start = getBegin(sourceManager.getExpansionRange(start));
     return start;
 }
 
 SourceLocation getExpansionEnd(SourceManager& sourceManager, const Decl* decl) {
-    SourceLocation end = decl->getLocEnd();
+    SourceLocation end = getEndLoc(decl);
     if (end.isMacroID())
         end = getEnd(sourceManager.getExpansionRange(end));
     return end;

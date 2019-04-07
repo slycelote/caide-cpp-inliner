@@ -6,6 +6,7 @@
 
 #include "OptimizerVisitor.h"
 
+#include "clang_compat.h"
 #include "SmartRewriter.h"
 #include "util.h"
 
@@ -42,7 +43,7 @@ bool OptimizerVisitor::shouldVisitTemplateInstantiations() const { return false;
 
 bool OptimizerVisitor::TraverseDecl(Decl* decl) {
 #ifdef CAIDE_DEBUG_MODE
-    if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
+    if (decl && sourceManager.isInMainFile(getBeginLoc(decl))) {
         dbg("DECL " << decl->getDeclKindName() << " " << decl
             << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
             << toString(sourceManager, getExpansionRange(sourceManager, decl))
@@ -52,7 +53,7 @@ bool OptimizerVisitor::TraverseDecl(Decl* decl) {
 
     bool ret = RecursiveASTVisitor<OptimizerVisitor>::TraverseDecl(decl);
 
-    if (decl && sourceManager.isInMainFile(decl->getLocStart())) {
+    if (decl && sourceManager.isInMainFile(getBeginLoc(decl))) {
         // We need to visit NamespaceDecl *after* visiting it children. Tree traversal is in
         // pre-order, so processing NamespaceDecl is done here instead of in VisitNamespaceDecl.
         if (auto* nsDecl = dyn_cast<NamespaceDecl>(decl)) {
@@ -74,13 +75,13 @@ bool OptimizerVisitor::TraverseDecl(Decl* decl) {
 }
 
 bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
-    if (sourceManager.isInMainFile(decl->getLocStart()))
+    if (sourceManager.isInMainFile(getBeginLoc(decl)))
         removeDecl(decl);
     return true;
 }
 
 bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
-    if (sourceManager.isInMainFile(enumDecl->getLocStart())
+    if (sourceManager.isInMainFile(getBeginLoc(enumDecl))
         && usedDeclarations.count(enumDecl->getCanonicalDecl()) == 0)
     {
         removeDecl(enumDecl);
@@ -89,7 +90,7 @@ bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
 }
 
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
-    if (sourceManager.isInMainFile(nsDecl->getLocStart())
+    if (sourceManager.isInMainFile(getBeginLoc(nsDecl))
         && usedDeclarations.count(nsDecl->getCanonicalDecl()) == 0)
     {
         removeDecl(nsDecl);
@@ -147,7 +148,7 @@ bool OptimizerVisitor::needToRemoveFunction(FunctionDecl* functionDecl) const {
 }
 
 bool OptimizerVisitor::VisitFunctionDecl(FunctionDecl* functionDecl) {
-    if (!sourceManager.isInMainFile(functionDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(functionDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -162,7 +163,7 @@ bool OptimizerVisitor::VisitFunctionDecl(FunctionDecl* functionDecl) {
 
 // TODO: dependencies on types of template parameters
 bool OptimizerVisitor::VisitFunctionTemplateDecl(FunctionTemplateDecl* templateDecl) {
-    if (!sourceManager.isInMainFile(templateDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(templateDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -174,7 +175,7 @@ bool OptimizerVisitor::VisitFunctionTemplateDecl(FunctionTemplateDecl* templateD
 }
 
 bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
-    if (!sourceManager.isInMainFile(recordDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(recordDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -202,7 +203,7 @@ bool OptimizerVisitor::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
 }
 
 bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
-    if (!sourceManager.isInMainFile(templateDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(templateDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -221,7 +222,7 @@ bool OptimizerVisitor::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
 }
 
 bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
-    if (!sourceManager.isInMainFile(typedefDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(typedefDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -233,7 +234,7 @@ bool OptimizerVisitor::VisitTypedefDecl(TypedefDecl* typedefDecl) {
 }
 
 bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
-    if (!sourceManager.isInMainFile(aliasDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(aliasDecl)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -252,7 +253,7 @@ bool OptimizerVisitor::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
 }
 
 bool OptimizerVisitor::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTemplate) {
-    if (!sourceManager.isInMainFile(aliasTemplate->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(aliasTemplate)))
         return true;
     dbg(CAIDE_FUNC);
 
@@ -278,7 +279,7 @@ bool OptimizerVisitor::processUsingDirective(Decl* canonicalDecl, DeclContext* d
 
 // 'using namespace Ns;'
 bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
-    if (!sourceManager.isInMainFile(usingDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(usingDecl)))
         return true;
     dbg(CAIDE_FUNC);
 

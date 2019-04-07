@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "MergeNamespacesVisitor.h"
+#include "clang_compat.h"
 #include "SmartRewriter.h"
 #include "util.h"
 
@@ -32,7 +33,7 @@ bool MergeNamespacesVisitor::shouldVisitTemplateInstantiations() const { return 
 bool MergeNamespacesVisitor::TraverseDecl(Decl* decl) {
     bool ret = RecursiveASTVisitor<MergeNamespacesVisitor>::TraverseDecl(decl);
 
-    if (decl && sourceManager.isInMainFile(decl->getLocStart()) && removed.count(decl) == 0) {
+    if (decl && sourceManager.isInMainFile(getBeginLoc(decl)) && removed.count(decl) == 0) {
         if (auto* nsDecl = dyn_cast<NamespaceDecl>(decl))
             closedNamespaces.push(nsDecl);
         else {
@@ -54,7 +55,7 @@ bool MergeNamespacesVisitor::TraverseDecl(Decl* decl) {
 }
 
 bool MergeNamespacesVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
-    if (!sourceManager.isInMainFile(nsDecl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(nsDecl)))
         return true;
 
     if (nsDecl && removed.count(nsDecl) == 0) {
@@ -67,11 +68,11 @@ bool MergeNamespacesVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
 
             ASTContext& astContext = nsDecl->getASTContext();
             SourceLocation thisNamespaceNameStart =
-                findTokenAfterLocation(nsDecl->getLocStart(), astContext, tok::raw_identifier);
+                findTokenAfterLocation(getBeginLoc(nsDecl), astContext, tok::raw_identifier);
             SourceLocation thisNamespaceOpeningBrace =
                 findTokenAfterLocation(thisNamespaceNameStart, astContext, tok::l_brace);
 
-            rewriter.removeRange(nsDecl->getLocStart(), thisNamespaceOpeningBrace);
+            rewriter.removeRange(getBeginLoc(nsDecl), thisNamespaceOpeningBrace);
         }
     }
 

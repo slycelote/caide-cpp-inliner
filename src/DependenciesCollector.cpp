@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "DependenciesCollector.h"
+#include "clang_compat.h"
 #include "clang_version.h"
 #include "SourceInfo.h"
 #include "util.h"
@@ -184,7 +185,7 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
     if (ctx && !isa<FunctionDecl>(ctx))
         insertReference(decl, ctx);
 
-    if (!sourceManager.isInMainFile(decl->getLocStart()))
+    if (!sourceManager.isInMainFile(getBeginLoc(decl)))
         return true;
 
     // If this declaration is inside a template instantiation, mark dependence on the corresponding
@@ -196,12 +197,12 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
         return true;
 
     bool invalid = false;
-    const char* beg = sourceManager.getCharacterData(comment->getLocStart(), &invalid);
+    const char* beg = sourceManager.getCharacterData(getBeginLoc(comment), &invalid);
     if (!beg || invalid)
         return true;
 
     const char* end =
-        sourceManager.getCharacterData(comment->getLocEnd(), &invalid);
+        sourceManager.getCharacterData(getEndLoc(comment), &invalid);
     if (!end || invalid)
         return true;
 
@@ -419,7 +420,7 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
     if (f->isMain())
         srcInfo.declsToKeep.insert(f);
 
-    if (sourceManager.isInMainFile(f->getLocStart()) && f->isLateTemplateParsed())
+    if (sourceManager.isInMainFile(getBeginLoc(f)) && f->isLateTemplateParsed())
         srcInfo.delayedParsedFunctions.push_back(f);
 
     if (f->getTemplatedKind() == FunctionDecl::TK_FunctionTemplate) {
@@ -445,7 +446,7 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
     insertReference(f, f->getInstantiatedFromMemberFunction());
 
     if (f->doesThisDeclarationHaveABody() &&
-            sourceManager.isInMainFile(f->getLocStart()))
+            sourceManager.isInMainFile(getBeginLoc(f)))
     {
         dbg("Moving to ";
             DeclarationName DeclName = f->getNameInfo().getName();

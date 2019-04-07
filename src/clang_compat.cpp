@@ -8,7 +8,7 @@
 #include "clang_version.h"
 
 #include <clang/AST/DeclCXX.h>
-
+#include <clang/AST/RawCommentList.h>
 
 using namespace clang;
 

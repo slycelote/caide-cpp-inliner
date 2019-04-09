@@ -317,7 +317,7 @@ bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
         // This friend declaration names an untemplated type.
 
         if (const Type* type = friendType->getType().getTypePtrOrNull())
-            if (RecordDecl* typeDecl = type->getAsRecordDecl())
+            if (CXXRecordDecl* typeDecl = type->getAsCXXRecordDecl())
                 if (usedDeclarations.count(typeDecl->getCanonicalDecl()) == 0)
                     removeDecl(friendDecl);
 

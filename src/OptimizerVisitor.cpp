@@ -80,6 +80,21 @@ bool OptimizerVisitor::VisitEmptyDecl(EmptyDecl* decl) {
     return true;
 }
 
+bool OptimizerVisitor::VisitStaticAssertDecl(clang::StaticAssertDecl* staticAssertDecl) {
+    // Remove all static asserts. This will not change semantics of a working program.
+    //
+    // A case could be made that some static asserts should be kept, but it's not clear
+    // which ones. Keeping them may also require keeping declarations that are otherwise
+    // not used, which would be a major complication in the implementation.
+    //
+    // Thoughts:
+    //   * Should static asserts inside used functions be kept?
+    //   * Should static asserts that only reference used declarations be kept?
+    if (sourceManager.isInMainFile(getBeginLoc(staticAssertDecl)))
+        removeDecl(staticAssertDecl);
+    return true;
+}
+
 bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
     if (sourceManager.isInMainFile(getBeginLoc(enumDecl))
         && usedDeclarations.count(enumDecl->getCanonicalDecl()) == 0)

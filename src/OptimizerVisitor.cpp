@@ -291,10 +291,27 @@ bool OptimizerVisitor::VisitUsingDirectiveDecl(UsingDirectiveDecl* usingDecl) {
 }
 
 bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
+    if (!sourceManager.isInMainFile(getBeginLoc(friendDecl)))
+        return true;
+
     // Tricky: friend declaration should be removed if private members of current class
     // are not used by the friend function/class.
-    // For now, always keep the friend declaration.
-    (void)friendDecl;
+    // For now, always keep the friend declaration, as long as the type/function is used.
+
+    if (TypeSourceInfo* friendType = friendDecl->getFriendType()) {
+        // This friend declaration names an untemplated type.
+
+        if (const Type* type = friendType->getType().getTypePtrOrNull())
+            if (RecordDecl* typeDecl = type->getAsRecordDecl())
+                if (usedDeclarations.count(typeDecl->getCanonicalDecl()) == 0)
+                    removeDecl(friendDecl);
+
+    } else {
+        // This friend declaration names a function, function template or class template.
+        // friendDecl->getFriendDecl() will return the inner declaration (e.g. FunctionDecl)
+        // that will be processed in the corresponding Visit* method.
+    }
+
     return true;
 }
 

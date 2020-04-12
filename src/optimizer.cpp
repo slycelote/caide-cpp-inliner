@@ -244,9 +244,15 @@ public:
         : result(result_)
         , macrosToKeep(macrosToKeep_)
     {}
-    FrontendAction* create() {
+#if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
+    std::unique_ptr<FrontendAction> create() override {
+        return std::make_unique<OptimizerFrontendAction>(result, macrosToKeep);
+    }
+#else
+    FrontendAction* create() override {
         return new OptimizerFrontendAction(result, macrosToKeep);
     }
+#endif
 };
 
 

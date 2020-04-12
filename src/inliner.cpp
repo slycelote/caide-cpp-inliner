@@ -139,9 +139,16 @@ public:
         replacementStack.resize(1);
     }
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
+    virtual void FileSkipped(const FileEntryRef& SkippedFileRef, const Token &FilenameTok,
+                             SrcMgr::CharacteristicKind /*FileType*/) override
+    {
+        const FileEntry& SkippedFile = SkippedFileRef.getFileEntry();
+#else
     virtual void FileSkipped(const FileEntry& SkippedFile, const Token &FilenameTok,
                              SrcMgr::CharacteristicKind /*FileType*/) override
     {
+#endif
         // Don't track system headers including each other
         if (!srcManager.isInSystemHeader(FilenameTok.getLocation())) {
             // File skipped as part of normal header guard optimization / #pragma once
@@ -299,9 +306,15 @@ public:
         : replacementStack(replacementStack_)
         , includedHeaders(includedHeaders_)
     {}
-    FrontendAction* create() {
+#if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
+    std::unique_ptr<FrontendAction> create() override {
+        return std::make_unique<InlinerFrontendAction>(replacementStack, includedHeaders);
+    }
+#else
+    FrontendAction* create() override {
         return new InlinerFrontendAction(replacementStack, includedHeaders);
     }
+#endif
 };
 
 Inliner::Inliner(const vector<string>& cmdLineOptions_)

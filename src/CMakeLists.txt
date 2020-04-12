@@ -12,7 +12,7 @@ if(CAIDE_USE_SYSTEM_CLANG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 else()
-    set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/clang" CACHE PATH "" FORCE)
+    set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/clang" CACHE PATH "" FORCE)
     set(LLVM_TARGETS_TO_BUILD "X86" CACHE STRING "" FORCE)
     option(LLVM_INCLUDE_TOOLS "" ON)
     option(LLVM_BUILD_TOOLS "" ON)
@@ -32,25 +32,25 @@ else()
     # It's consistent with how LLVM is packaged in Debian and doesn't require -fno-rtti code for user code.
     option(LLVM_ENABLE_RTTI "" ON)
 
-    add_subdirectory(llvm EXCLUDE_FROM_ALL)
+    add_subdirectory(llvm-project/llvm EXCLUDE_FROM_ALL)
 
     # TODO: can we do this instead of hardcoding LLVM_ variables below?
     #include("${CMAKE_BINARY_DIR}/cmake/modules/CMakeFiles/LLVMConfig.cmake")
 
-    set(LLVM_PACKAGE_VERSION "8.0.1")
-    message(STATUS "Using built-in LLVM ${LLVM_PACKAGE_VERSION}")
+    set(LLVM_PACKAGE_VERSION "10.0.0")
+    message(STATUS "Using LLVM from submodule ${LLVM_PACKAGE_VERSION}")
 
-    set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm/lib")
-    set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm/include"
-        "${CMAKE_CURRENT_BINARY_DIR}/llvm/tools/clang/include")
+    set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
+    set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include"
+        "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/tools/clang/include")
     set(LLVM_DEFINITIONS "-D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGEFILE_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS")
 endif()
 
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "8.0.255")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "10.0.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 

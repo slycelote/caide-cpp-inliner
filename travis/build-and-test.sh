@@ -10,12 +10,9 @@ cmake --version
 "$CC" --version
 date
 
-git submodule init
-git submodule update src/clang
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
+git submodule update --init
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
-    git submodule update src/llvm
-else
     # Tell CMake where to look for LLVMConfig
     case "$CAIDE_CLANG_VERSION" in
         3.6|3.7|3.8)

@@ -303,6 +303,7 @@ void DependenciesCollector::insertReference(Decl* from, NestedNameSpecifier* spe
 bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     dbg(CAIDE_FUNC);
     Decl* currentDecl = getCurrentDecl();
+    insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
     insertReference(currentDecl, ref->getQualifier());
     return true;

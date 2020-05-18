@@ -63,8 +63,10 @@ set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangPa
 # LLVM components that clang_libs depend on.
 if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
     set(llvm_components bitreader mc mcparser option core support)
-else()
+elseif(LLVM_PACKAGE_VERSION VERSION_LESS "10.0")
     set(llvm_components bitreader mc mcparser option core support profiledata)
+else()
+    set(llvm_components bitreader mc mcparser option core support profiledata frontendopenmp)
 endif()
 
 llvm_map_components_to_libnames(llvm_libs ${llvm_components})

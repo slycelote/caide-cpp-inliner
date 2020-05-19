@@ -36,7 +36,7 @@ the source code of this application:
     #ifdef _WIN32
             inliner.clangCompilationOptions.push_back("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.10150.0\\ucrt");
     #else
-            inliner.clangCompilationOptions.push_back("../../src/clang/lib/Headers");
+            inliner.clangCompilationOptions.push_back("../../src/llvm-project/clang/lib/Headers");
     #endif
 
             // (4)
@@ -85,11 +85,11 @@ and rerun the program. Observe how the output file changes accordingly.
 
 ## Build
 
-You will need [CMake](https://cmake.org) and a relatively new compiler (tested
-with g++ 4.8 and VS 2015). From an empty directory execute the following
-command: `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release /path/to/src`.
-Replace "Unix Makefiles" with "Visual Studio 12 2013" or another
-[generator](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)
+You will need [CMake](https://cmake.org) and a relatively new compiler. From
+an empty directory execute the following command: `cmake -G "Unix Makefiles"
+-DCMAKE_BUILD_TYPE=Release /path/to/src`.  Replace "Unix Makefiles" with
+"Visual Studio 16 2019" or another
+[generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html)
 suitable for your platform. Replace the last argument with the full path to
 [src](./../../tree/master/src) directory. You can also use
 [cmake-gui](https://cmake.org/runningcmake/).
@@ -100,7 +100,7 @@ solution etc.)
 By default all necessary parts of libclang and LLVM will be built from
 scratch. This may take up to 30 minutes on a weak machine. If you have those
 libraries installed in the system (in Linux, search for packages
-libclang-3.6-dev and llvm-3.6-dev or similar), you can use them instead by
+libclang-7-dev and llvm-7-dev or similar), you can use them instead by
 passing `-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
 
 When the build is done, run `ctest` to execute the test suite.
@@ -128,5 +128,4 @@ Refer to Doxygen comments in [caideInliner header](src/caideInliner.hpp).
 
   In general, if you find that a declaration is removed incorrectly, mark this
   declaration with `caide keep` (and file an issue :)).
-
 

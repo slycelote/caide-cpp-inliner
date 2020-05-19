@@ -1,6 +1,5 @@
 /tests/* linguist-documentation
 /doc/* linguist-documentation
-/src/clang/* linguist-vendored
-/src/llvm/* linguist-vendored
+/src/llvm-project/* linguist-vendored
 /travis/cmake/* linguist-vendored
 

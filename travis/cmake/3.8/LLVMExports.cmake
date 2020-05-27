@@ -37,7 +37,6 @@ unset(_targetsDefined)
 unset(_targetsNotDefined)
 unset(_expectedTargets)
 
-
 set(_IMPORT_PREFIX "/usr/lib/llvm-3.8")
 
 # Create imported target LLVMSupport

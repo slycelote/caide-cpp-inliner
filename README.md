@@ -99,9 +99,9 @@ solution etc.)
 
 By default all necessary parts of libclang and LLVM will be built from
 scratch. This may take up to 30 minutes on a weak machine. If you have those
-libraries installed in the system (in Linux, search for packages
-libclang-7-dev and llvm-7-dev or similar), you can use them instead by
-passing `-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
+libraries installed in the system (in Linux, search for packages clang-7,
+libclang-7-dev and llvm-7-dev or similar), you can use them instead by passing
+`-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
 
 When the build is done, run `ctest` to execute the test suite.
 

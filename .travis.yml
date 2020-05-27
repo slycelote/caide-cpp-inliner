@@ -1,152 +1,139 @@
 language: cpp
-dist: trusty
+dist: xenial
 sudo: false
 git:
-    submodules: false
-
+  submodules: false
 addons:
-    apt:
-        sources: &default_sources
-            - ubuntu-toolchain-r-test
-        packages: &default_packages
-            - g++-7
-            - gcc-7
-            - binutils
+  apt:
+    packages: &default_packages ['gcc-9', 'g++-9']
+    sources: &default_sources ['ubuntu-toolchain-r-test']
 
 matrix:
-    include:
-        - env: CAIDE_USE_SYSTEM_CLANG=OFF
-        - env: CAIDE_CLANG_VERSION=3.6 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-3.6-dev
-                      - llvm-3.6-dev
+  include:
+    - env: CAIDE_USE_SYSTEM_CLANG=OFF
+      cache: ccache
 
-        - env: CAIDE_CLANG_VERSION=3.7 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-3.7
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-3.7-dev
-                      - llvm-3.7-dev
+    - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          packages:
+          - *default_packages
+          - clang-3.8
+          - libclang-3.8-dev
+          - llvm-3.8-dev
 
-        - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-3.8-dev
-                      - llvm-3.8-dev
+    - env: CAIDE_CLANG_VERSION=3.9 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          packages:
+          - *default_packages
+          - clang-3.9
+          - libclang-3.9-dev
+          - llvm-3.9-dev
 
-        - env: CAIDE_CLANG_VERSION=3.9 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-3.9
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-3.9-dev
-                      - llvm-3.9-dev
+    - env: CAIDE_CLANG_VERSION=4.0 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          packages:
+          - *default_packages
+          - clang-4.0
+          - libclang-4.0-dev
+          - llvm-4.0-dev
 
-        - env: CAIDE_CLANG_VERSION=4.0 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-4.0
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-4.0-dev
-                      - llvm-4.0-dev
+    - env: CAIDE_CLANG_VERSION=5.0 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-5.0
+          - libclang-5.0-dev
+          - llvm-5.0-dev
 
-        - env: CAIDE_CLANG_VERSION=5.0 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-5.0
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-5.0-dev
-                      - llvm-5.0-dev
+    - env: CAIDE_CLANG_VERSION=6.0 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-6.0
+          - libclang-6.0-dev
+          - llvm-6.0-dev
 
-        - env: CAIDE_CLANG_VERSION=6.0 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-6.0
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-6.0-dev
-                      - llvm-6.0-dev
+    - env: CAIDE_CLANG_VERSION=7 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-7 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-7
+          - libclang-7-dev
+          - llvm-7-dev
 
-        - env: CAIDE_CLANG_VERSION=7.0 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-7
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-7-dev
-                      - llvm-7-dev
+    - env: CAIDE_CLANG_VERSION=8 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-8
+          - libclang-8-dev
+          - llvm-8-dev
 
-        - env: CAIDE_CLANG_VERSION=8.0 CAIDE_USE_SYSTEM_CLANG=ON
-          addons:
-              apt:
-                  sources:
-                      - *default_sources
-                      - llvm-toolchain-trusty-8
-                  packages:
-                      - *default_packages
-                      - libedit-dev
-                      - libclang-8-dev
-                      - llvm-8-dev
+    - env: CAIDE_CLANG_VERSION=9 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-9 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-9
+          - libclang-9-dev
+          - llvm-9-dev
 
-    allow_failures:
-        - env: CAIDE_CLANG_VERSION=3.7 CAIDE_USE_SYSTEM_CLANG=ON
-        - env: CAIDE_CLANG_VERSION=3.9 CAIDE_USE_SYSTEM_CLANG=ON
-        - env: CAIDE_CLANG_VERSION=7.0 CAIDE_USE_SYSTEM_CLANG=ON
-        - env: CAIDE_CLANG_VERSION=8.0 CAIDE_USE_SYSTEM_CLANG=ON
-    fast_finish: true
+    - env: CAIDE_CLANG_VERSION=10 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-10 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-10
+          - libclang-10-dev
+          - llvm-10-dev
 
+  # allow_failures:
+  # - env: CAIDE_USE_SYSTEM_CLANG=OFF
+  # - env: CAIDE_CLANG_VERSION=4.0 CAIDE_USE_SYSTEM_CLANG=ON
 
-# https://github.com/boostorg/hana/blob/f36385d59f20776bbc17f5e32f9c3f7f75904a36/.travis.yml
-install:
-  - |
-    if [[ ${CAIDE_USE_SYSTEM_CLANG} == OFF || ${CAIDE_CLANG_VERSION} != "3."* ]]; then
-      DEPS_DIR="${TRAVIS_BUILD_DIR}/deps"
-      mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
-      CMAKE_URL="https://cmake.org/files/v3.7/cmake-3.7.2-Linux-x86_64.tar.gz"
-      mkdir cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
-      export PATH=${DEPS_DIR}/cmake/bin:${PATH}
-      cd ${TRAVIS_BUILD_DIR}
-    fi
+  fast_finish: false
 
 
 script:  travis/build-and-test.sh
 
-
 notifications:
-    email:
-        on_failure: always
+  email:
+    on_failure: always
 

@@ -1,107 +1,87 @@
 cmake_minimum_required(VERSION 2.8.12)
+if(POLICY CMP0048)
+    cmake_policy(SET CMP0048 NEW)
+endif()
+if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
 project(CaideInliner)
 
-option(CAIDE_USE_SYSTEM_CLANG "Use system clang/llvm instead of compiling it from scratch" OFF)
+option(CAIDE_USE_SYSTEM_CLANG "Use system-installed clang/llvm instead of compiling them from scratch" OFF)
+
+# https://llvm.org/docs/CMake.html#embedding-llvm-in-your-project
 
 if(CAIDE_USE_SYSTEM_CLANG)
-    if(DEFINED CAIDE_CLANG_VERSION)
-        find_package(LLVM ${CAIDE_CLANG_VERSION} REQUIRED CONFIG)
-    else()
-        find_package(LLVM REQUIRED CONFIG)
-    endif()
-    if(NOT LLVM_FOUND)
-        message(FATAL_ERROR "LLVM not found! Make sure packages llvm-dev and libclang-dev are installed")
-    endif()
-
+    # Clang CMake files don't define Clang_PACKAGE_VERSION. To use a specific version,
+    # run cmake with '-DClang_ROOT=/path/to/clang/cmake/files (typically /usr/lib/llvm-{version}).
+    find_package(Clang REQUIRED CONFIG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 else()
     set(LLVM_EXTERNAL_CLANG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/clang" CACHE PATH "" FORCE)
+    set(LLVM_ENABLE_PROJECTS clang)
     set(LLVM_TARGETS_TO_BUILD "X86" CACHE STRING "" FORCE)
-    option(LLVM_INCLUDE_TOOLS "" ON)
+    option(BUILD_SHARED_LIBS "" OFF)
     option(LLVM_BUILD_TOOLS "" ON)
     option(LLVM_BUILD_EXAMPLES "" OFF)
-    option(LLVM_INCLUDE_EXAMPLES "" OFF)
     option(LLVM_BUILD_TESTS "" OFF)
-    option(LLVM_INCLUDE_TESTS "" OFF)
-    option(LLVM_ENABLE_ZLIB "" OFF)
     option(LLVM_BUILD_DOCS "" OFF)
     option(LLVM_ENABLE_DOXYGEN "" OFF)
     option(LLVM_ENABLE_SPHINX "" OFF)
-    option(BUILD_SHARED_LIBS "" OFF)
     option(LLVM_ENABLE_TERMINFO "" OFF)
+    option(LLVM_ENABLE_LIBEDIT "" OFF)
+    option(LLVM_ENABLE_LIBPFM "" OFF)
+    option(LLVM_ENABLE_LIBXML2 "" OFF)
+    option(LLVM_ENABLE_OCAMLDOC "" OFF)
+    option(LLVM_ENABLE_PLUGINS "" OFF)
+    option(LLVM_ENABLE_RTTI "" ON)
+    option(LLVM_ENABLE_ZLIB "" OFF)
+    option(LLVM_INCLUDE_BENCHMARKS "" OFF)
+    option(LLVM_INCLUDE_DOCS "" OFF)
+    option(LLVM_INCLUDE_EXAMPLES "" OFF)
+    option(LLVM_INCLUDE_GOTESTS "" OFF)
+    option(LLVM_INCLUDE_RUNTIMES "" OFF)
+    option(LLVM_INCLUDE_TESTS "" OFF)
+    option(LLVM_INCLUDE_TOOLS "" ON)
+    option(LLVM_INCLUDE_UTILS "" OFF)
     option(WITH_POLLY "" OFF)
     set(HAVE_LIBEDIT false CACHE BOOL "" FORCE)
-    # Enable RTTI, even though it may decrease performance.
-    # It's consistent with how LLVM is packaged in Debian and doesn't require -fno-rtti code for user code.
-    option(LLVM_ENABLE_RTTI "" ON)
 
     add_subdirectory(llvm-project/llvm EXCLUDE_FROM_ALL)
 
-    # TODO: can we do this instead of hardcoding LLVM_ variables below?
-    #include("${CMAKE_BINARY_DIR}/cmake/modules/CMakeFiles/LLVMConfig.cmake")
+    if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/clang/ClangConfig.cmake")
+        if(POLICY CMP0024)
+            cmake_policy(SET CMP0024 OLD)
+        endif()
+        include("${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/clang/ClangConfig.cmake")
+    else()
+        # If the above doesn't work, we hardcode certain variables:
+        set(LLVM_PACKAGE_VERSION "10.0.0")
+        set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
+        set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
+          "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include")
+        set(CLANG_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/clang/include"
+            "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/tools/clang/include")
+        set(LLVM_DEFINITIONS "")
+    endif()
 
-    set(LLVM_PACKAGE_VERSION "10.0.0")
     message(STATUS "Using LLVM from submodule ${LLVM_PACKAGE_VERSION}")
-
-    set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
-    set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/clang/include" "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include"
-        "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/tools/clang/include")
-    set(LLVM_DEFINITIONS "-D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGEFILE_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS")
 endif()
 
-if(LLVM_PACKAGE_VERSION VERSION_LESS "3.6")
+if(LLVM_PACKAGE_VERSION VERSION_LESS "3.8")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
 if(LLVM_PACKAGE_VERSION VERSION_GREATER "10.0.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 
-# List of clang libraries that we use, including recursive dependencies.
-# Must be in topological order.
-# Need to include only libraries required for linking.
-set(clang_libs clangTooling clangFrontend clangDriver clangSerialization clangParse
-    clangSema clangAnalysis clangRewrite clangEdit clangAST clangLex clangBasic)
-
-# LLVM components that clang_libs depend on.
-if(LLVM_PACKAGE_VERSION VERSION_LESS "3.9")
-    set(llvm_components bitreader mc mcparser option core support)
-elseif(LLVM_PACKAGE_VERSION VERSION_LESS "10.0")
-    set(llvm_components bitreader mc mcparser option core support profiledata)
-else()
-    set(llvm_components bitreader mc mcparser option core support profiledata frontendopenmp)
-endif()
-
-llvm_map_components_to_libnames(llvm_libs ${llvm_components})
-
-if(CAIDE_USE_SYSTEM_CLANG)
-    # There is no function similar to llvm_map_components_to_libnames for clang libraries.
-    # Find them manually.
-    foreach(clang_lib IN LISTS clang_libs)
-        # Generate a unique name for a variable in which the location
-        # of the library will be stored in CMake cache
-        set(var_name "${clang_lib}_loc")
-        find_library(${var_name} ${clang_lib} HINTS "${LLVM_LIBRARY_DIRS}")
-        add_library(${clang_lib} STATIC IMPORTED)
-        set_target_properties(${clang_lib} PROPERTIES
-            IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-            IMPORTED_LOCATION "${${var_name}}"
-        )
-    endforeach()
-endif()
-
+message(STATUS "LLVM_LIBRARY_DIRS=${LLVM_LIBRARY_DIRS}")
+message(STATUS "CLANG_LIBRARY_DIRS=${CLANG_LIBRARY_DIRS}")
 message(STATUS "LLVM_INCLUDE_DIRS=${LLVM_INCLUDE_DIRS}")
+message(STATUS "CLANG_INCLUDE_DIRS=${CLANG_INCLUDE_DIRS}")
 message(STATUS "LLVM_DEFINITIONS=${LLVM_DEFINITIONS}")
-
-# Find libraries corresponding to LLVM components that clang_libs (recursively) depend on.
-# The result is in topological order.
-# Equivalent of `llvm-config --link-static --libs <components>'.
-explicit_map_components_to_libraries(all_llvm_libs ${llvm_components})
-message(STATUS "LLVM libs: ${all_llvm_libs}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/caide-libs.txt" "${clang_libs};${all_llvm_libs}")
-
-add_definitions(${LLVM_DEFINITIONS})
+message(STATUS "CLANG_DEFINITIONS=${CLANG_DEFINITIONS}")
 
 
 include(CheckCXXCompilerFlag)
@@ -113,34 +93,84 @@ function(add_compiler_option_if_supported opt)
     endif()
 endfunction(add_compiler_option_if_supported)
 
-# CXX_STANDARD() is available only in cmake >= 3
-# Set c++11 flag explicitly
-add_compiler_option_if_supported("-std=c++11")
-
-if(MSVC)
-    # Use the highest warning level for Visual Studio.
-    add_compile_options("/W4")
+# CXX_STANDARD() is available only in cmake >= 3.
+# Set the compiler flag explicitly.
+if(LLVM_PACKAGE_VERSION VERSION_LESS "10")
+    add_compiler_option_if_supported("-std=c++11")
+else()
+    add_compiler_option_if_supported("-std=c++14")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    # Add warnings for g++
+if(MSVC)
+    add_compile_options("/W4")
+else()
     foreach(flag -Wall -Wextra -Wshadow -Wlogical-op -Werror=return-type)
         add_compiler_option_if_supported("${flag}")
     endforeach()
 endif()
 
 
-set(inlinerSources caideInliner.cpp clang_compat.cpp DependenciesCollector.cpp inliner.cpp MergeNamespacesVisitor.cpp
+add_library(caideInliner STATIC
+    caideInliner.cpp clang_compat.cpp DependenciesCollector.cpp inliner.cpp MergeNamespacesVisitor.cpp
     optimizer.cpp OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp SmartRewriter.cpp
     SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
 
-add_library(caideInliner STATIC ${inlinerSources})
-
-target_include_directories(caideInliner SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-target_link_libraries(caideInliner PRIVATE ${clang_libs} ${llvm_libs})
+target_include_directories(caideInliner SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
+target_compile_definitions(caideInliner PRIVATE ${CLANG_DEFINITIONS} ${LLVM_DEFINITIONS})
+target_link_libraries(caideInliner PRIVATE
+    clangAST clangBasic clangFrontend clangLex clangRewrite clangSema clangTooling)
 
 add_subdirectory(cmd)
 
 enable_testing()
 add_subdirectory(test-tool)
+
+
+# Find all libraries that we depend on, including recursive dependencies.
+# The result is in topological order.
+# This is only needed for linking in external build tools.
+function(get_dependencies_recursively_impl target output_var entered_var)
+    if(NOT TARGET ${target} OR NOT ${target} MATCHES "^(caide|clang|LLVM).*")
+        return()
+    endif()
+
+    list(FIND ${entered_var} ${target} idx)
+    if(${idx} GREATER "-1")
+        return()
+    endif()
+
+    list(APPEND ${entered_var} ${target})
+
+    get_target_property(imported ${target} IMPORTED)
+    if(imported)
+        get_target_property(dependencies ${target} INTERFACE_LINK_LIBRARIES)
+    else()
+        get_target_property(dependencies ${target} LINK_LIBRARIES)
+    endif()
+
+    if(dependencies)
+        # message(STATUS "${target} -> ${dependencies}")
+        foreach(dep ${dependencies})
+            get_dependencies_recursively_impl(${dep} ${output_var} ${entered_var})
+        endforeach()
+    endif()
+
+    list(APPEND ${output_var} ${target})
+
+    set(${entered_var} ${${entered_var}} PARENT_SCOPE)
+    set(${output_var} ${${output_var}} PARENT_SCOPE)
+endfunction()
+
+function(get_dependencies_recursively target output_var)
+    set(${output_var} "" PARENT_SCOPE)
+    set(entered "")
+    get_dependencies_recursively_impl(${target} ${output_var} entered)
+    list(REVERSE ${output_var})
+    set(${output_var} ${${output_var}} PARENT_SCOPE)
+endfunction()
+
+get_dependencies_recursively(caideInliner all_libs)
+message(STATUS "All libs: ${all_libs}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/caide-libs.txt" "${all_libs}")
+unset(all_libs)
 

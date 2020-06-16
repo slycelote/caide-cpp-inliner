@@ -35,6 +35,10 @@ static string trimEndPathSeparators(const string& path) {
     return result;
 }
 
+static bool startsWith(const string& s, const char* prefix) {
+    return s.rfind(prefix, 0) == 0;
+}
+
 CppInliner::CppInliner(const string& temporaryDirectory_)
     : clangCompilationOptions{}
     , macrosToKeep{"__cplusplus", "__STDC_VERSION__",
@@ -57,20 +61,27 @@ static void concatFiles(const vector<string>& cppFilePaths, const string& output
     }
 }
 
-static bool isPragmaOnce(string line) {
+// Certain directives become invalid after the first stage (inliner) runs. Those include:
+// * #pragma once (used to be in a header, now in the inlined source file).
+// * #line number [file name] (became incorrect due to inlining header files).
+//
+// Ideally, the inliner would not emit these directives. However, it may be hard to do
+// with currently available clang API. Instead, we use a simplistic postprocessing that
+// should work in most cases.
+static bool isInvalidDirective(string line) {
     auto it = std::remove_if(line.begin(), line.end(),
                 [](char c) { return c == ' ' || c == '\t' || c == '\r'; });
     line.erase(it, line.end());
-    // This is technically incorrect in view of multiline macros, multiline strings etc...
-    return line == "#pragmaonce";
+    // This is technically incorrect due to multiline directives and strings.
+    return line == "#pragmaonce" || startsWith(line, "#line");
 }
 
-static void removePragmaOnce(const string& textInBinaryMode, const string& outputFilePath) {
+static void removeInvalidDirectives(const string& textInBinaryMode, const string& outputFilePath) {
     istringstream in{textInBinaryMode};
     ofstream out{outputFilePath, std::ios::binary};
     string line;
     while (std::getline(in, line)) {
-        if (!isPragmaOnce(line))
+        if (!isInvalidDirective(line))
             out << line << '\n';
     }
 }
@@ -118,7 +129,7 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
 
     internal::Inliner inliner{clangCompilationOptions};
     std::string inlinedCode{inliner.doInline(concatStage)};
-    removePragmaOnce(inlinedCode, inlinedStage);
+    removeInvalidDirectives(inlinedCode, inlinedStage);
 
     internal::Optimizer optimizer{clangCompilationOptions, macrosToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};

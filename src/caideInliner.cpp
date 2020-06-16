@@ -37,7 +37,10 @@ static string trimEndPathSeparators(const string& path) {
 
 CppInliner::CppInliner(const string& temporaryDirectory_)
     : clangCompilationOptions{}
-    , macrosToKeep{"_WIN32", "_WIN64", "_MSC_VER", "__GNUC__", "__cplusplus"}
+    , macrosToKeep{"__cplusplus", "__STDC_VERSION__",
+        "__ANDROID__", "__MINGW32__", "__MINGW64__",
+        "_WIN32", "_WIN64", "_M_AMD64", "__linux", "__linux__", "__APPLE__",
+        "__GNUC__", "__GLIBC__", "__clang__", "_MSC_VER"}
     , maxConsequentEmptyLines{2}
     , temporaryDirectory{trimEndPathSeparators(temporaryDirectory_)}
 {

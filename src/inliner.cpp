@@ -8,14 +8,10 @@
 #include "clang_version.h"
 #include "util.h"
 
-#include <clang/AST/ASTConsumer.h>
-#include <clang/AST/ASTContext.h>
-#include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
-#include <clang/Lex/Preprocessor.h>
-#include <clang/Rewrite/Core/Rewriter.h>
+#include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
@@ -274,7 +270,7 @@ private:
     }
 };
 
-class InlinerFrontendAction : public ASTFrontendAction {
+class InlinerFrontendAction : public PreprocessOnlyAction {
 private:
     vector<IncludeReplacement>& replacementStack;
     set<string>& includedHeaders;
@@ -286,12 +282,10 @@ public:
         , includedHeaders(_includedHeaders)
     {}
 
-    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& compiler, StringRef /*file*/) override
-    {
+    bool BeginSourceFileAction(CompilerInstance& compiler) override {
         compiler.getPreprocessor().addPPCallbacks(std::unique_ptr<TrackMacro>(new TrackMacro(
                 compiler.getSourceManager(), includedHeaders, replacementStack)));
-
-        return std::unique_ptr<ASTConsumer>(new ASTConsumer());
+        return true;
     }
 };
 

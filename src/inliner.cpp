@@ -12,6 +12,8 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Frontend/FrontendActions.h>
+#include <clang/Lex/Preprocessor.h>
+#include <clang/Lex/Token.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
@@ -282,7 +284,12 @@ public:
         , includedHeaders(_includedHeaders)
     {}
 
-    bool BeginSourceFileAction(CompilerInstance& compiler) override {
+#if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
+    bool BeginSourceFileAction(CompilerInstance& compiler) override
+#else
+    bool BeginSourceFileAction(CompilerInstance& compiler, StringRef /*FileName*/) override
+#endif
+    {
         compiler.getPreprocessor().addPPCallbacks(std::unique_ptr<TrackMacro>(new TrackMacro(
                 compiler.getSourceManager(), includedHeaders, replacementStack)));
         return true;

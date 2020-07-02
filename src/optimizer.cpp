@@ -132,12 +132,14 @@ public:
             //     Suppress error messages temporarily (it's OK for these functions
             //     to be malformed).
             clang::Sema& sema = compiler.getSema();
-            sema.getDiagnostics().setSuppressAllDiagnostics(true);
+            DiagnosticsEngine& diag = sema.getDiagnostics();
+            const bool suppressAll = diag.getSuppressAllDiagnostics();
+            diag.setSuppressAllDiagnostics(true);
             for (FunctionDecl* f : srcInfo.delayedParsedFunctions) {
                 auto& /*ptr to clang::LateParsedTemplate*/ lpt = sema.LateParsedTemplateMap[f];
                 sema.LateTemplateParser(sema.OpaqueParser, *lpt);
             }
-            sema.getDiagnostics().setSuppressAllDiagnostics(false);
+            diag.setSuppressAllDiagnostics(suppressAll);
 
 #ifdef CAIDE_DEBUG_MODE
             std::ofstream file("caide-graph.dot");

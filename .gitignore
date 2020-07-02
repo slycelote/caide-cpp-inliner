@@ -3,6 +3,7 @@
 *.o
 *.pyc
 
+/build
 /tools/cfkeys.py
 
 /tests/temp/*

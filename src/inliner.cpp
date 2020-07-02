@@ -235,9 +235,11 @@ private:
     }
 
     string getCanonicalPath(const FileEntry* entry) const {
+#if CAIDE_CLANG_VERSION_AT_LEAST(3,9)
         StringRef path = entry->tryGetRealPathName();
         if (!path.empty())
             return path.str();
+#endif
 
         const DirectoryEntry* dirEntry = entry->getDir();
         StringRef strRef = srcManager.getFileManager().getCanonicalName(dirEntry);

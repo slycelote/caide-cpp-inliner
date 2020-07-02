@@ -36,21 +36,19 @@ namespace internal {
 
 struct IncludeReplacement {
     SourceRange includeDirectiveRange;
-    string fileName;
+    const FileEntry* includedFile = nullptr;
     string replaceWith;
 };
 
 class TrackMacro: public PPCallbacks {
 public:
-    TrackMacro(SourceManager& srcManager_, set<string>& includedHeaders_,
-               vector<IncludeReplacement>& replacements_)
+    TrackMacro(SourceManager& srcManager_, vector<IncludeReplacement>& replacements_)
         : srcManager(srcManager_)
-        , includedHeaders(includedHeaders_)
         , replacementStack(replacements_)
     {
         // Setup a placeholder where the result for the whole CPP file will be stored
         replacementStack.resize(1);
-        replacementStack.back().fileName = "<CPP>";
+        replacementStack.back().includedFile = nullptr;
     }
 
     virtual void InclusionDirective(SourceLocation HashLoc,
@@ -89,7 +87,7 @@ public:
 
         IncludeReplacement rep;
         rep.includeDirectiveRange = SourceRange(HashLoc, end);
-        rep.fileName = getCanonicalPath(srcManager.getFileEntryForID(srcManager.getFileID(HashLoc)));
+        rep.includedFile = srcManager.getFileEntryForID(srcManager.getFileID(HashLoc));
         if (s && e)
             rep.replaceWith = string(s, e);
         else
@@ -107,16 +105,14 @@ public:
             if (!isUserFile(Loc))
                 return;
             // Rewind replacement stack and compute result of including current file.
-            string currentFile = getCanonicalPath(curEntry);
-
             // - Search the stack for the topmost replacement belonging to another file.
             //   That's where we were included from.
             int includedFrom = int(replacementStack.size()) - 1;
-            while (replacementStack[includedFrom].fileName == currentFile)
+            while (replacementStack[includedFrom].includedFile == curEntry)
                 --includedFrom;
 
             // - Mark this header as visited for future CPP files.
-            if (!markAsIncluded(currentFile)) {
+            if (!markAsIncluded(*curEntry)) {
                 // - If current header should be skipped, set empty replacement
                 replacementStack[includedFrom].replaceWith = "";
             } else if (isSystemHeader(PrevFID)) {
@@ -175,7 +171,7 @@ private:
      * Headers that have been included explicitly by user code (i.e. from a cpp file or from
      * a non-system header).
      */
-    set<string>& includedHeaders;
+    set<const FileEntry*> includedHeaders;
 
     /*
      * A 'stack' of replacements, reflecting current include stack.
@@ -254,12 +250,7 @@ private:
     }
 
     bool markAsIncluded(const FileEntry& entry) {
-        string fname = getCanonicalPath(&entry);
-        return markAsIncluded(fname);
-    }
-
-    bool markAsIncluded(const string& canonicalPath) {
-        return includedHeaders.insert(canonicalPath).second;
+        return includedHeaders.insert(&entry).second;
     }
 
     bool isSystemHeader(FileID header) const {
@@ -273,7 +264,7 @@ private:
 
     void debug() const {
         for (size_t i = 0; i < replacementStack.size(); ++i) {
-            std::cerr << replacementStack[i].fileName << " " <<
+            std::cerr << getCanonicalPath(replacementStack[i].includedFile) << " " <<
                          replacementStack[i].replaceWith << "\n";
         }
     }
@@ -282,13 +273,10 @@ private:
 class InlinerFrontendAction : public PreprocessOnlyAction {
 private:
     vector<IncludeReplacement>& replacementStack;
-    set<string>& includedHeaders;
 
 public:
-    InlinerFrontendAction(vector<IncludeReplacement>& _replacementStack,
-                          set<string>& _includedHeaders)
+    InlinerFrontendAction(vector<IncludeReplacement>& _replacementStack)
         : replacementStack(_replacementStack)
-        , includedHeaders(_includedHeaders)
     {}
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
@@ -298,7 +286,7 @@ public:
 #endif
     {
         compiler.getPreprocessor().addPPCallbacks(std::unique_ptr<TrackMacro>(new TrackMacro(
-                compiler.getSourceManager(), includedHeaders, replacementStack)));
+                compiler.getSourceManager(), replacementStack)));
         return true;
     }
 };
@@ -306,21 +294,18 @@ public:
 class InlinerFrontendActionFactory: public tooling::FrontendActionFactory {
 private:
     vector<IncludeReplacement>& replacementStack;
-    set<string>& includedHeaders;
 
 public:
-    InlinerFrontendActionFactory(vector<IncludeReplacement>& replacementStack_,
-                                 set<string>& includedHeaders_)
+    explicit InlinerFrontendActionFactory(vector<IncludeReplacement>& replacementStack_)
         : replacementStack(replacementStack_)
-        , includedHeaders(includedHeaders_)
     {}
 #if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
     std::unique_ptr<FrontendAction> create() override {
-        return std::make_unique<InlinerFrontendAction>(replacementStack, includedHeaders);
+        return std::make_unique<InlinerFrontendAction>(replacementStack);
     }
 #else
     FrontendAction* create() override {
-        return new InlinerFrontendAction(replacementStack, includedHeaders);
+        return new InlinerFrontendAction(replacementStack);
     }
 #endif
 };
@@ -337,7 +322,7 @@ string Inliner::doInline(const string& cppFile) {
     sources[0] = cppFile;
 
     vector<IncludeReplacement> replacementStack;
-    InlinerFrontendActionFactory factory(replacementStack, includedHeaders);
+    InlinerFrontendActionFactory factory(replacementStack);
 
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
 

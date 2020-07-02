@@ -195,6 +195,7 @@ private:
         // with the result of inclusion.
         // The last value of i doesn't correspond to an include directive,
         // it's used to output the part of the file after the last include directive.
+        // TODO: Output #line directives for correct warning/error messages in optimizer stage.
         for (int i = includedFrom + 1; i <= int(replacementStack.size()); ++i) {
             // First output the block before the #include directive.
             // Block start is immediately after the previous include directive;
@@ -234,6 +235,10 @@ private:
     }
 
     string getCanonicalPath(const FileEntry* entry) const {
+        StringRef path = entry->tryGetRealPathName();
+        if (!path.empty())
+            return path.str();
+
         const DirectoryEntry* dirEntry = entry->getDir();
         StringRef strRef = srcManager.getFileManager().getCanonicalName(dirEntry);
         string res = strRef.str();

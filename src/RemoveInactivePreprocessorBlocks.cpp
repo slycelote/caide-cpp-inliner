@@ -6,6 +6,7 @@
 
 #include "RemoveInactivePreprocessorBlocks.h"
 #include "SmartRewriter.h"
+#include "util.h"
 
 #include <clang/Basic/SourceManager.h>
 #include <clang/Lex/Preprocessor.h>
@@ -14,7 +15,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
 
 using namespace clang;
 using std::map;
@@ -53,6 +53,7 @@ struct Macro {
 struct RemoveInactivePreprocessorBlocks::RemoveInactivePreprocessorBlocksImpl {
 private:
     SourceManager& sourceManager;
+    const LangOptions& langOptions;
     SmartRewriter& rewriter;
     const set<string>& macrosToKeep;
 
@@ -102,9 +103,10 @@ private:
 
 public:
     RemoveInactivePreprocessorBlocksImpl(
-            SourceManager& sourceManager_, SmartRewriter& rewriter_,
-            const set<string>& macrosToKeep_)
+            SourceManager& sourceManager_, const LangOptions& langOptions_,
+            SmartRewriter& rewriter_, const set<string>& macrosToKeep_)
         : sourceManager(sourceManager_)
+        , langOptions(langOptions_)
         , rewriter(rewriter_)
         , macrosToKeep(macrosToKeep_)
     {
@@ -261,8 +263,10 @@ private:
     }
 
     bool containsWhitelistedString(SourceRange range) const {
-        const char* b = sourceManager.getCharacterData(range.getBegin());
-        const char* e = sourceManager.getCharacterData(range.getEnd());
+        const char* b, *e;
+        std::tie(b, e) = getCharRange(range, sourceManager, langOptions);
+        if (!b || !e)
+            return true;
         string rangeContent(b, e);
         for (const auto& s: macrosToKeep)
             if (rangeContent.find(s) != string::npos)
@@ -273,15 +277,13 @@ private:
 
 
 RemoveInactivePreprocessorBlocks::RemoveInactivePreprocessorBlocks(
-        SourceManager& sourceManager, SmartRewriter& rewriter,
-        const set<string>& macrosToKeep)
-    : impl(new RemoveInactivePreprocessorBlocksImpl(sourceManager, rewriter, macrosToKeep))
+        SourceManager& sourceManager, const LangOptions& langOptions,
+        SmartRewriter& rewriter, const set<string>& macrosToKeep)
+    : impl(new RemoveInactivePreprocessorBlocksImpl(sourceManager, langOptions, rewriter, macrosToKeep))
 {
 }
 
-RemoveInactivePreprocessorBlocks::~RemoveInactivePreprocessorBlocks() {
-    delete impl;
-}
+RemoveInactivePreprocessorBlocks::~RemoveInactivePreprocessorBlocks() = default;
 
 void RemoveInactivePreprocessorBlocks::MacroDefined(
         const Token& MacroNameTok, const MacroDirective* MD)

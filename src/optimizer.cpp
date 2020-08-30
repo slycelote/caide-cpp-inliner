@@ -24,6 +24,7 @@
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Sema/Sema.h>
+#include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
 
@@ -83,7 +84,8 @@ class BuildNonImplicitDeclMap: public clang::RecursiveASTVisitor<BuildNonImplici
 public:
     BuildNonImplicitDeclMap(SourceInfo& srcInfo_)
         : srcInfo(srcInfo_)
-    {}
+    {
+    }
 
     bool shouldVisitImplicitCode() const { return false; }
     bool shouldVisitTemplateInstantiations() const { return false; }
@@ -110,7 +112,8 @@ public:
         , smartRewriter(std::move(smartRewriter_))
         , ppCallbacks(ppCallbacks_)
         , result(result_)
-    {}
+    {
+    }
 
     virtual void HandleTranslationUnit(ASTContext& Ctx) override {
 #ifdef CAIDE_DEBUG_MODE
@@ -229,11 +232,12 @@ public:
         auto smartRewriter = std::unique_ptr<SmartRewriter>(
             new SmartRewriter(compiler.getSourceManager(), compiler.getLangOpts()));
         auto ppCallbacks = std::unique_ptr<RemoveInactivePreprocessorBlocks>(
-            new RemoveInactivePreprocessorBlocks(compiler.getSourceManager(), *smartRewriter, macrosToKeep));
+            new RemoveInactivePreprocessorBlocks(compiler.getSourceManager(), compiler.getLangOpts(),
+                *smartRewriter, macrosToKeep));
         auto consumer = std::unique_ptr<OptimizerConsumer>(
             new OptimizerConsumer(compiler, std::move(smartRewriter), *ppCallbacks, result));
         compiler.getPreprocessor().addPPCallbacks(std::move(ppCallbacks));
-        return std::move(consumer);
+        return consumer;
     }
 };
 

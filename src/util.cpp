@@ -78,13 +78,29 @@ SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx) {
 }
 
 std::pair<const char*, const char*> getCharRange(SourceRange range, const SourceManager& sourceManager, const LangOptions& langOpts) {
-    CharSourceRange rng ;
-    rng = sourceManager.getExpansionRange(range);
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
+    CharSourceRange rng = sourceManager.getExpansionRange(range);
+#else
+    range = sourceManager.getExpansionRange(range);
+    // The following is actually incorrect because range could be a token range,
+    // in which case we must use CharSourceRange::getTokenRange(). The only place
+    // where we've encountered it so far is the range of #if condition with a newer clang,
+    // which is covered by the other implementation above.
+    // So for our use cases this should work. If we actually get token ranges from
+    // older clang versions, we could copy the implementation of getExpansionRange
+    // from latest clang.
+    CharSourceRange rng = CharSourceRange::getCharRange(range);
+#endif
     rng = Lexer::makeFileCharRange(rng, sourceManager, langOpts);
     if (rng.isInvalid())
         return {nullptr, nullptr};
-    const char* b = sourceManager.getCharacterData(rng.getBegin());
-    const char* e = sourceManager.getCharacterData(rng.getEnd());
+    bool Invalid = false;
+    const char* b = sourceManager.getCharacterData(rng.getBegin(), &Invalid);
+    if (Invalid)
+        return {nullptr, nullptr};
+    const char* e = sourceManager.getCharacterData(rng.getEnd(), &Invalid);
+    if (Invalid)
+        return {nullptr, nullptr};
     return {b, e};
 }
 
@@ -132,6 +148,7 @@ std::string toString(SourceManager& sourceManager, SourceLocation loc) {
     return os.str();
 }
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
 static void debug(SourceManager& sourceManager, std::ostringstream& os, SourceLocation loc) {
     if (!loc.isValid()) os << "[invalid]";
     else if (!loc.isFileID()) os << "[not file]";
@@ -160,7 +177,7 @@ static void debug(SourceManager& sourceManager, std::ostringstream& os, CharSour
 
 std::string toString(SourceManager& sourceManager, SourceRange range, const LangOptions* langOpts /*=nullptr*/) {
     std::ostringstream os;
-    CharSourceRange rng ;
+    CharSourceRange rng;
     rng = sourceManager.getExpansionRange(range);
     debug(sourceManager, os, rng);
     if (langOpts) {
@@ -170,6 +187,13 @@ std::string toString(SourceManager& sourceManager, SourceRange range, const Lang
     }
     return os.str();
 }
+
+#else
+std::string toString(SourceManager& sourceManager, SourceRange range, const LangOptions*) {
+    return toString(sourceManager, range.getBegin()) + " -- " +
+        toString(sourceManager, range.getEnd());
+}
+#endif
 
 std::string toString(SourceManager& sourceManager, const Decl* decl) {
     if (!decl)
@@ -186,7 +210,7 @@ std::string toString(SourceManager& sourceManager, const Decl* decl) {
     return std::string(b, std::min(b+30, e));
 }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
 static SourceLocation getBegin(const CharSourceRange& charSourceRange) {
     return charSourceRange.getBegin();
 }

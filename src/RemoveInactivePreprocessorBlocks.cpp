@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+
 using namespace clang;
 using std::map;
 using std::set;
@@ -58,42 +59,15 @@ private:
     const set<string>& macrosToKeep;
 
     vector<IfDefClause> activeClauses;
-    set<string> definedMacroNames;
 
     // Currently defined macros
     map<const MacroDirective*, Macro> definedMacros;
 
     // Macros that were #defined, and then #undefined.
-    // We need to keep track of them separately because corresponding MacroDirective
-    // structure is released when the macro is undefined.
     vector<Macro> undefinedMacros;
-
-    vector<SourceRange> inactiveBranches;
-
 private:
     bool isWhitelistedMacro(const string& macroName) const {
         return macrosToKeep.find(macroName) != macrosToKeep.end();
-    }
-
-    void removeMacroIfUnused(const Macro& macro) {
-        if (macro.isWhitelisted)
-            return;
-
-        for (const SourceRange& usageRange : macro.usages) {
-            if (!rewriter.isPartOfRangeRemoved(usageRange)) {
-                // The usage of the macro has not been removed, so
-                // we can't remove the definition
-                return;
-            }
-        }
-
-        rewriter.removeRange(macro.definition);
-
-        if (macro.undefinition.isValid()) {
-            SourceLocation b = changeColumn(macro.undefinition, 1);
-            SourceLocation e = changeColumn(macro.undefinition, 10000);
-            rewriter.removeRange(b, e);
-        }
     }
 
     bool isInMainFile(SourceLocation loc) const {
@@ -115,7 +89,6 @@ public:
     void MacroDefined(const Token& MacroNameTok, const MacroDirective* MD) {
         string macroName = getTokenName(MacroNameTok);
         bool isWhitelisted = isWhitelistedMacro(macroName);
-        definedMacroNames.insert(std::move(macroName));
 
         if (MD && isInMainFile(MD->getLocation())) {
             SourceLocation b = MD->getLocation(), e;
@@ -134,39 +107,57 @@ public:
     }
 
     void MacroUndefined(const Token& MacroNameTok, const MacroDirective* MD) {
-        definedMacroNames.erase(getTokenName(MacroNameTok));
-
         if (!MD || !isInMainFile(MD->getLocation()))
             return;
 
         auto it = definedMacros.find(MD);
         if (it != definedMacros.end()) {
             it->second.undefinition = MacroNameTok.getLocation();
-
             undefinedMacros.push_back(it->second);
             definedMacros.erase(it);
         }
     }
 
-    void MacroExpands(const MacroDirective* MD, SourceRange Range)
-    {
+    void MacroExpands(const MacroDirective* MD, SourceRange Range) {
         if (!MD || !isInMainFile(MD->getLocation()))
             return;
 
         definedMacros[MD].usages.push_back(Range);
     }
 
+    // This is where we remove unused macros.
+    // We can be sure that a macro is unused only after we analyzed the AST
+    // (e.g. it could be referenced in an unused function.)
+    // There is PPCallbacks::EndOfMainFile(), however it seems to be called only after
+    // some required resources have been deallocated. So we call this method manually instead.
     void Finalize() {
-        // Remove unused #defines that don't have a corresponding #undef
-        for (auto it = definedMacros.begin(); it != definedMacros.end(); ++it)
-            removeMacroIfUnused(it->second);
+        auto removeMacroIfUnused = [this](const Macro& macro) {
+            if (macro.isWhitelisted)
+                return;
 
-        // Remove unused #define / #undef pairs
+            for (const SourceRange& usageRange : macro.usages) {
+                if (!rewriter.isPartOfRangeRemoved(usageRange)) {
+                    // The usage of the macro has not been removed, so
+                    // we can't remove the definition.
+                    return;
+                }
+            }
+
+            rewriter.removeRange(macro.definition);
+
+            if (macro.undefinition.isValid()) {
+                SourceLocation b = changeColumn(macro.undefinition, 1);
+                SourceLocation e = changeColumn(macro.undefinition, 10000);
+                rewriter.removeRange(b, e);
+            }
+        };
+
+        // Remove unused #defines that don't have a corresponding #undef
+        for (const auto& kv : definedMacros)
+            removeMacroIfUnused(kv.second);
+        // Remove previously #defined macros.
         for (const Macro& macro : undefinedMacros)
             removeMacroIfUnused(macro);
-
-        for (const SourceRange& range: inactiveBranches)
-            rewriter.removeRange(range);
     }
 
     void If(SourceLocation Loc, SourceRange ConditionRange, ConditionValueKind ConditionValue) {
@@ -179,23 +170,23 @@ public:
             activeClauses.back().keepAllBranches = true;
     }
 
-    void Ifdef(SourceLocation Loc, const Token& MacroNameTok) {
+    void Ifdef(SourceLocation Loc, const Token& MacroNameTok, bool isMacroDefined) {
         if (!isInMainFile(Loc))
             return;
         activeClauses.push_back(IfDefClause(Loc));
         string macroName = getTokenName(MacroNameTok);
-        if (definedMacroNames.find(macroName) != definedMacroNames.end())
+        if (isMacroDefined)
             activeClauses.back().selectedBranch = 0;
         if (isWhitelistedMacro(macroName))
             activeClauses.back().keepAllBranches = true;
     }
 
-    void Ifndef(SourceLocation Loc, const Token& MacroNameTok) {
+    void Ifndef(SourceLocation Loc, const Token& MacroNameTok, bool isMacroDefined) {
         if (!isInMainFile(Loc))
             return;
         activeClauses.push_back(IfDefClause(Loc));
         string macroName = getTokenName(MacroNameTok);
-        if (definedMacroNames.find(macroName) == definedMacroNames.end())
+        if (!isMacroDefined)
             activeClauses.back().selectedBranch = 0;
         if (isWhitelistedMacro(macroName))
             activeClauses.back().keepAllBranches = true;
@@ -231,16 +222,16 @@ public:
             // remove all branches
             SourceLocation b = changeColumn(clause.locations.front(), 1);
             SourceLocation e = changeColumn(clause.locations.back(), 10000);
-            inactiveBranches.push_back(SourceRange(b, e));
+            rewriter.removeRange(b, e);
         } else {
             // remove all branches except selected
             SourceLocation b = changeColumn(clause.locations.front(), 1);
             SourceLocation e = changeColumn(clause.locations[clause.selectedBranch], 10000);
-            inactiveBranches.push_back(SourceRange(b, e));
+            rewriter.removeRange(b, e);
 
             b = changeColumn(clause.locations[clause.selectedBranch + 1], 1);
             e = changeColumn(clause.locations.back(), 10000);
-            inactiveBranches.push_back(SourceRange(b, e));
+            rewriter.removeRange(b, e);
         }
 
         activeClauses.pop_back();
@@ -343,24 +334,24 @@ void RemoveInactivePreprocessorBlocks::If(
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
 void RemoveInactivePreprocessorBlocks::Ifdef(
-    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition&)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& MD)
 #else
 void RemoveInactivePreprocessorBlocks::Ifdef(
-    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective*)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* MD)
 #endif
 {
-    impl->Ifdef(Loc, MacroNameTok);
+    impl->Ifdef(Loc, MacroNameTok, (bool)MD);
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,7)
 void RemoveInactivePreprocessorBlocks::Ifndef(
-    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition&)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDefinition& MD)
 #else
 void RemoveInactivePreprocessorBlocks::Ifndef(
-    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective*)
+    SourceLocation Loc, const Token& MacroNameTok, const MacroDirective* MD)
 #endif
 {
-    impl->Ifndef(Loc, MacroNameTok);
+    impl->Ifndef(Loc, MacroNameTok, (bool)MD);
 }
 
 void RemoveInactivePreprocessorBlocks::Elif(

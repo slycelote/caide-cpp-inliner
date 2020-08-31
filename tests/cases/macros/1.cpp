@@ -17,6 +17,22 @@ int b() {
 #endif
 }
 
-int main() {
-    return a() + b();
+#define bar 1
+int c() {
+#if 1 + 1 > 1*(bar+bar)
+    return 1;
+#else
+    return 2;
+#endif
 }
+
+int main() {
+    return a() + b() + c();
+}
+
+#define UNUSED 1
+int unused_func() {
+    return UNUSED;
+}
+#undef UNUSED
+

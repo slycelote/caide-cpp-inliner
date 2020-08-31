@@ -1,1 +1,2 @@
 MACRO_TO_KEEP
+bar

@@ -124,9 +124,21 @@ matrix:
           - libclang-10-dev
           - llvm-10-dev
 
-  # allow_failures:
-  # - env: CAIDE_USE_SYSTEM_CLANG=OFF
-  # - env: CAIDE_CLANG_VERSION=4.0 CAIDE_USE_SYSTEM_CLANG=ON
+    - env: CAIDE_CLANG_VERSION=11 CAIDE_USE_SYSTEM_CLANG=ON
+      addons:
+        apt:
+          sources:
+          - *default_sources
+          - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-11 main'
+            key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+          - *default_packages
+          - clang-11
+          - libclang-11-dev
+          - llvm-11-dev
+
+  allow_failures:
+  - env: CAIDE_CLANG_VERSION=11 CAIDE_USE_SYSTEM_CLANG=ON
 
   fast_finish: false
 

@@ -7,6 +7,7 @@ then
     export CC=gcc-9
 else
     brew install ccache
+    "$CXX" -x c++ -c -v /dev/null -o /dev/null
 fi
 
 date

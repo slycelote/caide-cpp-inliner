@@ -11,10 +11,12 @@
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Lex/PPCallbacks.h>
 
+#include <memory>
 #include <set>
 #include <string>
 
 namespace clang {
+    class LangOptions;
     class SourceManager;
     class MacroDirective;
 }
@@ -27,10 +29,10 @@ class SmartRewriter;
 class RemoveInactivePreprocessorBlocks: public clang::PPCallbacks {
 private:
     struct RemoveInactivePreprocessorBlocksImpl;
-    RemoveInactivePreprocessorBlocksImpl* impl;
+    std::unique_ptr<RemoveInactivePreprocessorBlocksImpl> impl;
 
 public:
-    RemoveInactivePreprocessorBlocks(clang::SourceManager& sourceManager_,
+    RemoveInactivePreprocessorBlocks(clang::SourceManager& sourceManager_, const clang::LangOptions& langOptions,
            SmartRewriter& rewriter_, const std::set<std::string>& macrosToKeep_);
     ~RemoveInactivePreprocessorBlocks();
 

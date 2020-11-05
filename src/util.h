@@ -6,17 +6,24 @@
 
 #pragma once
 
-#include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/TokenKinds.h>
-#include <clang/Tooling/CompilationDatabase.h>
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace clang {
     class ASTContext;
     class Decl;
+    class LangOptions;
+    class SourceLocation;
+    class SourceManager;
+    class SourceRange;
+
+    namespace tooling {
+        class FixedCompilationDatabase;
+    }
 }
 
 namespace caide {
@@ -26,13 +33,15 @@ clang::SourceLocation findTokenAfterLocation(clang::SourceLocation loc, clang::A
 clang::SourceLocation findSemiAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx);
 clang::SourceLocation findLocationAfterSemi(clang::SourceLocation loc, clang::ASTContext& Ctx);
 
+std::pair<const char*, const char*> getCharRange(clang::SourceRange range, const clang::SourceManager& SM, const clang::LangOptions& langOpts);
+
 std::unique_ptr<clang::tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine);
 
 std::string rangeToString(clang::SourceManager& sourceManager,
         const clang::SourceLocation& start, const clang::SourceLocation& end);
 
 std::string toString(clang::SourceManager& sourceManager, clang::SourceLocation loc);
-std::string toString(clang::SourceManager& sourceManager, clang::SourceRange range);
+std::string toString(clang::SourceManager& sourceManager, clang::SourceRange range, const clang::LangOptions* = nullptr);
 std::string toString(clang::SourceManager& sourceManager, const clang::Decl* decl);
 
 clang::SourceLocation getExpansionStart(clang::SourceManager& sourceManager,

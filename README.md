@@ -1,7 +1,7 @@
 # Caide C++ inliner
 
 [![Build
-status](https://travis-ci.org/slycelote/caide-cpp-inliner.svg)](https://travis-ci.org/slycelote/caide-cpp-inliner)
+status](https://travis-ci.org/slycelote/caide-cpp-inliner.svg?branch=master)](https://travis-ci.org/slycelote/caide-cpp-inliner)
 
 *Caide C++ inliner* transforms a C++ program consisting of multiple source
 files and headers into a single self-contained source file without any
@@ -99,9 +99,9 @@ solution etc.)
 
 By default all necessary parts of libclang and LLVM will be built from
 scratch. This may take up to 30 minutes on a weak machine. If you have those
-libraries installed in the system (in Linux, search for packages
-libclang-7-dev and llvm-7-dev or similar), you can use them instead by
-passing `-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
+libraries installed in the system (in Linux, search for packages clang-7,
+libclang-7-dev and llvm-7-dev or similar), you can use them instead by passing
+`-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
 
 When the build is done, run `ctest` to execute the test suite.
 

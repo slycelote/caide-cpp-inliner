@@ -12,7 +12,9 @@
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/Utils.h>
+#include <clang/Lex/Lexer.h>
 #include <clang/Lex/Preprocessor.h>
+#include <clang/Tooling/CompilationDatabase.h>
 
 #include <sstream>
 #include <string>
@@ -75,6 +77,33 @@ SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx) {
     return SemiLoc.getLocWithOffset(1);
 }
 
+std::pair<const char*, const char*> getCharRange(SourceRange range, const SourceManager& sourceManager, const LangOptions& langOpts) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
+    CharSourceRange rng = sourceManager.getExpansionRange(range);
+#else
+    range = sourceManager.getExpansionRange(range);
+    // The following is actually incorrect because range could be a token range,
+    // in which case we must use CharSourceRange::getTokenRange(). The only place
+    // where we've encountered it so far is the range of #if condition with a newer clang,
+    // which is covered by the other implementation above.
+    // So for our use cases this should work. If we actually get token ranges from
+    // older clang versions, we could copy the implementation of getExpansionRange
+    // from latest clang.
+    CharSourceRange rng = CharSourceRange::getCharRange(range);
+#endif
+    rng = Lexer::makeFileCharRange(rng, sourceManager, langOpts);
+    if (rng.isInvalid())
+        return {nullptr, nullptr};
+    bool Invalid = false;
+    const char* b = sourceManager.getCharacterData(rng.getBegin(), &Invalid);
+    if (Invalid)
+        return {nullptr, nullptr};
+    const char* e = sourceManager.getCharacterData(rng.getEnd(), &Invalid);
+    if (Invalid)
+        return {nullptr, nullptr};
+    return {b, e};
+}
+
 std::unique_ptr<tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine)
 {
     int argc = cmdLine.size() + 1;
@@ -119,10 +148,52 @@ std::string toString(SourceManager& sourceManager, SourceLocation loc) {
     return os.str();
 }
 
-std::string toString(SourceManager& sourceManager, SourceRange range) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
+static void debug(SourceManager& sourceManager, std::ostringstream& os, SourceLocation loc) {
+    if (!loc.isValid()) os << "[invalid]";
+    else if (!loc.isFileID()) os << "[not file]";
+    else {
+        std::string fileName = sourceManager.getFilename(loc).str();
+        if (fileName.length() > 30)
+            fileName = fileName.substr(fileName.length() - 30);
+        os << fileName << ":" <<
+            sourceManager.getSpellingLineNumber(loc) << ":" <<
+            sourceManager.getSpellingColumnNumber(loc);
+    }
+}
+
+static void debug(SourceManager& sourceManager, std::ostringstream& os, CharSourceRange rng) {
+    if (rng.isInvalid()) os << "{invalid range}";
+    else {
+        os << "{";
+        if (rng.isTokenRange()) os << "token ";
+        if (rng.isCharRange()) os << "char ";
+        os << "range}";
+        debug(sourceManager, os, rng.getBegin());
+        os << "--";
+        debug(sourceManager, os, rng.getEnd());
+    }
+}
+
+std::string toString(SourceManager& sourceManager, SourceRange range, const LangOptions* langOpts /*=nullptr*/) {
+    std::ostringstream os;
+    CharSourceRange rng;
+    rng = sourceManager.getExpansionRange(range);
+    debug(sourceManager, os, rng);
+    if (langOpts) {
+        rng = Lexer::makeFileCharRange(rng, sourceManager, *langOpts);
+        os << " ";
+        debug(sourceManager, os, rng);
+    }
+    return os.str();
+}
+
+#else
+std::string toString(SourceManager& sourceManager, SourceRange range, const LangOptions*) {
     return toString(sourceManager, range.getBegin()) + " -- " +
         toString(sourceManager, range.getEnd());
 }
+#endif
 
 std::string toString(SourceManager& sourceManager, const Decl* decl) {
     if (!decl)
@@ -139,7 +210,7 @@ std::string toString(SourceManager& sourceManager, const Decl* decl) {
     return std::string(b, std::min(b+30, e));
 }
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+#if CAIDE_CLANG_VERSION_AT_LEAST(7,0)
 static SourceLocation getBegin(const CharSourceRange& charSourceRange) {
     return charSourceRange.getBegin();
 }

@@ -1,8 +1,11 @@
 #!/bin/bash
 set -ev
 
-export CXX=g++-9
-export CC=gcc-9
+if [ $(uname) == "Linux" ]
+then
+    export CXX=g++-9
+    export CC=gcc-9
+fi
 
 date
 

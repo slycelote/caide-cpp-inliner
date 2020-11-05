@@ -13,6 +13,12 @@ matrix:
     - env: CAIDE_USE_SYSTEM_CLANG=OFF
       cache: ccache
 
+    - env: CAIDE_USE_SYSTEM_CLANG=OFF
+      cache: ccache
+      os: osx
+      osx_image: xcode11.3
+      compiler: clang
+
     - env: CAIDE_CLANG_VERSION=3.8 CAIDE_USE_SYSTEM_CLANG=ON
       addons:
         apt:

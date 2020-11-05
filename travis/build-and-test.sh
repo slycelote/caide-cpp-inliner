@@ -5,6 +5,8 @@ if [ $(uname) == "Linux" ]
 then
     export CXX=g++-9
     export CC=gcc-9
+else
+    brew install ccache
 fi
 
 date

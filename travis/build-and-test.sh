@@ -15,23 +15,20 @@ date
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
-    if [ $(uname) == "Linux" ]
-    then
-        # Debug
-        llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
+    # Debug
+    llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 
-        export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
+    export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
 
-        case "$CAIDE_CLANG_VERSION" in
-            3.8|3.9|4.0)
-                # CMake packaging is broken in these
-                export Clang_ROOT="$TRAVIS_BUILD_DIR/travis/cmake/$CAIDE_CLANG_VERSION"
-                export LLVM_ROOT="$Clang_ROOT"
-                ;;
-        esac
+    case "$CAIDE_CLANG_VERSION" in
+        3.8|3.9|4.0)
+            # CMake packaging is broken in these
+            export Clang_ROOT="$TRAVIS_BUILD_DIR/travis/cmake/$CAIDE_CLANG_VERSION"
+            export LLVM_ROOT="$Clang_ROOT"
+            ;;
+    esac
 
-        export CMAKE_PREFIX_PATH=$Clang_ROOT
-    fi
+    export CMAKE_PREFIX_PATH=$Clang_ROOT
     cmake_options=""
 else
     git submodule update --init --depth 1
@@ -43,6 +40,7 @@ cmake --version
 "$CXX" --version
 "$CC" --version
 "$CXX" -x c++ -c -v /dev/null -o /dev/null
+uname -a
 date
 
 mkdir build

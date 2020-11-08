@@ -6,6 +6,9 @@ then
     export CXX=g++-9
     export CC=gcc-9
 else
+    export HOMEBREW_NO_INSTALL_CLEANUP=1
+    export HOMEBREW_AUTO_UPDATE_SECS=315360000
+    export HOMEBREW_NO_AUTO_UPDATE=1
     brew install ccache
     "$CXX" -x c++ -c -v /dev/null -o /dev/null
 fi
@@ -47,16 +50,9 @@ cmake -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
     -DCMAKE_BUILD_TYPE=MinSizeRel ../src
 
 # First build may run out of memory
-make -j3 || make -j1
+make -j$(nproc) || make -j1
 
 date
-
-# One of the tests requires clang/lib/Headers include directory
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
-then
-    git submodule update --init --depth 1
-    date
-fi
 
 ctest --verbose
 

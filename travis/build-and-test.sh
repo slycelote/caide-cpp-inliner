@@ -7,30 +7,31 @@ then
     export CC=gcc-9
 else
     export HOMEBREW_NO_INSTALL_CLEANUP=1
-    export HOMEBREW_AUTO_UPDATE_SECS=315360000
     export HOMEBREW_NO_AUTO_UPDATE=1
     brew install ccache
-    "$CXX" -x c++ -c -v /dev/null -o /dev/null
 fi
 
 date
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
-    # Debug
-    llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
+    if [ $(uname) == "Linux" ]
+    then
+        # Debug
+        llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 
-    export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
+        export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
 
-    case "$CAIDE_CLANG_VERSION" in
-        3.8|3.9|4.0)
-            # CMake packaging is broken in these
-            export Clang_ROOT="$TRAVIS_BUILD_DIR/travis/cmake/$CAIDE_CLANG_VERSION"
-            export LLVM_ROOT="$Clang_ROOT"
-            ;;
-    esac
+        case "$CAIDE_CLANG_VERSION" in
+            3.8|3.9|4.0)
+                # CMake packaging is broken in these
+                export Clang_ROOT="$TRAVIS_BUILD_DIR/travis/cmake/$CAIDE_CLANG_VERSION"
+                export LLVM_ROOT="$Clang_ROOT"
+                ;;
+        esac
 
-    export CMAKE_PREFIX_PATH=$Clang_ROOT
+        export CMAKE_PREFIX_PATH=$Clang_ROOT
+    fi
     cmake_options=""
 else
     git submodule update --init --depth 1
@@ -41,6 +42,7 @@ env | sort
 cmake --version
 "$CXX" --version
 "$CC" --version
+"$CXX" -x c++ -c -v /dev/null -o /dev/null
 date
 
 mkdir build
@@ -50,7 +52,7 @@ cmake -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
     -DCMAKE_BUILD_TYPE=MinSizeRel ../src
 
 # First build may run out of memory
-make -j$(nproc) || make -j1
+make -j3 || make -j1
 
 date
 

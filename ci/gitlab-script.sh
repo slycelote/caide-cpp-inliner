@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -ev
 
+apt-get update
 apt-get install -y lsb-release wget software-properties-common
 add-apt-repository ppa:ubuntu-toolchain-r/test
 

@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
 set -ev
 
+red="\e[0;91m"
+blue="\e[0;94m"
+reset="\e[0m"
+
+function caide_timer {
+    echo -e "${blue}    Current time: $(date +%H:%m:%S) ${reset}"
+}
+
 # Must match the value in .gitlab-ci.yml
 export CCACHE_DIR="$PWD/ccache-cache"
 
+caide_timer
 apt-get update
-apt-get install -y lsb-release wget software-properties-common apt-transport-https cmake ninja-build ccache
+caide_timer
+apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
+caide_timer
 
 add-apt-repository ppa:ubuntu-toolchain-r/test
 apt-get update
+caide_timer
 apt-get install -y g++-9 gcc-9
+caide_timer
 
 date
 
@@ -27,10 +40,12 @@ then
             wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
             add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
             apt-get update
+            caide_timer
             ;;
     esac
 
     apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    caide_timer
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
@@ -49,7 +64,7 @@ env | sort
 cmake --version
 "$CXX" --version
 "$CC" --version
-date
+caide_timer
 
 mkdir build
 cd build
@@ -60,7 +75,9 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 # First build may run out of memory
 ninja -j3 || ninja -j1
 
-date
+caide_timer
 
 ctest --verbose
+
+caide_timer
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -ev
 
+# Must match the value in .gitlab-ci.yml
+export CCACHE_DIR="$PWD/ccache-cache"
+
 apt-get update
 apt-get install -y lsb-release wget software-properties-common apt-transport-https cmake ninja-build ccache
 
@@ -35,6 +38,7 @@ then
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
     apt-get install -y git
+    git submodule sync
     git submodule update --init --depth 1
 fi
 

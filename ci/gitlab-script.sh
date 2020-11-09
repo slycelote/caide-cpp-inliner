@@ -6,7 +6,7 @@ blue="\e[0;94m"
 reset="\e[0m"
 
 function caide_timer {
-    echo -e "${blue}    Current time: $(date +%H:%m:%S) ${reset}"
+    echo -e "${blue}    Current time: $(date +%H:%M:%S) ${reset}"
 }
 
 # Must match the value in .gitlab-ci.yml
@@ -73,7 +73,7 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
     -DCMAKE_BUILD_TYPE=MinSizeRel ../src
 
 # First build may run out of memory
-ninja -j3 || ninja -j1
+ninja || ninja -j1
 
 caide_timer
 

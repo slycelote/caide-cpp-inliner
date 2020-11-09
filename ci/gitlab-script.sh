@@ -39,7 +39,7 @@ then
 else
     apt-get install -y git
     git submodule sync
-    git submodule update --init --depth 1
+    git submodule update --init
 fi
 
 export CXX=g++-9

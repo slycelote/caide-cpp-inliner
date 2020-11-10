@@ -1,0 +1,31 @@
+env:
+  CIRRUS_CLONE_DEPTH: 1
+  CAIDE_USE_SYSTEM_CLANG: 'ON'
+
+task:
+  name: Ubuntu Xenial
+  container:
+    image: ubuntu:xenial
+
+  env:
+    matrix:
+      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
+      - CAIDE_CLANG_VERSION: '3.8'
+      - CAIDE_CLANG_VERSION: '3.9'
+      - CAIDE_CLANG_VERSION: '4.0'
+      - CAIDE_CLANG_VERSION: '5.0'
+      - CAIDE_CLANG_VERSION: '6.0'
+      - CAIDE_CLANG_VERSION: 7
+      - CAIDE_CLANG_VERSION: 8
+      - CAIDE_CLANG_VERSION: 9
+      - CAIDE_CLANG_VERSION: 10
+      - CAIDE_CLANG_VERSION: 11
+
+  ccache_cache:
+    folder: ccache-cache
+    fingerprint_script:
+      - echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+      - g++ --version
+
+  script: ci/cirrus-script.sh
+

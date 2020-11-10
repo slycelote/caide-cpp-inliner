@@ -45,7 +45,6 @@ then
     esac
 
     apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
-    caide_timer
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
@@ -53,6 +52,7 @@ then
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
     apt-get install -y git
+    caide_timer
     git submodule sync
     git submodule update --init
 fi

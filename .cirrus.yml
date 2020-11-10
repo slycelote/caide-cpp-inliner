@@ -25,7 +25,6 @@ task:
     folder: ccache-cache
     fingerprint_script:
       - echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
-      - g++ --version
 
   script: ci/cirrus-script.sh
 

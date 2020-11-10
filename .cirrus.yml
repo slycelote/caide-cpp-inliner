@@ -6,6 +6,7 @@ task:
   name: Ubuntu Xenial
   container:
     image: ubuntu:xenial
+  timeout_in: 2h
 
   env:
     matrix:
@@ -20,6 +21,16 @@ task:
       - CAIDE_CLANG_VERSION: 9
       - CAIDE_CLANG_VERSION: 10
       - CAIDE_CLANG_VERSION: 11
+
+  apt1_cache:
+    folder: /var/cache/apt
+    fingerprint_script:
+      - echo apt1 $CIRRUS_OS
+
+  apt2_cache:
+    folder: /var/lib/apt/lists
+    fingerprint_script:
+      - echo apt2 $CIRRUS_OS
 
   ccache_cache:
     folder: ccache-cache

@@ -72,7 +72,7 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_BUILD_TYPE=MinSizeRel ../src
 
-ninja -j1
+ninja -j2 || ninja -j1
 
 caide_timer
 

@@ -39,3 +39,19 @@ task:
 
   script: ci/cirrus-script.sh
 
+freebsd_task:
+  name: FreeBSD
+  freebsd_instance:
+    image_family: freebsd-12-1
+  timeout_in: 2h
+
+  env:
+    CAIDE_USE_SYSTEM_CLANG: 'OFF'
+
+  ccache_cache:
+    folder: ccache-cache
+    fingerprint_script:
+      - echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+
+  script: ci/cirrus-script.sh
+

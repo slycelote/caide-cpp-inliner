@@ -12,17 +12,32 @@ function caide_timer {
 # Must match the value in .cirrus.yml
 export CCACHE_DIR="$PWD/ccache-cache"
 
-caide_timer
-apt-get update
-caide_timer
-apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
-caide_timer
+if [ "$CIRRUS_OS" = "linux" ]
+then
+    caide_timer
+    apt-get update
+    caide_timer
+    apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
+    caide_timer
 
-add-apt-repository ppa:ubuntu-toolchain-r/test
-apt-get update
-caide_timer
-apt-get install -y g++-9 gcc-9
-caide_timer
+    add-apt-repository ppa:ubuntu-toolchain-r/test
+    apt-get update
+    caide_timer
+    apt-get install -y g++-9 gcc-9
+    caide_timer
+
+    export CXX=g++-9
+    export CC=gcc-9
+
+else
+    caide_timer
+    pkg update -f
+    caide_timer
+    pkg install -y gcc9 cmake ninja ccache
+    caide_timer
+    export CXX=g++9
+    export CC=gcc9
+fi
 
 date
 
@@ -51,14 +66,16 @@ then
     # Debug
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
-    apt-get install -y git
+    if [ "$CIRRUS_OS" = "linux" ]
+    then
+        apt-get install -y git
+    else
+        pkg install -y git
+    fi
     caide_timer
     git submodule sync
     git submodule update --init
 fi
-
-export CXX=g++-9
-export CC=gcc-9
 
 env | sort
 cmake --version

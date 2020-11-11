@@ -2,8 +2,8 @@ env:
   CIRRUS_CLONE_DEPTH: 1
   CAIDE_USE_SYSTEM_CLANG: 'ON'
 
-task:
-  name: Ubuntu Xenial
+ubuntu_task:
+  name: Ubuntu Xenial CAIDE_CLANG_VERSION=$CAIDE_CLANG_VERSION CAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG
   container:
     image: ubuntu:xenial
   timeout_in: 2h
@@ -24,18 +24,15 @@ task:
 
   apt1_cache:
     folder: /var/cache/apt
-    fingerprint_script:
-      - echo apt1 $CIRRUS_OS
+    fingerprint_script: echo apt1 $CIRRUS_OS
 
   apt2_cache:
     folder: /var/lib/apt/lists
-    fingerprint_script:
-      - echo apt2 $CIRRUS_OS
+    fingerprint_script: echo apt2 $CIRRUS_OS
 
   ccache_cache:
     folder: ccache-cache
-    fingerprint_script:
-      - echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+    fingerprint_script: echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
 
   script: ci/cirrus-script.sh
 
@@ -50,8 +47,10 @@ freebsd_task:
 
   ccache_cache:
     folder: ccache-cache
-    fingerprint_script:
-      - echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+    fingerprint_script: echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
 
-  script: ci/cirrus-script.sh
+  script:
+    - pkg update -f
+    - pkg install bash
+    - bash ci/cirrus-script.sh
 

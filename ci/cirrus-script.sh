@@ -31,8 +31,6 @@ then
 
 else
     caide_timer
-    pkg update -f
-    caide_timer
     pkg install -y gcc9 cmake ninja ccache
     caide_timer
     export CXX=g++9

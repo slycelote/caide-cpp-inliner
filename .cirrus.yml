@@ -1,6 +1,7 @@
 env:
   CIRRUS_CLONE_DEPTH: 1
   CAIDE_USE_SYSTEM_CLANG: 'ON'
+  CAIDE_CLANG_VERSION: ''
 
 ubuntu_task:
   name: Ubuntu Xenial CAIDE_CLANG_VERSION=$CAIDE_CLANG_VERSION CAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG
@@ -10,7 +11,7 @@ ubuntu_task:
 
   env:
     matrix:
-      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
+      # - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_CLANG_VERSION: '3.8'
       - CAIDE_CLANG_VERSION: '3.9'
       - CAIDE_CLANG_VERSION: '4.0'
@@ -25,14 +26,17 @@ ubuntu_task:
   apt1_cache:
     folder: /var/cache/apt
     fingerprint_script: echo apt1 $CIRRUS_OS
+    reupload_on_changes: true
 
   apt2_cache:
     folder: /var/lib/apt/lists
     fingerprint_script: echo apt2 $CIRRUS_OS
+    reupload_on_changes: true
 
   ccache_cache:
     folder: ccache-cache
     fingerprint_script: echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+    reupload_on_changes: true
 
   script: ci/cirrus-script.sh
 
@@ -48,9 +52,10 @@ freebsd_task:
   ccache_cache:
     folder: ccache-cache
     fingerprint_script: echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
+    reupload_on_changes: true
 
   script:
     - pkg update -f
-    - pkg install bash
+    - pkg install -y bash
     - bash ci/cirrus-script.sh
 

@@ -11,7 +11,7 @@ ubuntu_task:
 
   env:
     matrix:
-      # - CAIDE_USE_SYSTEM_CLANG: 'OFF'
+      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_CLANG_VERSION: '3.8'
       - CAIDE_CLANG_VERSION: '3.9'
       - CAIDE_CLANG_VERSION: '4.0'
@@ -23,15 +23,15 @@ ubuntu_task:
       - CAIDE_CLANG_VERSION: 10
       - CAIDE_CLANG_VERSION: 11
 
-  apt1_cache:
-    folder: /var/cache/apt
-    fingerprint_script: echo apt1 $CIRRUS_OS
-    reupload_on_changes: true
+  # apt1_cache:
+  #   folder: /var/cache/apt
+  #   fingerprint_script: echo apt1 $CIRRUS_OS
+  #   reupload_on_changes: true
 
-  apt2_cache:
-    folder: /var/lib/apt/lists
-    fingerprint_script: echo apt2 $CIRRUS_OS
-    reupload_on_changes: true
+  # apt2_cache:
+  #   folder: /var/lib/apt/lists
+  #   fingerprint_script: echo apt2 $CIRRUS_OS
+  #   reupload_on_changes: true
 
   ccache_cache:
     folder: ccache-cache
@@ -49,6 +49,16 @@ freebsd_task:
   env:
     CAIDE_USE_SYSTEM_CLANG: 'OFF'
 
+  pkg_cache:
+    folder: /var/cache/pkg
+    fingerprint_script: echo pkg $CIRRUS_OS
+    reupload_on_changes: true
+
+  pkgdb_cache:
+    folder: /var/db/pkg
+    fingerprint_script: echo pkgdb $CIRRUS_OS
+    reupload_on_changes: true
+
   ccache_cache:
     folder: ccache-cache
     fingerprint_script: echo ccache $CIRRUS_OS $CAIDE_USE_SYSTEM_CLANG $CAIDE_CLANG_VERSION
@@ -58,5 +68,5 @@ freebsd_task:
     - pkg update -f
     - pkg install -y bash
 
-  script: bash ci/cirrus-script.sh
+  script: bash ci/cirrus-script.sh || true
 

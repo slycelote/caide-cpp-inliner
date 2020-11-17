@@ -31,10 +31,10 @@ then
 
 else
     caide_timer
-    pkg install -y gcc10 cmake ninja ccache
+    pkg install -y gcc9 cmake ninja ccache
     caide_timer
-    export CXX=g++10
-    export CC=gcc10
+    export CXX=g++9
+    export CC=gcc9
 fi
 
 date

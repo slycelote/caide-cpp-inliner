@@ -4,7 +4,7 @@ env:
   CAIDE_CLANG_VERSION: ''
 
 ubuntu_task:
-  name: Ubuntu Xenial CAIDE_CLANG_VERSION=$CAIDE_CLANG_VERSION CAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG
+  name: Ubuntu Xenial clang $CAIDE_CLANG_VERSION system_clang=$CAIDE_USE_SYSTEM_CLANG
   container:
     image: ubuntu:xenial
     cpu: 1
@@ -27,14 +27,14 @@ ubuntu_task:
     - env: {CAIDE_CLANG_VERSION: 10}
     - env: {CAIDE_CLANG_VERSION: 11}
 
-  apt1_cache:
-    folder: /var/cache/apt
-    fingerprint_script: echo apt1 $CIRRUS_OS
-    reupload_on_changes: true
+  # apt1_cache:
+  #   folder: /var/cache/apt
+  #   fingerprint_script: echo apt1 $CIRRUS_OS ver1
+  #   reupload_on_changes: true
 
   apt2_cache:
     folder: /var/lib/apt/lists
-    fingerprint_script: echo apt2 $CIRRUS_OS
+    fingerprint_script: echo apt2 $CIRRUS_OS ver1
     reupload_on_changes: true
 
   ccache_cache:
@@ -58,10 +58,10 @@ freebsd_task:
     fingerprint_script: echo pkg $CIRRUS_OS
     reupload_on_changes: true
 
-  pkgdb_cache:
-    folder: /var/db/pkg
-    fingerprint_script: echo pkgdb $CIRRUS_OS
-    reupload_on_changes: true
+  # pkgdb_cache:
+  #   folder: /var/db/pkg
+  #   fingerprint_script: echo pkgdb $CIRRUS_OS
+  #   reupload_on_changes: true
 
   ccache_cache:
     folder: ccache-cache

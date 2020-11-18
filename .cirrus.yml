@@ -7,31 +7,35 @@ ubuntu_task:
   name: Ubuntu Xenial CAIDE_CLANG_VERSION=$CAIDE_CLANG_VERSION CAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG
   container:
     image: ubuntu:xenial
+    cpu: 1
+    memory: 0.5G
   timeout_in: 2h
 
-  env:
-    matrix:
-      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
-      - CAIDE_CLANG_VERSION: '3.8'
-      - CAIDE_CLANG_VERSION: '3.9'
-      - CAIDE_CLANG_VERSION: '4.0'
-      - CAIDE_CLANG_VERSION: '5.0'
-      - CAIDE_CLANG_VERSION: '6.0'
-      - CAIDE_CLANG_VERSION: 7
-      - CAIDE_CLANG_VERSION: 8
-      - CAIDE_CLANG_VERSION: 9
-      - CAIDE_CLANG_VERSION: 10
-      - CAIDE_CLANG_VERSION: 11
+  matrix:
+    - env: {CAIDE_USE_SYSTEM_CLANG: 'OFF'}
+      container:
+        cpu: 2
+        memory: 3G
+    - env: {CAIDE_CLANG_VERSION: '3.8'}
+    - env: {CAIDE_CLANG_VERSION: '3.9'}
+    - env: {CAIDE_CLANG_VERSION: '4.0'}
+    - env: {CAIDE_CLANG_VERSION: '5.0'}
+    - env: {CAIDE_CLANG_VERSION: '6.0'}
+    - env: {CAIDE_CLANG_VERSION: 7}
+    - env: {CAIDE_CLANG_VERSION: 8}
+    - env: {CAIDE_CLANG_VERSION: 9}
+    - env: {CAIDE_CLANG_VERSION: 10}
+    - env: {CAIDE_CLANG_VERSION: 11}
 
-  # apt1_cache:
-  #   folder: /var/cache/apt
-  #   fingerprint_script: echo apt1 $CIRRUS_OS
-  #   reupload_on_changes: true
+  apt1_cache:
+    folder: /var/cache/apt
+    fingerprint_script: echo apt1 $CIRRUS_OS
+    reupload_on_changes: true
 
-  # apt2_cache:
-  #   folder: /var/lib/apt/lists
-  #   fingerprint_script: echo apt2 $CIRRUS_OS
-  #   reupload_on_changes: true
+  apt2_cache:
+    folder: /var/lib/apt/lists
+    fingerprint_script: echo apt2 $CIRRUS_OS
+    reupload_on_changes: true
 
   ccache_cache:
     folder: ccache-cache
@@ -68,5 +72,5 @@ freebsd_task:
     - pkg update -f
     - pkg install -y bash
 
-  script: bash ci/cirrus-script.sh || true
+  script: bash ci/cirrus-script.sh
 

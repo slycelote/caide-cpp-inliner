@@ -8,7 +8,7 @@ ubuntu_task:
   container:
     image: ubuntu:xenial
     cpu: 1
-    memory: 0.5G
+    memory: 512Mi
   timeout_in: 2h
 
   matrix:

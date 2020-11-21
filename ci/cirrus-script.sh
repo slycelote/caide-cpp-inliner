@@ -5,8 +5,29 @@ red="\e[0;91m"
 blue="\e[0;94m"
 reset="\e[0m"
 
-function caide_timer {
+caide_timer() {
     echo -e "${blue}    Current time: $(date +%H:%M:%S) ${reset}"
+}
+
+retry_cmd() {
+  local result=0
+  local count=1
+  while [ $count -le 3 ]; do
+    [ $result -ne 0 ] && {
+      echo -e "\n${red}The command \"$@\" failed. Retrying, $count of 3.${reset}\n" >&2
+    }
+    "$@"
+    result=$?
+    [ $result -eq 0 ] && break
+    count=$(($count + 1))
+    sleep 1
+  done
+
+  [ $count -gt 3 ] && {
+    echo -e "\n${red}The command \"$@\" failed 3 times.${reset}\n" >&2
+  }
+
+  return $result
 }
 
 # Must match the value in .cirrus.yml
@@ -17,13 +38,13 @@ then
     caide_timer
     apt-get update
     caide_timer
-    apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
+    retry_cmd apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
     caide_timer
 
     add-apt-repository ppa:ubuntu-toolchain-r/test
     apt-get update
     caide_timer
-    apt-get install -y g++-9 gcc-9
+    retry_cmd apt-get install -y g++-9 gcc-9
     caide_timer
 
     export CXX=g++-9
@@ -57,7 +78,7 @@ then
             ;;
     esac
 
-    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    retry_cmd apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
@@ -66,7 +87,7 @@ then
 else
     if [ "$CIRRUS_OS" = "linux" ]
     then
-        apt-get install -y git
+        retry_cmd apt-get install -y git
     else
         pkg install -y git
     fi

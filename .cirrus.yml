@@ -9,10 +9,10 @@ ubuntu_task:
     image: ubuntu:xenial
     cpu: 1
     memory: 512Mi
-  timeout_in: 2h
 
   matrix:
     - env: {CAIDE_USE_SYSTEM_CLANG: 'OFF'}
+      timeout_in: 2h
       container:
         cpu: 2
         memory: 3G
@@ -72,5 +72,5 @@ freebsd_task:
     - pkg update -f
     - pkg install -y bash
 
-  script: bash ci/cirrus-script.sh || echo true
+  script: bash ci/cirrus-script.sh
 

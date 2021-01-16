@@ -33,7 +33,7 @@ then
     case "$CAIDE_CLANG_VERSION" in
         3.8|3.9|4.0)
             # CMake packaging is broken in these
-            export Clang_ROOT="$PWD/travis/cmake/$CAIDE_CLANG_VERSION"
+            export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
             export LLVM_ROOT="$Clang_ROOT"
             ;;
         *)

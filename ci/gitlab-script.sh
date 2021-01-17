@@ -77,6 +77,13 @@ ninja || ninja -j1
 
 caide_timer
 
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
+then
+    # Create an artifact only for this job
+    # Must match the path in .gitlab-ci.yml
+    cp cmd/cmd ..
+fi
+
 ctest --verbose
 
 caide_timer

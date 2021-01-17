@@ -1,7 +1,7 @@
 # Caide C++ inliner
 
 [![Build
-status](https://travis-ci.org/slycelote/caide-cpp-inliner.svg?branch=master)](https://travis-ci.org/slycelote/caide-cpp-inliner)
+status](https://gitlab.com/slycelote/caide-cpp-inliner/badges/master/pipeline.svg)](https://gitlab.com/slycelote/caide-cpp-inliner/-/commits/master)
 
 *Caide C++ inliner* transforms a C++ program consisting of multiple source
 files and headers into a single self-contained source file without any

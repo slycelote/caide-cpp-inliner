@@ -80,7 +80,8 @@ caide_timer
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
 then
     # Create an artifact only for this job
-    cp cmd/cmd .
+    mkdir ../artifacts
+    cp cmd/cmd ../artifacts
 fi
 
 ctest --verbose

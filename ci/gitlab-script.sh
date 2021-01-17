@@ -51,10 +51,10 @@ then
     # Debug
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
-    # apt-get install -y git
+    apt-get install -y git
     caide_timer
-    # git submodule sync
-    # git submodule update --init --depth 50
+    git submodule sync
+    git submodule update --init --depth 50
 fi
 
 export CXX=g++-9
@@ -80,8 +80,7 @@ caide_timer
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
 then
     # Create an artifact only for this job
-    mkdir ../artifacts
-    cp cmd/cmd ../artifacts
+    cp cmd/cmd ..
 fi
 
 ctest --verbose

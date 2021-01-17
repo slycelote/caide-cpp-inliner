@@ -52,7 +52,7 @@ then
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
     # apt-get install -y git
-    # caide_timer
+    caide_timer
     # git submodule sync
     # git submodule update --init --depth 50
 fi

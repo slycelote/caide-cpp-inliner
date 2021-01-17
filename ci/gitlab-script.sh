@@ -54,7 +54,7 @@ else
     apt-get install -y git
     caide_timer
     git submodule sync
-    git submodule update --init --depth 50
+    git submodule update --init
 fi
 
 export CXX=g++-9

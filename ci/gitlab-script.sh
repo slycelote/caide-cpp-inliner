@@ -77,6 +77,12 @@ ninja || ninja -j1
 
 caide_timer
 
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
+then
+    # Create an artifact only for this job
+    cp cmd/cmd .
+fi
+
 ctest --verbose
 
 caide_timer

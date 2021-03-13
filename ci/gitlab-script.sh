@@ -21,7 +21,7 @@ caide_timer
 add-apt-repository ppa:ubuntu-toolchain-r/test
 apt-get update
 caide_timer
-apt-get install -y g++-9 gcc-9
+apt-get install -y g++-9 gcc-9 lib32stdc++6
 caide_timer
 
 date
@@ -44,7 +44,7 @@ then
             ;;
     esac
 
-    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev libclang-common-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev lib32stdc++6
+    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev libclang-common-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 

@@ -15,7 +15,7 @@ export CCACHE_DIR="$PWD/ccache-cache"
 caide_timer
 apt-get update
 caide_timer
-apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache lib32stdc++6
+apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
 caide_timer
 
 # add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -47,7 +47,7 @@ then
             ;;
     esac
 
-    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev libclang-common-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 

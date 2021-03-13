@@ -94,7 +94,7 @@ static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<stri
     }
 
     if (foundGccIncludeDirectories)
-        compilationOptions.push_back("-nostdinc");
+        compilationOptions.push_back("-nostdlibinc");
 
     for (string& s : searchPaths) {
         // std::cout << "Search path: '" << s << "'" << std::endl;

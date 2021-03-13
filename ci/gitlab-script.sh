@@ -72,16 +72,8 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 # First build may run out of memory
 ninja || ninja -j1
 
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
-then
-    apt-get install -y git
-    caide_timer
-    git submodule sync
-    git submodule update --init
-fi
-
 ctest --verbose || true
-cat ../../tests/temp/gcclog.txt
+cat ../tests/temp/gcclog.txt || true
 
 caide_timer
 

@@ -72,6 +72,7 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 # First build may run out of memory
 ninja || ninja -j1
 
+export CAIDE_TEST_VERBOSE=1
 ctest --verbose || true
 cat ../tests/temp/gcclog.txt || true
 
@@ -81,7 +82,7 @@ if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
 then
     # Create an artifact only for this job
     # Must match the path in .gitlab-ci.yml
-    # cp cmd/cmd ..
+    echo cp cmd/cmd ..
 fi
 
 # caide_timer

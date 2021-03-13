@@ -22,6 +22,9 @@ caide_timer
 # apt-get update
 # caide_timer
 apt-get install -y g++-5 gcc-5
+export CXX=g++-5
+export CC=gcc-5
+
 caide_timer
 
 date
@@ -56,9 +59,6 @@ else
     git submodule sync
     git submodule update --init
 fi
-
-export CXX=g++-9
-export CC=gcc-9
 
 env | sort
 cmake --version

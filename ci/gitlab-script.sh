@@ -15,14 +15,16 @@ export CCACHE_DIR="$PWD/ccache-cache"
 caide_timer
 apt-get update
 caide_timer
-apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache
+apt-get install -y wget software-properties-common apt-transport-https cmake ninja-build ccache g++-5 gcc-5
+export CXX=g++-5
+export CC=gcc-5
 caide_timer
 
-add-apt-repository ppa:ubuntu-toolchain-r/test
-apt-get update
-caide_timer
-apt-get install -y g++-9 gcc-9
-caide_timer
+# add-apt-repository ppa:ubuntu-toolchain-r/test
+# apt-get update
+# caide_timer
+# apt-get install -y g++-9 gcc-9
+# caide_timer
 
 date
 
@@ -56,9 +58,6 @@ else
     git submodule sync
     git submodule update --init
 fi
-
-export CXX=g++-9
-export CC=gcc-9
 
 env | sort
 cmake --version

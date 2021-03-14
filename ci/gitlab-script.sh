@@ -31,18 +31,17 @@ then
     export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
 
     case "$CAIDE_CLANG_VERSION" in
-        # 3.8|3.9|4.0)
-        #     # CMake packaging is broken in these
-        #     export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
-        #     export LLVM_ROOT="$Clang_ROOT"
-        #     ;;
-        *)
-            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-            add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
-            apt-get update
-            caide_timer
+        3.8|3.9|4.0)
+            # CMake packaging is broken in these
+            export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
+            export LLVM_ROOT="$Clang_ROOT"
             ;;
     esac
+
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
+    apt-get update
+    caide_timer
 
     apt-get install -y -t llvm-toolchain-xenial-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
 
@@ -80,7 +79,7 @@ then
     cp --recursive llvm-project/llvm/lib/clang/ lib/
 fi
 
-ctest --verbose || true
+ctest --verbose
 cat ../tests/temp/gcclog.txt || true
 
 caide_timer

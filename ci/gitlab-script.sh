@@ -31,11 +31,11 @@ then
     export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
 
     case "$CAIDE_CLANG_VERSION" in
-        3.8|3.9|4.0)
-            # CMake packaging is broken in these
-            export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
-            export LLVM_ROOT="$Clang_ROOT"
-            ;;
+        # 3.8|3.9|4.0)
+        #     # CMake packaging is broken in these
+        #     export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
+        #     export LLVM_ROOT="$Clang_ROOT"
+        #     ;;
         *)
             wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
             add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
@@ -44,7 +44,7 @@ then
             ;;
     esac
 
-    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    apt-get install -y -t llvm-toolchain-xenial-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
@@ -71,7 +71,14 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 
 # First build may run out of memory
 ninja || ninja -j1
-ninja install-clang-resource-headers
+
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
+then
+    ninja install-clang-resource-headers
+    # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
+    # (a bug in clang when it's built as a subproject?)
+    cp --recursive llvm-project/llvm/lib/clang/ lib/
+fi
 
 ctest --verbose || true
 cat ../tests/temp/gcclog.txt || true

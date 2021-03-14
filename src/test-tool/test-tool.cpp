@@ -66,6 +66,7 @@ static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<stri
 
     // Try to infer for g++
     bool foundGccIncludeDirectories = false;
+    /*
     const char* cxx = ::getenv("CXX");
     if (!cxx)
         cxx = "g++";
@@ -92,6 +93,7 @@ static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<stri
             searchPaths.push_back(trim(line));
         }
     }
+    */
 
     if (foundGccIncludeDirectories)
         compilationOptions.push_back("-nostdlibinc");

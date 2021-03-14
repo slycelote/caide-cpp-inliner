@@ -196,7 +196,7 @@ public:
         if (!isInMainFile(Loc))
             return;
         if (ConditionValue == CVK_True)
-            activeClauses.back().selectedBranch = activeClauses.back().locations.size();
+            activeClauses.back().selectedBranch = (int)activeClauses.back().locations.size();
         activeClauses.back().locations.push_back(Loc);
         if (containsWhitelistedString(ConditionRange))
             activeClauses.back().keepAllBranches = true;
@@ -206,7 +206,7 @@ public:
         if (!isInMainFile(Loc))
             return;
         if (activeClauses.back().selectedBranch < 0)
-            activeClauses.back().selectedBranch = activeClauses.back().locations.size();
+            activeClauses.back().selectedBranch = (int)activeClauses.back().locations.size();
         activeClauses.back().locations.push_back(Loc);
     }
 

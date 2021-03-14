@@ -104,9 +104,9 @@ std::pair<const char*, const char*> getCharRange(SourceRange range, const Source
     return {b, e};
 }
 
-std::unique_ptr<tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine)
+std::unique_ptr<tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string>& cmdLine)
 {
-    int argc = cmdLine.size() + 1;
+    int argc = (int)cmdLine.size() + 1;
     std::vector<const char*> argv(argc);
     argv[0] = "--";
 

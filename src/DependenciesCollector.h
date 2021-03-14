@@ -25,7 +25,7 @@ namespace clang {
 namespace caide {
 namespace internal {
 
-class SourceInfo;
+struct SourceInfo;
 
 
 class DependenciesCollector: public clang::RecursiveASTVisitor<DependenciesCollector> {

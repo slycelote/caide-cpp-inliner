@@ -87,7 +87,7 @@ then
             echo "Test"
             ls -lah /usr/include/clang/
             ls -lah /usr/include/clang/*
-            ln -s /usr/include/clang/9 /usr/include/clang/9.0.1 || true
+            ln -s /usr/lib/llvm-9/lib/clang/9.0.1/include /usr/include/clang/9.0.1
             ;;
     esac
 else

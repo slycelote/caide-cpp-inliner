@@ -91,35 +91,6 @@ else
 fi
 
 ctest --verbose
-
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
-then
-    # Work around some packaging errors...
-    case "$CAIDE_CLANG_VERSION" in
-        3.8)
-            mkdir -p lib/clang
-            ln -s /usr/include/clang/3.8 lib/clang/3.8.1
-            ;;
-        3.9)
-            mkdir -p lib/clang
-            ln -s /usr/include/clang/3.9 lib/clang/3.9.1
-            ;;
-        9)
-            ls -lah /usr/include/clang/
-            ls -lah /usr/include/clang/*
-            ln -s /usr/lib/llvm-9/lib/clang/9.0.1 /usr/include/clang/9.0.1 || true
-            ;;
-    esac
-else
-    ninja install-clang-resource-headers
-    # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
-    # (a bug in clang when it's built as a CMake subproject?)
-    cp --recursive llvm-project/llvm/lib/clang/ lib/
-fi
-
-ctest --verbose
-cat ../tests/temp/gcclog.txt || true
-
 caide_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]

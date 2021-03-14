@@ -19,7 +19,6 @@ using std::ifstream;
 using std::string;
 using std::vector;
 
-/*
 static string trim(const string& s) {
     std::size_t i = s.find_first_not_of(" ");
     std::size_t j = s.find_last_not_of(" ");
@@ -37,7 +36,6 @@ static bool endsWith(const string& s, const string& prefix) {
     return s.length() >= prefix.length() &&
         std::mismatch(prefix.rbegin(), prefix.rend(), s.rbegin()).first == prefix.rend();
 }
-*/
 
 static vector<string> readNonEmptyLines(const string& filePath) {
     vector<string> lines;
@@ -69,7 +67,6 @@ static void heuristicIncludeSearchPaths(const string& /*tempDirectory*/, vector<
     /*
     // Try to infer for g++
     bool foundGccIncludeDirectories = false;
-    /*
     const char* cxx = ::getenv("CXX");
     if (!cxx)
         cxx = "g++";
@@ -96,7 +93,6 @@ static void heuristicIncludeSearchPaths(const string& /*tempDirectory*/, vector<
             searchPaths.push_back(trim(line));
         }
     }
-    */
 
     if (foundGccIncludeDirectories)
         compilationOptions.push_back("-nostdinc");

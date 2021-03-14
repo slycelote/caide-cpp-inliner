@@ -54,7 +54,7 @@ static string pathConcat(const string& directory, const string& fileName) {
     return directory + "/" + fileName;
 }
 
-static void heuristicIncludeSearchPaths(const string& /*tempDirectory*/, vector<string>& compilationOptions) {
+static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<string>& compilationOptions) {
     vector<string> searchPaths;
 #ifdef _MSC_VER
 #if _MSC_VER >= 1900
@@ -64,7 +64,6 @@ static void heuristicIncludeSearchPaths(const string& /*tempDirectory*/, vector<
 #endif
 #endif
 
-    /*
     // Try to infer for g++
     bool foundGccIncludeDirectories = false;
     const char* cxx = ::getenv("CXX");
@@ -94,9 +93,10 @@ static void heuristicIncludeSearchPaths(const string& /*tempDirectory*/, vector<
         }
     }
 
-    if (foundGccIncludeDirectories)
-        compilationOptions.push_back("-nostdinc");
-    */
+    if (foundGccIncludeDirectories) {
+        // Don't let clang guess libstdc++ include directories, but still use clang builtin path.
+        compilationOptions.push_back("-nostdlibinc");
+    }
 
     for (string& s : searchPaths) {
         // std::cout << "Search path: '" << s << "'" << std::endl;

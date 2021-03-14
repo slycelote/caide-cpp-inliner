@@ -87,10 +87,10 @@ else
     ninja install-clang-resource-headers
     # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
     # (a bug in clang when it's built as a CMake subproject?)
-    cp --recursive llvm-project/llvm/lib/clang/ lib/
+    ln -s "$PWD"/llvm-project/llvm/lib/clang lib/clang
 fi
 
-ctest --verbose
+ctest --verbose || true
 caide_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]

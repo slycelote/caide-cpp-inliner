@@ -20,14 +20,6 @@ export CXX=g++-5
 export CC=gcc-5
 caide_timer
 
-# add-apt-repository ppa:ubuntu-toolchain-r/test
-# apt-get update
-# caide_timer
-# apt-get install -y g++-9 gcc-9
-# caide_timer
-
-date
-
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
     export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
@@ -38,15 +30,14 @@ then
             export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
             export LLVM_ROOT="$Clang_ROOT"
             ;;
-        *)
-            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-            add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
-            apt-get update
-            caide_timer
-            ;;
     esac
 
-    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
+    apt-get update
+    caide_timer
+    apt-get install -y -t llvm-toolchain-xenial-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    caide_timer
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
@@ -57,13 +48,13 @@ else
     caide_timer
     git submodule sync
     git submodule update --init
+    caide_timer
 fi
 
 env | sort
 cmake --version
 "$CXX" --version
 "$CC" --version
-caide_timer
 
 mkdir build
 cd build
@@ -73,6 +64,33 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 
 # First build may run out of memory
 ninja || ninja -j1
+caide_timer
+
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
+then
+    # Work around some packaging issues...
+    case "$CAIDE_CLANG_VERSION" in
+        3.8)
+            mkdir -p lib/clang
+            ln -s /usr/include/clang/3.8 lib/clang/3.8.1
+            ;;
+        3.9)
+            mkdir -p lib/clang
+            ln -s /usr/include/clang/3.9 lib/clang/3.9.1
+            ;;
+        9)
+            ls -lah /usr/include/clang/*
+            ln -s /usr/lib/llvm-9/lib/clang/9.0.1 /usr/include/clang/9.0.1 || true
+            ;;
+    esac
+else
+    ninja install-clang-resource-headers
+    # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
+    # (a bug in clang when it's built as a CMake subproject?)
+    cp --recursive llvm-project/llvm/lib/clang/ lib/
+fi
+
+ctest --verbose
 
 caide_timer
 
@@ -82,8 +100,4 @@ then
     # Must match the path in .gitlab-ci.yml
     cp cmd/cmd ..
 fi
-
-ctest --verbose
-
-caide_timer
 

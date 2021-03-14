@@ -71,6 +71,7 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 
 # First build may run out of memory
 ninja || ninja -j1
+ninja install-clang-resource-headers
 
 ctest --verbose || true
 cat ../tests/temp/gcclog.txt || true

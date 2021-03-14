@@ -1,4 +1,4 @@
 -v
 -stdlib=libstdc++
 -isystem
-TEST_ROOT/../../../src/llvm-project/clang/lib/Header
+TEST_ROOT/../../../src/llvm-project/clang/lib/Headers

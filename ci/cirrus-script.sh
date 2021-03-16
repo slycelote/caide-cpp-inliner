@@ -123,7 +123,7 @@ else
     ninja install-clang-resource-headers
     # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
     # (a bug in clang when it's built as a CMake subproject?)
-    cp --recursive llvm-project/llvm/lib/clang/ lib/
+    cp -R llvm-project/llvm/lib/clang/ lib/
 fi
 
 ctest --verbose

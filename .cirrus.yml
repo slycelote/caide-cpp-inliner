@@ -8,14 +8,14 @@ ubuntu_task:
   container:
     image: ubuntu:xenial
     cpu: 1
-    memory: 512Mi
+    memory: 1G
 
   matrix:
-    - env: {CAIDE_USE_SYSTEM_CLANG: 'OFF'}
-      timeout_in: 2h
-      container:
-        cpu: 2
-        memory: 3G
+    # - env: {CAIDE_USE_SYSTEM_CLANG: 'OFF'}
+    #   timeout_in: 2h
+    #   container:
+    #     cpu: 2
+    #     memory: 3G
     - env: {CAIDE_CLANG_VERSION: '3.8'}
     - env: {CAIDE_CLANG_VERSION: '3.9'}
     - env: {CAIDE_CLANG_VERSION: '4.0'}
@@ -47,16 +47,16 @@ ubuntu_task:
 freebsd_task:
   name: FreeBSD
   freebsd_instance:
-    image_family: freebsd-12-1
+    image_family: freebsd-12-2
   timeout_in: 2h
 
   env:
     CAIDE_USE_SYSTEM_CLANG: 'OFF'
 
-  pkg_cache:
-    folder: /var/cache/pkg
-    fingerprint_script: echo pkg $CIRRUS_OS
-    reupload_on_changes: true
+  # pkg_cache:
+  #   folder: /var/cache/pkg
+  #   fingerprint_script: echo pkg $CIRRUS_OS
+  #   reupload_on_changes: true
 
   # pkgdb_cache:
   #   folder: /var/db/pkg

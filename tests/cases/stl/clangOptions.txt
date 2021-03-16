@@ -1,3 +1,2 @@
--D_GLIBCXX_USE_C99_CHECK=0
--D_GLIBCXX_USE_C99_DYNAMIC=0
-
+-v
+-stdlib=libstdc++

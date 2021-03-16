@@ -121,12 +121,13 @@ then
     esac
 else
     ninja install-clang-resource-headers
+    find . -name stdint.h || true
     # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
     # (a bug in clang when it's built as a CMake subproject?)
     cp -R llvm-project/llvm/lib/clang/ lib/
 fi
 
-ctest --verbose
+ctest --verbose || true
 
 caide_timer
 

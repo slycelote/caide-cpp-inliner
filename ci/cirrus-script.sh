@@ -124,7 +124,8 @@ else
     find . -name stdint.h || true
     # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
     # (a bug in clang when it's built as a CMake subproject?)
-    cp -R llvm-project/llvm/lib/clang/ lib/
+    ln -s $(pwd)/llvm-project/llvm/lib/clang lib/clang
+    find . -name stdint.h || true
 fi
 
 ctest --verbose || true

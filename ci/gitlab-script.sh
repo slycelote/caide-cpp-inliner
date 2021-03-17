@@ -90,7 +90,7 @@ else
     ln -s "$PWD"/llvm-project/llvm/lib/clang lib/clang
 fi
 
-ctest --verbose || true
+ctest --verbose
 caide_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]

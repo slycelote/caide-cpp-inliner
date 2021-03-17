@@ -56,14 +56,6 @@ static string pathConcat(const string& directory, const string& fileName) {
 
 static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<string>& compilationOptions) {
     vector<string> searchPaths;
-#ifdef _MSC_VER
-#if _MSC_VER >= 1900
-    // VS 2015
-    // https://social.msdn.microsoft.com/Forums/vstudio/en-US/86bc577b-528c-469c-a506-15383a44c111/missing-corecrth-from-the-default-include-folder-for-vs215?forum=vcgeneral
-    searchPaths.push_back("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.10150.0\\ucrt");
-#endif
-#endif
-
     // Try to infer for g++
     bool foundGccIncludeDirectories = false;
     const char* cxx = ::getenv("CXX");
@@ -129,14 +121,6 @@ static bool runTest(const string& testDirectory, const string& tempDirectory) {
             opt.replace(p, TEST_ROOT_MARKER.length(), testDirectory);
         }
     }
-
-    // Even if clang is built in Visual Studio, it doesn't correctly determine necessary options.
-    // Try to guess them automatically.
-#ifdef _MSC_VER
-    std::ostringstream mscVersionOption;
-    mscVersionOption << "-fmsc-version=" << _MSC_VER;
-    inliner.clangCompilationOptions.push_back(mscVersionOption.str());
-#endif
 
     heuristicIncludeSearchPaths(tempDirectory, inliner.clangCompilationOptions);
     const char* verbose = std::getenv("CAIDE_TEST_VERBOSE");

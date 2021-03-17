@@ -35,7 +35,7 @@ clang::SourceLocation findLocationAfterSemi(clang::SourceLocation loc, clang::AS
 
 std::pair<const char*, const char*> getCharRange(clang::SourceRange range, const clang::SourceManager& SM, const clang::LangOptions& langOpts);
 
-std::unique_ptr<clang::tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string> cmdLine);
+std::unique_ptr<clang::tooling::FixedCompilationDatabase> createCompilationDatabaseFromCommandLine(const std::vector<std::string>& cmdLine);
 
 std::string rangeToString(clang::SourceManager& sourceManager,
         const clang::SourceLocation& start, const clang::SourceLocation& end);

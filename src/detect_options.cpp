@@ -16,6 +16,8 @@
 #include <vector>
 
 #include <clang/AST/ASTConsumer.h>
+#include <clang/AST/ASTContext.h>
+#include <clang/Basic/Diagnostic.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
@@ -52,9 +54,17 @@ string pathConcat(const string& directory, const string& fileName) {
     return directory + "/" + fileName;
 }
 
+class DetectOptionsASTConsumer: public ASTConsumer {
+public:
+    virtual void HandleTranslationUnit(ASTContext& Ctx) override {
+        Ctx.getDiagnostics().setSuppressAllDiagnostics(true);
+        ASTConsumer::HandleTranslationUnit(Ctx);
+    }
+};
+
 class DetectOptionsFrontendAction: public ASTFrontendAction {
     virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance&, StringRef /*file*/) override {
-        return std::unique_ptr<ASTConsumer>(new ASTConsumer());
+        return std::unique_ptr<ASTConsumer>(new DetectOptionsASTConsumer());
     }
 };
 

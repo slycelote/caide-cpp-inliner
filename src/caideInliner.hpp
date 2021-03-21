@@ -47,6 +47,7 @@ public:
     void inlineCode(const std::vector<std::string>& cppFilePaths,
                     const std::string& outputFilePath) const;
 
+    void autoDetectCompilationOptions();
 
     /// \brief clang compilation options (see http://clang.llvm.org/docs/CommandGuide/clang.html
     /// and http://clang.llvm.org/docs/UsersManual.html)

@@ -19,24 +19,6 @@ using std::ifstream;
 using std::string;
 using std::vector;
 
-static string trim(const string& s) {
-    std::size_t i = s.find_first_not_of(" ");
-    std::size_t j = s.find_last_not_of(" ");
-    if (i != string::npos && j != string::npos && i <= j)
-        return s.substr(i, j - i + 1);
-    return s;
-}
-
-static bool startsWith(const string& s, const string& prefix) {
-    return s.length() >= prefix.length() &&
-        std::mismatch(prefix.begin(), prefix.end(), s.begin()).first == prefix.end();
-}
-
-static bool endsWith(const string& s, const string& prefix) {
-    return s.length() >= prefix.length() &&
-        std::mismatch(prefix.rbegin(), prefix.rend(), s.rbegin()).first == prefix.rend();
-}
-
 static vector<string> readNonEmptyLines(const string& filePath) {
     vector<string> lines;
     ifstream file{filePath.c_str()};
@@ -54,50 +36,7 @@ static string pathConcat(const string& directory, const string& fileName) {
     return directory + "/" + fileName;
 }
 
-static void heuristicIncludeSearchPaths(const string& tempDirectory, vector<string>& compilationOptions) {
-    vector<string> searchPaths;
-    // Try to infer for g++
-    bool foundGccIncludeDirectories = false;
-    const char* cxx = ::getenv("CXX");
-    if (!cxx)
-        cxx = "g++";
-    const string emptyFileName = pathConcat(tempDirectory, "empty.cpp");
-    const string emptyFileName2 = pathConcat(tempDirectory, "empty.exe");
-    const string gccLogFileName = pathConcat(tempDirectory, "gcclog.txt");
-    (void)std::ofstream(emptyFileName.c_str());
-    // TODO: escape whitespace and quotes.
-    // TODO: use correct locale somehow.
-    std::stringstream command;
-    command << cxx << " -x c++ -c -v " << emptyFileName << " -o " << emptyFileName2 << " 2>" << gccLogFileName;
-    std::system(command.str().c_str());
-    ifstream logFile(gccLogFileName.c_str());
-    string line;
-    bool isSearchList = false;
-    while (std::getline(logFile, line)) {
-        if (startsWith(line, "End of search list"))
-            break;
-
-        if (endsWith(line, "search starts here:"))
-            isSearchList = true;
-        else if (isSearchList) {
-            foundGccIncludeDirectories = true;
-            searchPaths.push_back(trim(line));
-        }
-    }
-
-    if (foundGccIncludeDirectories) {
-        // Don't let clang guess libstdc++ include directories, but still use clang builtin path.
-        compilationOptions.push_back("-nostdlibinc");
-    }
-
-    for (string& s : searchPaths) {
-        // std::cout << "Search path: '" << s << "'" << std::endl;
-        compilationOptions.push_back("-isystem");
-        compilationOptions.push_back(std::move(s));
-    }
-}
-
-static bool runTest(const string& testDirectory, const string& tempDirectory) {
+static bool runTest(const string& testDirectory, const string& tempDirectory, caide::CppInliner inliner) {
     // Setup
     vector<string> cppFiles = readNonEmptyLines(pathConcat(testDirectory, "fileList.txt"));
     for (string& s : cppFiles)
@@ -112,17 +51,17 @@ static bool runTest(const string& testDirectory, const string& tempDirectory) {
             cppFiles.push_back(filePath);
     }
 
-    caide::CppInliner inliner{tempDirectory};
-    inliner.clangCompilationOptions = readNonEmptyLines(pathConcat(testDirectory, "clangOptions.txt"));
-    for (string& opt : inliner.clangCompilationOptions) {
+    vector<string> additionalOptions = readNonEmptyLines(pathConcat(testDirectory, "clangOptions.txt"));
+    for (string& opt : additionalOptions) {
         const static string TEST_ROOT_MARKER = "TEST_ROOT";
         auto p = opt.find(TEST_ROOT_MARKER);
         if (p != string::npos) {
             opt.replace(p, TEST_ROOT_MARKER.length(), testDirectory);
         }
+
+        inliner.clangCompilationOptions.push_back(std::move(opt));
     }
 
-    heuristicIncludeSearchPaths(tempDirectory, inliner.clangCompilationOptions);
     const char* verbose = std::getenv("CAIDE_TEST_VERBOSE");
     if (verbose && *verbose == '1')
         inliner.clangCompilationOptions.push_back("-v");
@@ -171,10 +110,12 @@ int main(int argc, char* argv[]) {
 
     const string tempDirectory{argv[1]};
 
+    caide::CppInliner inliner{tempDirectory};
+    inliner.autoDetectCompilationOptions();
     int numFailedTests = 0;
     for (int i = 2; i < argc; ++i) {
         try {
-            if (!runTest(argv[i], tempDirectory)) {
+            if (!runTest(argv[i], tempDirectory, inliner)) {
                 ++numFailedTests;
             }
         } catch (const std::exception& e) {

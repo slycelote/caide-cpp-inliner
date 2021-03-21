@@ -7,6 +7,7 @@
 #include "caideInliner.hpp"
 #include "caideInliner.h"
 
+#include "detect_options.h"
 #include "inliner.h"
 #include "optimizer.h"
 
@@ -134,6 +135,10 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
     internal::Optimizer optimizer{clangCompilationOptions, macrosToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};
     removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, outputFilePath);
+}
+
+void CppInliner::autoDetectCompilationOptions() {
+    clangCompilationOptions = internal::detectClangOptions(temporaryDirectory);
 }
 
 } // namespace caide

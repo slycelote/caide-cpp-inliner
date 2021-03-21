@@ -47,6 +47,11 @@ public:
     void inlineCode(const std::vector<std::string>& cppFilePaths,
                     const std::string& outputFilePath) const;
 
+    /// \brief Try to detect system include paths automatically and adjust
+    /// clangCompilationOptions accordingly.
+    ///
+    /// \sa clangCompilationOptions
+    void autoDetectCompilationOptions();
 
     /// \brief clang compilation options (see http://clang.llvm.org/docs/CommandGuide/clang.html
     /// and http://clang.llvm.org/docs/UsersManual.html)

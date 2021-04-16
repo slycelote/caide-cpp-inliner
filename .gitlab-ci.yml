@@ -15,5 +15,5 @@ Build and test:
     matrix:
       - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: ['3.8', '3.9', '4.0', '5.0', '6.0', 7, 8, 9, 10, 11]
+        CAIDE_CLANG_VERSION: ['3.8', '3.9', '4.0', '5.0', '6.0', 7, 8, 9, 10, 11, 12]
 

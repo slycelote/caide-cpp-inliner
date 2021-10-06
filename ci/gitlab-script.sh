@@ -22,21 +22,11 @@ ci_timer
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
     export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
-
-    case "$CAIDE_CLANG_VERSION" in
-        3.8|3.9|4.0)
-            # CMake packaging is broken in these
-            export Clang_ROOT="$PWD/ci/cmake/$CAIDE_CLANG_VERSION"
-            export LLVM_ROOT="$Clang_ROOT"
-            ;;
-    esac
-
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-    # TODO: Xenial repo is not updated.
-    add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
+    add-apt-repository "deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-$CAIDE_CLANG_VERSION  main"
     apt-get update
     ci_timer
-    apt-get install -y -t llvm-toolchain-xenial-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     ci_timer
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
@@ -70,14 +60,6 @@ if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
     # Work around some packaging issues...
     case "$CAIDE_CLANG_VERSION" in
-        3.8)
-            mkdir -p lib/clang
-            ln -s /usr/include/clang/3.8 lib/clang/3.8.1
-            ;;
-        3.9)
-            mkdir -p lib/clang
-            ln -s /usr/include/clang/3.9 lib/clang/3.9.1
-            ;;
         9)
             ls -lah /usr/include/clang/*
             ln -s /usr/lib/llvm-9/lib/clang/9.0.1 /usr/include/clang/9.0.1 || true

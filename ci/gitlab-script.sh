@@ -32,6 +32,7 @@ then
     esac
 
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    # TODO: Xenial repo is not updated.
     add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-$CAIDE_CLANG_VERSION  main"
     apt-get update
     ci_timer

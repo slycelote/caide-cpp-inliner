@@ -46,6 +46,17 @@ cmake --version
 "$CXX" --version
 "$CC" --version
 
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
+then
+    # Work around some packaging issues...
+    case "$CAIDE_CLANG_VERSION" in
+        13)
+            ls -lah /usr/lib/llvm-13/lib/
+            ln -s /usr/lib/llvm-13/lib/libclang-13.0.0.so /usr/lib/llvm-13/lib/libclang-13.so.13.0.0 || true
+            ;;
+    esac
+fi
+
 mkdir build
 cd build
 cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
@@ -56,16 +67,7 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 ninja || ninja -j1
 ci_timer
 
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
-then
-    # Work around some packaging issues...
-    case "$CAIDE_CLANG_VERSION" in
-        9)
-            ls -lah /usr/include/clang/*
-            ln -s /usr/lib/llvm-9/lib/clang/9.0.1 /usr/include/clang/9.0.1 || true
-            ;;
-    esac
-else
+if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
     ninja install-clang-resource-headers
     # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
     # (a bug in clang when it's built as a CMake subproject?)

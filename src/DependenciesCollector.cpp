@@ -339,8 +339,16 @@ bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
     return true;
 }
 
+// A using declaration has an additional shadow declaration for each declaration
+// that it brings into scope.
 bool DependenciesCollector::VisitUsingShadowDecl(UsingShadowDecl* usingShadowDecl) {
+    // Add dependency on the actually written using declaration.
+#if CAIDE_CLANG_VERSION_AT_LEAST(13,0)
+    insertReference(usingShadowDecl, usingShadowDecl->getIntroducer());
+#else
     insertReference(usingShadowDecl, usingShadowDecl->getUsingDecl());
+#endif
+
     insertReference(usingShadowDecl, usingShadowDecl->getTargetDecl());
     return true;
 }

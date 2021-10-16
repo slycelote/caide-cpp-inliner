@@ -15,6 +15,7 @@
 
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
+#include "clang_version.h"
 
 
 #include <clang/AST/ASTConsumer.h>
@@ -198,11 +199,17 @@ private:
 
         // No changes
         bool invalid;
+#if CAIDE_CLANG_VERSION_AT_LEAST(12, 0)
+        const llvm::StringRef bufferData = sourceManager.getBufferData(sourceManager.getMainFileID(), &invalid);
+        if (invalid)
+            return "Inliner error";
+        return string(bufferData.begin(), bufferData.end());
+#else
         const llvm::MemoryBuffer* buf = sourceManager.getBuffer(sourceManager.getMainFileID(), &invalid);
-        if (buf && !invalid)
-            return string(buf->getBufferStart(), buf->getBufferEnd());
-        else
-            return "Inliner error"; // something's wrong
+        if (invalid)
+            return "Inliner error";
+        return string(buf->getBufferStart(), buf->getBufferEnd());
+#endif
     }
 
 private:

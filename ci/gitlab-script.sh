@@ -11,16 +11,16 @@ ci_timer
 apt-get update
 ci_timer
 
-apt-get install -y wget software-properties-common apt-transport-https ninja-build ccache g++-5 gcc-5 cmake
+apt-get install -y wget software-properties-common apt-transport-https ninja-build ccache g++-5 gcc-5
 export CXX=g++-5
 export CC=gcc-5
 ci_timer
 
-# wget https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-linux-x86_64.tar.gz
-# tar xf cmake-3.20.1-linux-x86_64.tar.gz
-# rm *.tar.gz
-# export PATH="$PATH":"$PWD/cmake-3.20.1-linux-x86_64/bin"
-# ci_timer
+wget https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-linux-x86_64.tar.gz
+tar xf cmake-3.20.1-linux-x86_64.tar.gz
+rm *.tar.gz
+export PATH="$PATH":"$PWD/cmake-3.20.1-linux-x86_64/bin"
+ci_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
@@ -29,7 +29,16 @@ then
     add-apt-repository "deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-$CAIDE_CLANG_VERSION  main"
     apt-get update
     ci_timer
-    apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev libomp-"$CAIDE_CLANG_VERSION"-dev
+
+    apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
+    # Work around some packaging issues...
+    case "$CAIDE_CLANG_VERSION" in
+        13)
+            apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" libomp-"$CAIDE_CLANG_VERSION"-dev
+            ls -lah /usr/lib/llvm-13/lib/
+            ln -s /usr/lib/llvm-13/lib/libclang-13.0.0.so /usr/lib/llvm-13/lib/libclang-13.so.13.0.0 || true
+            ;;
+    esac
     ci_timer
 
     export CMAKE_PREFIX_PATH=$Clang_ROOT
@@ -48,17 +57,6 @@ env | sort
 cmake --version
 "$CXX" --version
 "$CC" --version
-
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
-then
-    # Work around some packaging issues...
-    case "$CAIDE_CLANG_VERSION" in
-        13)
-            ls -lah /usr/lib/llvm-13/lib/
-            ln -s /usr/lib/llvm-13/lib/libclang-13.0.0.so /usr/lib/llvm-13/lib/libclang-13.so.13.0.0 || true
-            ;;
-    esac
-fi
 
 mkdir build
 cd build

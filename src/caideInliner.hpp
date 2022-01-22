@@ -108,6 +108,14 @@ public:
     /// Default value is 2. If the parameter is negative, empty lines are not removed.
     int maxConsequentEmptyLines;
 
+    /// \brief List of fully qualified names to preserve in the output, even if
+    /// they are not reachable from main function
+    ///
+    /// Normally, only code reachable from main or marked by special comments
+    /// is preserved. This settings provides additional identifiers to preserve.
+    /// Identifiers must be fully qualified, e.g. "NamespaceName::ClassName::method".
+    std::vector<std::string> identifiersToKeep;
+
 private:
     const std::string temporaryDirectory;
 };

@@ -67,6 +67,7 @@ static bool runTest(const string& testDirectory, const string& tempDirectory, ca
         inliner.clangCompilationOptions.push_back("-v");
 
     inliner.macrosToKeep = readNonEmptyLines(pathConcat(testDirectory, "macrosToKeep.txt"));
+    inliner.identifiersToKeep = readNonEmptyLines(pathConcat(testDirectory, "identifiersToKeep.txt"));
 
     const string outputFilePath = pathConcat(tempDirectory, "result.cpp");
 

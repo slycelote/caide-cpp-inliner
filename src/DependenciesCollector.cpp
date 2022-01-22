@@ -164,8 +164,11 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const TypeSourceIn
         insertReferenceToType(from, typeSourceInfo->getType());
 }
 
-DependenciesCollector::DependenciesCollector(SourceManager& srcMgr, SourceInfo& srcInfo_)
+DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
+        const std::unordered_set<std::string>& identifiersToKeep_,
+        SourceInfo& srcInfo_)
     : sourceManager(srcMgr)
+    , identifiersToKeep(identifiersToKeep_)
     , srcInfo(srcInfo_)
 {
 }
@@ -192,6 +195,7 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
     // declaration in a non-instantiated context.
     insertReference(decl, getCorrespondingDeclInNonInstantiatedContext(decl));
 
+    // Remainder of the function processes special comments.
     RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
     if (!comment)
         return true;
@@ -216,11 +220,10 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
             srcInfo.declsToKeep.insert(decl);
     }
 
-    if (ctx)
-    {
+    if (ctx) {
         // The following is useful for classes implementing a standard C++ concept.
         // For instance, a custom iterator passed to std::shuffle must be a RandomAccessIterator,
-        // which means that it must provide a certain number of member functions/type aliases.
+        // which means that it must provide certain member functions/type aliases.
         // However, there is no way to detect this requirement, unless both the language and
         // the standard library have full concept support (which we don't want to rely on).
         // That's because some of the functions/type aliases required by the concept might
@@ -237,6 +240,16 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
         if (haystack.find(needle) != StringRef::npos)
             insertReference(ctx, decl);
     }
+
+    return true;
+}
+
+bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
+    if (!sourceManager.isInMainFile(getBeginLoc(decl)))
+        return true;
+
+    if (identifiersToKeep.count(decl->getQualifiedNameAsString()))
+        srcInfo.declsToKeep.insert(decl);
 
     return true;
 }

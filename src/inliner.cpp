@@ -8,6 +8,9 @@
 #include "clang_version.h"
 #include "util.h"
 
+// #define CAIDE_DEBUG_MODE
+#include "caide_debug.h"
+
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
@@ -19,15 +22,14 @@
 
 #include <iostream>
 #include <memory>
-#include <set>
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <unordered_set>
 
 
 
 using namespace clang;
-using std::set;
 using std::string;
 using std::vector;
 
@@ -36,7 +38,7 @@ namespace internal {
 
 struct IncludeReplacement {
     SourceRange includeDirectiveRange;
-    const FileEntry* includedFile = nullptr;
+    const FileEntry* includingFile = nullptr;
     string replaceWith;
 };
 
@@ -48,7 +50,7 @@ public:
     {
         // Setup a placeholder where the result for the whole CPP file will be stored
         replacementStack.resize(1);
-        replacementStack.back().includedFile = nullptr;
+        replacementStack.back().includingFile = nullptr;
     }
 
     virtual void InclusionDirective(SourceLocation HashLoc,
@@ -67,48 +69,61 @@ public:
     {
         if (FileName.empty())
             return;
+
         // Don't track system headers including each other
         // They may include the same file multiple times (no include guards) and do other crazy stuff
         if (!isUserFile(HashLoc))
             return;
-
-        // Inclusion directive is encountered.
-        // Setup a placeholder in inclusion stack where the result of this
-        // directive will be stored. Initially assume the directive remains unchanged
-        // (this is the case if it's a new system header).
-        SourceLocation end = FilenameRange.getEnd();
-        const char* s = srcManager.getCharacterData(HashLoc);
-        const char* e = srcManager.getCharacterData(end);
 
         if (!File) {
             //std::cerr << "Compilation error: " << FileName.str() << " not found\n";
             return;
         }
 
+        // Inclusion directive is encountered.
+        // Setup a placeholder in inclusion stack where the result of this
+        // directive will be stored.
         IncludeReplacement rep;
-        rep.includeDirectiveRange = SourceRange(HashLoc, end);
-        rep.includedFile = srcManager.getFileEntryForID(srcManager.getFileID(HashLoc));
-        if (s && e)
-            rep.replaceWith = string(s, e);
-        else
-            rep.replaceWith = "<Inliner error>\n";
+        rep.includingFile = srcManager.getFileEntryForID(srcManager.getFileID(HashLoc));
+        if (srcManager.isWrittenInBuiltinFile(HashLoc)) {
+            // -include command line option.
+            // TODO: Remember that '-include FileName' must be excluded in optimizer stage.
+            rep.includeDirectiveRange = SourceRange(HashLoc, HashLoc);
+            rep.replaceWith = "";
+        } else {
+            SourceLocation end = FilenameRange.getEnd();
+            // Initially assume the directive remains unchanged (this is the
+            // case if it's a new system header).
+            const char* s = srcManager.getCharacterData(HashLoc);
+            const char* e = srcManager.getCharacterData(end);
+            rep.includeDirectiveRange = SourceRange(HashLoc, end);
+            if (s && e)
+                rep.replaceWith = string(s, e);
+            else
+                rep.replaceWith = "<Inliner error>\n";
+        }
+
         replacementStack.push_back(rep);
     }
 
+    // Loc      -- Indicates the new location.
+    // PrevFID  -- the file that was exited if Reason is ExitFile.
     virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                              SrcMgr::CharacteristicKind /*FileType*/,
-                             FileID PrevFID/* = FileID()*/) override
+                             FileID PrevFID) override
     {
+        dbg(CAIDE_FUNC << Loc.printToString(srcManager) << "\n");
         const FileEntry* curEntry = srcManager.getFileEntryForID(PrevFID);
         if (Reason == PPCallbacks::ExitFile && curEntry) {
             // Don't track system headers including each other
             if (!isUserFile(Loc))
                 return;
+
             // Rewind replacement stack and compute result of including current file.
             // - Search the stack for the topmost replacement belonging to another file.
             //   That's where we were included from.
             int includedFrom = int(replacementStack.size()) - 1;
-            while (replacementStack[includedFrom].includedFile == curEntry)
+            while (replacementStack[includedFrom].includingFile == curEntry)
                 --includedFrom;
 
             // - Mark this header as visited for future CPP files.
@@ -129,6 +144,7 @@ public:
     }
 
     virtual void EndOfMainFile() override {
+        dbg(CAIDE_FUNC);
         replacementStack[0].replaceWith = calcReplacements(0, srcManager.getMainFileID());
         replacementStack.resize(1);
     }
@@ -171,7 +187,7 @@ private:
      * Headers that have been included explicitly by user code (i.e. from a cpp file or from
      * a non-system header).
      */
-    set<const FileEntry*> includedHeaders;
+    std::unordered_set<const FileEntry*> includedHeaders;
 
     /*
      * A 'stack' of replacements, reflecting current include stack.
@@ -187,12 +203,14 @@ private:
      */
     string calcReplacements(int includedFrom, FileID currentFID) const {
         std::ostringstream result;
+
         // We go over each #include directive in current file and replace it
         // with the result of inclusion.
         // The last value of i doesn't correspond to an include directive,
         // it's used to output the part of the file after the last include directive.
         // TODO: Output #line directives for correct warning/error messages in optimizer stage.
-        for (int i = includedFrom + 1; i <= int(replacementStack.size()); ++i) {
+        const int lastIndex = (int)replacementStack.size();
+        for (int i = includedFrom + 1; i <= lastIndex; ++i) {
             // First output the block before the #include directive.
             // Block start is immediately after the previous include directive;
             // block end is immediately before current include directive.
@@ -200,13 +218,19 @@ private:
 
             if (i == includedFrom + 1)
                 blockStart = srcManager.getLocForStartOfFile(currentFID);
-            else
+            else {
                 blockStart = replacementStack[i-1].includeDirectiveRange.getEnd();
+                if (srcManager.isWrittenInBuiltinFile(blockStart))
+                    blockStart = srcManager.getLocForStartOfFile(currentFID);
+            }
 
-            if (i == int(replacementStack.size()))
+            if (i == lastIndex)
                 blockEnd = srcManager.getLocForEndOfFile(currentFID);
-            else
+            else {
                 blockEnd = replacementStack[i].includeDirectiveRange.getBegin();
+                if (srcManager.isWrittenInBuiltinFile(blockEnd))
+                    blockEnd = srcManager.getLocForStartOfFile(currentFID);
+            }
 
             // skip cases when two include directives are adjacent
             //   or an include directive is in the beginning or end of file
@@ -223,10 +247,11 @@ private:
                     result << string(b, e);
             }
 
-            // Now output the result of file inclusion
-            if (i != int(replacementStack.size()))
+            // Now output the result of file inclusion.
+            if (i != lastIndex)
                 result << replacementStack[i].replaceWith;
         }
+
         return result.str();
     }
 
@@ -263,9 +288,12 @@ private:
     }
 
     void debug() const {
+        std::cerr << "===============\n";
         for (size_t i = 0; i < replacementStack.size(); ++i) {
-            std::cerr << getCanonicalPath(replacementStack[i].includedFile) << " " <<
-                         replacementStack[i].replaceWith << "\n";
+            auto entry = replacementStack[i].includingFile;
+            std::cerr << "<<<"
+                << (entry ? getCanonicalPath(entry) : std::string{"null"})
+                << " " << replacementStack[i].replaceWith << ">>>\n";
         }
     }
 };

@@ -64,7 +64,7 @@ bool isWrittenInBuiltinFile(const SourceManager& srcManager, SourceLocation loca
     return srcManager.isWrittenInBuiltinFile(location);
 #else
     // Copied from latest SourceManager::isWrittenInBuiltinFile.
-    const char* fileName = srcManager.getPresumedLoc(Loc).getFilename();
+    const char* fileName = srcManager.getPresumedLoc(location).getFilename();
     return std::strcmp(fileName, "<built-in>") == 0;
 #endif
 }

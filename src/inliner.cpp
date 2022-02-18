@@ -5,6 +5,7 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include "inliner.h"
+#include "clang_compat.h"
 #include "clang_version.h"
 #include "util.h"
 
@@ -85,7 +86,7 @@ public:
         // directive will be stored.
         IncludeReplacement rep;
         rep.includingFile = srcManager.getFileEntryForID(srcManager.getFileID(HashLoc));
-        if (srcManager.isWrittenInBuiltinFile(HashLoc)) {
+        if (isWrittenInBuiltinFile(srcManager, HashLoc)) {
             // -include command line option.
             // TODO: Remember that '-include FileName' must be excluded in optimizer stage.
             rep.includeDirectiveRange = SourceRange(HashLoc, HashLoc);
@@ -220,7 +221,7 @@ private:
                 blockStart = srcManager.getLocForStartOfFile(currentFID);
             else {
                 blockStart = replacementStack[i-1].includeDirectiveRange.getEnd();
-                if (srcManager.isWrittenInBuiltinFile(blockStart))
+                if (isWrittenInBuiltinFile(srcManager, blockStart))
                     blockStart = srcManager.getLocForStartOfFile(currentFID);
             }
 
@@ -228,7 +229,7 @@ private:
                 blockEnd = srcManager.getLocForEndOfFile(currentFID);
             else {
                 blockEnd = replacementStack[i].includeDirectiveRange.getBegin();
-                if (srcManager.isWrittenInBuiltinFile(blockEnd))
+                if (isWrittenInBuiltinFile(srcManager, blockEnd))
                     blockEnd = srcManager.getLocForStartOfFile(currentFID);
             }
 

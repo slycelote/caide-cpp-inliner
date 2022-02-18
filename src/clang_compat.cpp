@@ -9,6 +9,10 @@
 
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/RawCommentList.h>
+#include <clang/Basic/SourceManager.h>
+
+#include <cstring>
+
 
 using namespace clang;
 
@@ -52,6 +56,16 @@ SourceLocation getEndLoc(const RawComment* comment) {
     return comment->getEndLoc();
 #else
     return comment->getLocEnd();
+#endif
+}
+
+bool isWrittenInBuiltinFile(const SourceManager& srcManager, SourceLocation location) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(8,0)
+    return srcManager.isWrittenInBuiltinFile(location);
+#else
+    // Copied from latest SourceManager::isWrittenInBuiltinFile.
+    const char* fileName = srcManager.getPresumedLoc(Loc).getFilename();
+    return std::strcmp(fileName, "<built-in>") == 0;
 #endif
 }
 

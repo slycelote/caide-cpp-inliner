@@ -26,6 +26,7 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 
 
@@ -37,6 +38,11 @@ using std::vector;
 namespace caide {
 namespace internal {
 
+struct InlinerState {
+    string result;
+    std::unordered_set<string>& inlinedPathsFromCommandLine;
+};
+
 struct IncludeReplacement {
     SourceRange includeDirectiveRange;
     const FileEntry* includingFile = nullptr;
@@ -45,9 +51,9 @@ struct IncludeReplacement {
 
 class TrackMacro: public PPCallbacks {
 public:
-    TrackMacro(SourceManager& srcManager_, vector<IncludeReplacement>& replacements_)
+    TrackMacro(SourceManager& srcManager_, InlinerState& state_)
         : srcManager(srcManager_)
-        , replacementStack(replacements_)
+        , state(state_)
     {
         // Setup a placeholder where the result for the whole CPP file will be stored
         replacementStack.resize(1);
@@ -88,7 +94,11 @@ public:
         rep.includingFile = srcManager.getFileEntryForID(srcManager.getFileID(HashLoc));
         if (isWrittenInBuiltinFile(srcManager, HashLoc)) {
             // -include command line option.
-            // TODO: Remember that '-include FileName' must be excluded in optimizer stage.
+            // '-include FileName' must be excluded in optimizer stage if FileName
+            // is a user (not system) header.
+            // FileType parameter is unavailable in older clang versions, so we
+            // remember this file and process it in FileChanged.
+            pendingInlinedPathsFromCommandLine[File] = FileName.str();
             rep.includeDirectiveRange = SourceRange(HashLoc, HashLoc);
             rep.replaceWith = "";
         } else {
@@ -110,12 +120,21 @@ public:
     // Loc      -- Indicates the new location.
     // PrevFID  -- the file that was exited if Reason is ExitFile.
     virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                             SrcMgr::CharacteristicKind /*FileType*/,
+                             SrcMgr::CharacteristicKind FileType,
                              FileID PrevFID) override
     {
         dbg(CAIDE_FUNC << Loc.printToString(srcManager) << "\n");
         const FileEntry* curEntry = srcManager.getFileEntryForID(PrevFID);
-        if (Reason == PPCallbacks::ExitFile && curEntry) {
+        if (Reason == PPCallbacks::EnterFile) {
+            const FileEntry* file = srcManager.getFileEntryForID(srcManager.getFileID(Loc));
+            auto it = pendingInlinedPathsFromCommandLine.find(file);
+            if (it != pendingInlinedPathsFromCommandLine.end()) {
+                if (!SrcMgr::isSystem(FileType))
+                    state.inlinedPathsFromCommandLine.insert(std::move(it->second));
+
+                pendingInlinedPathsFromCommandLine.erase(it);
+            }
+        } else if (Reason == PPCallbacks::ExitFile && curEntry) {
             // Don't track system headers including each other
             if (!isUserFile(Loc))
                 return;
@@ -148,6 +167,7 @@ public:
         dbg(CAIDE_FUNC);
         replacementStack[0].replaceWith = calcReplacements(0, srcManager.getMainFileID());
         replacementStack.resize(1);
+        state.result = replacementStack[0].replaceWith;
     }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
@@ -172,17 +192,14 @@ public:
         }
     }
 
-    string getResult() const {
-        if (replacementStack.size() != 1)
-            return "C++ inliner error";
-        else
-            return replacementStack[0].replaceWith;
-    }
-
     virtual ~TrackMacro() override = default;
 
 private:
     SourceManager& srcManager;
+
+    InlinerState& state;
+
+    std::unordered_map<const FileEntry*, string> pendingInlinedPathsFromCommandLine;
 
     /*
      * Headers that have been included explicitly by user code (i.e. from a cpp file or from
@@ -195,9 +212,7 @@ private:
      * Replacements in the same file are ordered by their location.
      * Replacement string may be empty which means that we skip this include file.
      */
-    vector<IncludeReplacement>& replacementStack;
-
-private:
+    vector<IncludeReplacement> replacementStack;
 
     /*
      * Unwinds inclusion stack and calculates the result of inclusion of current file
@@ -301,11 +316,11 @@ private:
 
 class InlinerFrontendAction : public PreprocessOnlyAction {
 private:
-    vector<IncludeReplacement>& replacementStack;
+    InlinerState& state;
 
 public:
-    InlinerFrontendAction(vector<IncludeReplacement>& _replacementStack)
-        : replacementStack(_replacementStack)
+    explicit InlinerFrontendAction(InlinerState& state_)
+        : state(state_)
     {}
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(5,0)
@@ -315,26 +330,26 @@ public:
 #endif
     {
         compiler.getPreprocessor().addPPCallbacks(std::unique_ptr<TrackMacro>(new TrackMacro(
-                compiler.getSourceManager(), replacementStack)));
+                compiler.getSourceManager(), state)));
         return true;
     }
 };
 
 class InlinerFrontendActionFactory: public tooling::FrontendActionFactory {
 private:
-    vector<IncludeReplacement>& replacementStack;
+    InlinerState& state;
 
 public:
-    explicit InlinerFrontendActionFactory(vector<IncludeReplacement>& replacementStack_)
-        : replacementStack(replacementStack_)
+    explicit InlinerFrontendActionFactory(InlinerState& state_)
+        : state(state_)
     {}
 #if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
     std::unique_ptr<FrontendAction> create() override {
-        return std::make_unique<InlinerFrontendAction>(replacementStack);
+        return std::make_unique<InlinerFrontendAction>(state);
     }
 #else
     FrontendAction* create() override {
-        return new InlinerFrontendAction(replacementStack);
+        return new InlinerFrontendAction(state);
     }
 #endif
 };
@@ -350,8 +365,8 @@ string Inliner::doInline(const string& cppFile) {
     vector<string> sources(1);
     sources[0] = cppFile;
 
-    vector<IncludeReplacement> replacementStack;
-    InlinerFrontendActionFactory factory(replacementStack);
+    InlinerState state{"", inlinedPathsFromCommandLine};
+    InlinerFrontendActionFactory factory(state);
 
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
 
@@ -359,11 +374,28 @@ string Inliner::doInline(const string& cppFile) {
 
     if (ret != 0)
         throw std::runtime_error("Compilation error");
-    else if (replacementStack.size() != 1)
-        throw std::logic_error("Caide inliner error");
 
-    inlineResults.push_back(replacementStack[0].replaceWith);
-    return inlineResults.back();
+    inlineResults.push_back(state.result);
+    return state.result;
+}
+
+vector<string> Inliner::getResultingCommandLineOptions() const {
+    vector<string> res;
+    for (std::size_t i = 0; i < cmdLineOptions.size();) {
+        if (cmdLineOptions[i] != "-include" || i + 1 >= cmdLineOptions.size()) {
+            res.push_back(cmdLineOptions[i]);
+            ++i;
+        } else {
+            if (inlinedPathsFromCommandLine.count(cmdLineOptions[i + 1]) == 0) {
+                res.push_back(cmdLineOptions[i]);
+                res.push_back(cmdLineOptions[i + 1]);
+            }
+
+            i += 2;
+        }
+    }
+
+    return res;
 }
 
 }

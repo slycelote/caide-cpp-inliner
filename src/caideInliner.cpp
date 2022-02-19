@@ -132,7 +132,7 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
     std::string inlinedCode{inliner.doInline(concatStage)};
     removeInvalidDirectives(inlinedCode, inlinedStage);
 
-    internal::Optimizer optimizer{clangCompilationOptions, macrosToKeep, identifiersToKeep};
+    internal::Optimizer optimizer{inliner.getResultingCommandLineOptions(), macrosToKeep, identifiersToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};
     removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, outputFilePath);
 }

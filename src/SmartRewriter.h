@@ -11,6 +11,8 @@
 
 #include <clang/Rewrite/Core/Rewriter.h>
 
+#include <string>
+
 namespace clang {
     class LangOptions;
     class SourceManager;
@@ -28,6 +30,7 @@ public:
     SmartRewriter& operator=(SmartRewriter&&) = delete;
 
     bool isPartOfRangeRemoved(const clang::SourceRange& range) const;
+    void appendToPreamble(std::string s);
     void removeRange(clang::SourceLocation begin, clang::SourceLocation end);
     void removeRange(const clang::SourceRange& range);
     const clang::RewriteBuffer* getRewriteBufferFor(clang::FileID fileID) const;
@@ -35,6 +38,7 @@ public:
 
 private:
     clang::Rewriter rewriter;
+    std::string preamble;
     SourceLocationComparer comparer;
     IntervalSet<clang::SourceLocation, SourceLocationComparer> removed;
     bool changesApplied;

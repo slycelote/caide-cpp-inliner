@@ -105,13 +105,16 @@ private:
 
 class OptimizerConsumer: public ASTConsumer {
 public:
-    OptimizerConsumer(CompilerInstance& compiler_, std::unique_ptr<SmartRewriter> smartRewriter_,
-                RemoveInactivePreprocessorBlocks& ppCallbacks_,
-                string& result_)
+    OptimizerConsumer(CompilerInstance& compiler_,
+            std::unique_ptr<SmartRewriter> smartRewriter_,
+            RemoveInactivePreprocessorBlocks& ppCallbacks_,
+            const std::unordered_set<string>& identifiersToKeep_,
+            string& result_)
         : compiler(compiler_)
         , sourceManager(compiler.getSourceManager())
         , smartRewriter(std::move(smartRewriter_))
         , ppCallbacks(ppCallbacks_)
+        , identifiersToKeep(identifiersToKeep_)
         , result(result_)
     {
     }
@@ -128,7 +131,7 @@ public:
 
         // 1. Build dependency graph for semantic declarations.
         {
-            DependenciesCollector depsVisitor(sourceManager, srcInfo);
+            DependenciesCollector depsVisitor(sourceManager, identifiersToKeep, srcInfo);
             depsVisitor.TraverseDecl(Ctx.getTranslationUnitDecl());
 
             // Source range of delayed-parsed template functions includes only declaration part.
@@ -217,6 +220,7 @@ private:
     SourceManager& sourceManager;
     std::unique_ptr<SmartRewriter> smartRewriter;
     RemoveInactivePreprocessorBlocks& ppCallbacks;
+    const std::unordered_set<string>& identifiersToKeep;
     string& result;
     SourceInfo srcInfo;
 };
@@ -226,10 +230,13 @@ class OptimizerFrontendAction : public ASTFrontendAction {
 private:
     string& result;
     const set<string>& macrosToKeep;
+    const std::unordered_set<string>& identifiersToKeep;
 public:
-    OptimizerFrontendAction(string& result_, const set<string>& macrosToKeep_)
+    OptimizerFrontendAction(string& result_, const std::set<string>& macrosToKeep_,
+            const std::unordered_set<string>& identifiersToKeep_)
         : result(result_)
         , macrosToKeep(macrosToKeep_)
+        , identifiersToKeep(identifiersToKeep_)
     {}
 
     virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& compiler, StringRef /*file*/) override
@@ -242,7 +249,7 @@ public:
             new RemoveInactivePreprocessorBlocks(compiler.getSourceManager(), compiler.getLangOpts(),
                 *smartRewriter, macrosToKeep));
         auto consumer = std::unique_ptr<OptimizerConsumer>(
-            new OptimizerConsumer(compiler, std::move(smartRewriter), *ppCallbacks, result));
+            new OptimizerConsumer(compiler, std::move(smartRewriter), *ppCallbacks, identifiersToKeep, result));
         compiler.getPreprocessor().addPPCallbacks(std::move(ppCallbacks));
         return consumer;
     }
@@ -251,28 +258,33 @@ public:
 class OptimizerFrontendActionFactory: public tooling::FrontendActionFactory {
 private:
     string& result;
-    const set<string>& macrosToKeep;
+    const std::set<string>& macrosToKeep;
+    const std::unordered_set<string>& identifiersToKeep;
 public:
-    OptimizerFrontendActionFactory(string& result_, const set<string>& macrosToKeep_)
+    OptimizerFrontendActionFactory(string& result_, const std::set<string>& macrosToKeep_,
+            const std::unordered_set<string>& identifiersToKeep_)
         : result(result_)
         , macrosToKeep(macrosToKeep_)
+        , identifiersToKeep(identifiersToKeep_)
     {}
 #if CAIDE_CLANG_VERSION_AT_LEAST(10, 0)
     std::unique_ptr<FrontendAction> create() override {
-        return std::make_unique<OptimizerFrontendAction>(result, macrosToKeep);
+        return std::make_unique<OptimizerFrontendAction>(result, macrosToKeep, identifiersToKeep);
     }
 #else
     FrontendAction* create() override {
-        return new OptimizerFrontendAction(result, macrosToKeep);
+        return new OptimizerFrontendAction(result, macrosToKeep, identifiersToKeep);
     }
 #endif
 };
 
 
 Optimizer::Optimizer(const vector<string>& cmdLineOptions_,
-                     const vector<string>& macrosToKeep_)
+                     const vector<string>& macrosToKeep_,
+                     const std::vector<std::string>& identifiersToKeep_)
     : cmdLineOptions(cmdLineOptions_)
     , macrosToKeep(macrosToKeep_.begin(), macrosToKeep_.end())
+    , identifiersToKeep(identifiersToKeep_.begin(), identifiersToKeep_.end())
 {}
 
 string Optimizer::doOptimize(const string& cppFile) {
@@ -285,7 +297,7 @@ string Optimizer::doOptimize(const string& cppFile) {
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
 
     string result;
-    OptimizerFrontendActionFactory factory(result, macrosToKeep);
+    OptimizerFrontendActionFactory factory(result, macrosToKeep, identifiersToKeep);
 
     int ret = tool.run(&factory);
     if (ret != 0)

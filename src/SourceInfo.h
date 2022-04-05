@@ -32,6 +32,7 @@ struct SourceInfo {
     // 'Roots of the dependency graph':
     // - int main()
     // - declarations marked with a comment '/// caide keep'
+    // - declarations corresponding to names provided by identifiersToKeep setting.
     std::set<clang::Decl*> declsToKeep;
 
     // Delayed parsed functions.

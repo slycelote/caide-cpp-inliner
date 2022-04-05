@@ -237,6 +237,24 @@ public:
         activeClauses.pop_back();
     }
 
+    void InclusionDirective(SourceLocation HashLoc, CharSourceRange FilenameRange)
+    {
+        if (!isInMainFile(HashLoc))
+            return;
+        if (!activeClauses.empty())
+            return;
+
+        SourceLocation end = FilenameRange.getEnd();
+        const char* s = sourceManager.getCharacterData(HashLoc);
+        const char* e = sourceManager.getCharacterData(end);
+        if (!s || !e)
+            return;
+
+        rewriter.appendToPreamble(string(s, e));
+        rewriter.appendToPreamble("\n");
+        rewriter.removeRange(HashLoc, end);
+    }
+
 
 private:
     string getTokenName(const Token& token) const {
@@ -367,6 +385,24 @@ void RemoveInactivePreprocessorBlocks::Else(SourceLocation Loc, SourceLocation I
 
 void RemoveInactivePreprocessorBlocks::Endif(SourceLocation Loc, SourceLocation IfLoc) {
     impl->Endif(Loc, IfLoc);
+}
+
+void RemoveInactivePreprocessorBlocks::InclusionDirective(
+    SourceLocation HashLoc,
+    const Token& /*IncludeTok*/,
+    StringRef /*FileName*/,
+    bool /*IsAngled*/,
+    CharSourceRange FilenameRange,
+    const FileEntry* /*File*/,
+    StringRef /*SearchPath*/,
+    StringRef /*RelativePath*/,
+    const Module* /*Imported*/
+#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+    , SrcMgr::CharacteristicKind /*FileType*/
+#endif
+    )
+{
+    impl->InclusionDirective(HashLoc, FilenameRange);
 }
 
 }

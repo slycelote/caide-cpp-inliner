@@ -24,6 +24,10 @@ SmartRewriter::SmartRewriter(SourceManager& srcManager, const LangOptions& langO
 {
 }
 
+void SmartRewriter::appendToPreamble(std::string s) {
+    preamble += std::move(s);
+}
+
 void SmartRewriter::removeRange(SourceLocation begin, SourceLocation end) {
     removed.add(begin, end);
 }
@@ -44,9 +48,14 @@ void SmartRewriter::applyChanges() {
     if (changesApplied)
         throw std::logic_error("Rewriter changes have already been applied");
     changesApplied = true;
+
     Rewriter::RewriteOptions opts;
     for (const auto& range : removed)
         rewriter.RemoveText(SourceRange(range.first, range.second), opts);
+
+    SourceManager& srcManager = rewriter.getSourceMgr();
+    SourceLocation Loc = srcManager.getLocForStartOfFile(srcManager.getMainFileID());
+    rewriter.InsertText(Loc, preamble);
 }
 
 }

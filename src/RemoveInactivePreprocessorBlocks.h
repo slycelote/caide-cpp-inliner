@@ -67,6 +67,20 @@ public:
     void Else(clang::SourceLocation Loc, clang::SourceLocation /*IfLoc*/) override;
     void Endif(clang::SourceLocation Loc, clang::SourceLocation /*IfLoc*/) override;
 
+    void InclusionDirective(clang::SourceLocation HashLoc,
+                            const clang::Token& IncludeTok,
+                            llvm::StringRef FileName,
+                            bool IsAngled,
+                            clang::CharSourceRange FilenameRange,
+                            const clang::FileEntry *File,
+                            llvm::StringRef SearchPath,
+                            llvm::StringRef RelativePath,
+                            const clang::Module* Imported
+#if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
+                            , clang::SrcMgr::CharacteristicKind FileType
+#endif
+                            ) override;
+
     // EndOfMainFile() is called too late; instead, we call this one manually in the consumer.
     void Finalize();
 };

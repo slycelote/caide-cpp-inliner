@@ -15,6 +15,7 @@
 #include <set>
 #include <stack>
 #include <map>
+#include <unordered_set>
 
 
 namespace clang {
@@ -30,7 +31,9 @@ struct SourceInfo;
 
 class DependenciesCollector: public clang::RecursiveASTVisitor<DependenciesCollector> {
 public:
-    DependenciesCollector(clang::SourceManager& srcMgr, SourceInfo& srcInfo_);
+    DependenciesCollector(clang::SourceManager& srcMgr,
+        const std::unordered_set<std::string>& identifiersToKeep,
+        SourceInfo& srcInfo_);
 
     bool shouldVisitImplicitCode() const;
     bool shouldVisitTemplateInstantiations() const;
@@ -41,6 +44,7 @@ public:
     bool VisitStmt(clang::Stmt* stmt);
 
     bool VisitDecl(clang::Decl* decl);
+    bool VisitNamedDecl(clang::NamedDecl* namedDecl);
     bool VisitCallExpr(clang::CallExpr* callExpr);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr* constructorExpr);
     bool VisitCXXConstructorDecl(clang::CXXConstructorDecl* ctorDecl);
@@ -87,6 +91,7 @@ private:
     void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 
     clang::SourceManager& sourceManager;
+    const std::unordered_set<std::string>& identifiersToKeep;
     SourceInfo& srcInfo;
 
     // There is no getParentDecl(stmt) function, so we maintain the stack of Decls,

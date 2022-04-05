@@ -12,6 +12,7 @@ namespace clang {
     class CXXConstructorDecl;
     class Decl;
     class RawComment;
+    class SourceManager;
 }
 
 namespace caide { namespace internal {
@@ -21,6 +22,8 @@ clang::SourceLocation getBeginLoc(const clang::Decl* decl);
 clang::SourceLocation getEndLoc(const clang::Decl* decl);
 clang::SourceLocation getBeginLoc(const clang::RawComment* comment);
 clang::SourceLocation getEndLoc(const clang::RawComment* comment);
+bool isWrittenInBuiltinFile(const clang::SourceManager& srcManager,
+    clang::SourceLocation location);
 
 }}
 

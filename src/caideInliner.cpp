@@ -132,7 +132,7 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
     std::string inlinedCode{inliner.doInline(concatStage)};
     removeInvalidDirectives(inlinedCode, inlinedStage);
 
-    internal::Optimizer optimizer{clangCompilationOptions, macrosToKeep};
+    internal::Optimizer optimizer{inliner.getResultingCommandLineOptions(), macrosToKeep, identifiersToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};
     removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, outputFilePath);
 }
@@ -161,6 +161,7 @@ extern "C" int caideInlineCppCode(
         inliner.clangCompilationOptions = arrayToCppVector(
             options->clangCompilationOptions, options->numClangOptions);
         inliner.macrosToKeep = arrayToCppVector(options->macrosToKeep, options->numMacrosToKeep);
+        inliner.identifiersToKeep = arrayToCppVector(options->identifiersToKeep, options->numIdentifiersToKeep);
         inliner.maxConsequentEmptyLines = options->maxConsequentEmptyLines;
         vector<string> files = arrayToCppVector(cppFilePaths, numCppFiles);
         inliner.inlineCode(files, outputFilePath);

@@ -67,6 +67,7 @@ static bool runTest(const string& testDirectory, const string& tempDirectory, ca
         inliner.clangCompilationOptions.push_back("-v");
 
     inliner.macrosToKeep = readNonEmptyLines(pathConcat(testDirectory, "macrosToKeep.txt"));
+    inliner.identifiersToKeep = readNonEmptyLines(pathConcat(testDirectory, "identifiersToKeep.txt"));
 
     const string outputFilePath = pathConcat(tempDirectory, "result.cpp");
 
@@ -103,15 +104,25 @@ static bool runTest(const string& testDirectory, const string& tempDirectory, ca
 
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cout << "Usage: test-tool <temp-directory> [<test-directory>...]\n";
+    if (argc < 3) {
+        std::cout << "Usage: test-tool <temp-directory> <compilation-options-file> [<test-directory>...]\n";
         return 1;
     }
 
     const string tempDirectory{argv[1]};
 
     caide::CppInliner inliner{tempDirectory};
-    inliner.autoDetectCompilationOptions();
+
+    if (string(argv[2]) == "--prepare") {
+        inliner.autoDetectCompilationOptions();
+        std::ofstream os(argv[3]);
+        for (const auto& option : inliner.clangCompilationOptions)
+            os << option << '\n';
+        return 0;
+    }
+
+    inliner.clangCompilationOptions = readNonEmptyLines(argv[2]);
+
     int numFailedTests = 0;
     for (int i = 2; i < argc; ++i) {
         try {

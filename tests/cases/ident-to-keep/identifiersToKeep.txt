@@ -1,0 +1,2 @@
+ns::C::C
+ns::C::method1

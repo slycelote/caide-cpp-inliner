@@ -1,0 +1,4 @@
+namespace mystd {
+    class map {
+    };
+}

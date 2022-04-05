@@ -8,7 +8,7 @@
 
 #include <vector>
 #include <string>
-#include <set>
+#include <unordered_set>
 
 namespace caide {
 namespace internal {
@@ -22,10 +22,17 @@ public:
     // 'in binary mode' (contains \r\n on Windows)
     std::string doInline(const std::string& cppFile);
 
+    // Return compilation options for the inlined file. Normally, they match
+    // compilation options for the inliner provided in the constructor. But if
+    // the original options contained an '-include FileName' option and FileName
+    // has been inlined, this option will be removed to avoid redefinition.
+    std::vector<std::string> getResultingCommandLineOptions() const;
+
 private:
     std::vector<std::string> cmdLineOptions;
-    std::set<std::string> includedHeaders;
+    std::unordered_set<std::string> includedHeaders;
     std::vector<std::string> inlineResults;
+    std::unordered_set<std::string> inlinedPathsFromCommandLine;
 };
 
 }

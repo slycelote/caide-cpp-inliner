@@ -30,6 +30,11 @@ then
     apt-get update
     ci_timer
 
+    if [ "$CAIDE_CLANG_VERSION" = "14" ]
+    then
+        add-apt-repository ppa:ubuntu-toolchain-r/test
+    fi
+
     apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     # Work around some packaging issues...
     case "$CAIDE_CLANG_VERSION" in

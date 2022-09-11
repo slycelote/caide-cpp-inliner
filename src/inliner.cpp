@@ -65,7 +65,11 @@ public:
                                     StringRef FileName,
                                     bool /*IsAngled*/,
                                     CharSourceRange FilenameRange,
+#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+                                    llvm::Optional<FileEntryRef> FileEntryRef,
+#else
                                     const FileEntry *File,
+#endif
                                     StringRef /*SearchPath*/,
                                     StringRef /*RelativePath*/,
                                     const Module* /*Imported*/
@@ -82,6 +86,9 @@ public:
         if (!isUserFile(HashLoc))
             return;
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+        const FileEntry* File = FileEntryRef.has_value() ? &FileEntryRef->getFileEntry() : nullptr;
+#endif
         if (!File) {
             //std::cerr << "Compilation error: " << FileName.str() << " not found\n";
             return;

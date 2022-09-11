@@ -393,7 +393,11 @@ void RemoveInactivePreprocessorBlocks::InclusionDirective(
     StringRef /*FileName*/,
     bool /*IsAngled*/,
     CharSourceRange FilenameRange,
+#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+    llvm::Optional<FileEntryRef> /*File*/,
+#else
     const FileEntry* /*File*/,
+#endif
     StringRef /*SearchPath*/,
     StringRef /*RelativePath*/,
     const Module* /*Imported*/

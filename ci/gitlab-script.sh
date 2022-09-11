@@ -34,12 +34,6 @@ then
         add-apt-repository ppa:ubuntu-toolchain-r/test
     fi
 
-    if [ "$CAIDE_CLANG_VERSION" -ge 15 ]; then
-        apt-get install -y g++-7 gcc-7
-        export CXX=g++-7
-        export CC=gcc-7
-    fi
-
     apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     # Work around some packaging issues...
     case "$CAIDE_CLANG_VERSION" in
@@ -47,6 +41,10 @@ then
             apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" libomp-"$CAIDE_CLANG_VERSION"-dev
             ls -lah /usr/lib/llvm-13/lib/
             ln -s /usr/lib/llvm-13/lib/libclang-13.0.0.so /usr/lib/llvm-13/lib/libclang-13.so.13.0.0 || true
+            ;;
+        15)
+            ls -lah /usr/lib/llvm-15/lib/
+            ln -s /usr/lib/llvm-15/lib/libclang-15.0.0.so /usr/lib/llvm-15/lib/libclang-15.so.1 || true
             ;;
     esac
     ci_timer
@@ -56,6 +54,12 @@ then
     # Debug
     llvm-config-"$CAIDE_CLANG_VERSION" --cxxflags --cflags --ldflags --has-rtti
 else
+    if [ "$CAIDE_CLANG_VERSION" -ge 15 ]; then
+        apt-get install -y g++-7 gcc-7
+        export CXX=g++-7
+        export CC=gcc-7
+    fi
+
     apt-get install -y git
     ci_timer
     git submodule sync

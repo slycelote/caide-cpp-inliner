@@ -30,9 +30,14 @@ then
     apt-get update
     ci_timer
 
-    if [ "$CAIDE_CLANG_VERSION" = "14" ]
-    then
+    if [ "$CAIDE_CLANG_VERSION" -ge 14 ]; then
         add-apt-repository ppa:ubuntu-toolchain-r/test
+    fi
+
+    if [ "$CAIDE_CLANG_VERSION" -ge 15 ]; then
+        apt-get install -y g++-7 gcc-7
+        export CXX=g++-7
+        export CC=gcc-7
     fi
 
     apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev

@@ -13,6 +13,8 @@ namespace clang {
     class Decl;
     class RawComment;
     class SourceManager;
+    class TemplateArgument;
+    class TemplateSpecializationType;
 }
 
 namespace caide { namespace internal {
@@ -24,6 +26,11 @@ clang::SourceLocation getBeginLoc(const clang::RawComment* comment);
 clang::SourceLocation getEndLoc(const clang::RawComment* comment);
 bool isWrittenInBuiltinFile(const clang::SourceManager& srcManager,
     clang::SourceLocation location);
+
+unsigned getNumArgs(const clang::TemplateSpecializationType& templateSpecType);
+const clang::TemplateArgument& getArg(
+        const clang::TemplateSpecializationType& templateSpecType,
+        unsigned i);
 
 }}
 

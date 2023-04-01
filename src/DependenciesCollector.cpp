@@ -133,8 +133,8 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
             insertReferenceToType(from, tempSpecType->getAliasedType());
         if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl())
             insertReference(from, tempDecl);
-        for (unsigned i = 0; i < tempSpecType->getNumArgs(); ++i) {
-            const TemplateArgument& arg = tempSpecType->getArg(i);
+        for (unsigned i = 0; i < getNumArgs(*tempSpecType); ++i) {
+            const TemplateArgument& arg = getArg(*tempSpecType, i);
             if (arg.getKind() == TemplateArgument::Type)
                 insertReferenceToType(from, arg.getAsType(), seen);
         }

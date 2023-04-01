@@ -72,7 +72,7 @@ endif()
 if(LLVM_PACKAGE_VERSION VERSION_LESS "5.0")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "15.255.255")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "16.255.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 

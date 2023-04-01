@@ -72,7 +72,9 @@ public:
                             llvm::StringRef FileName,
                             bool IsAngled,
                             clang::CharSourceRange FilenameRange,
-#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+                            clang::OptionalFileEntryRef File,
+#elif CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
                             llvm::Optional<clang::FileEntryRef> File,
 #else
                             const clang::FileEntry *File,

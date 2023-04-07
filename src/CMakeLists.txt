@@ -57,7 +57,7 @@ else()
         include("${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/clang/ClangConfig.cmake")
     else()
         # If the above doesn't work, we hardcode certain variables:
-        set(LLVM_PACKAGE_VERSION "15.0.0")
+        set(LLVM_PACKAGE_VERSION "16.0.0")
         set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
         set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
           "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include")

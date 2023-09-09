@@ -8,6 +8,11 @@ files and headers into a single self-contained source file without any
 external dependencies (except for standard system headers). Unused code is not
 included in the resulting file.
 
+This project is available at the following mirrors:
+
+* [GitLab](https://gitlab.com/slycelote/caide-cpp-inliner)
+* [GitHub](https://github.com/slycelote/caide-cpp-inliner)
+
 ## Demo
 
 The directory [doc/demo](./../../tree/master/doc/demo) contains a small sample

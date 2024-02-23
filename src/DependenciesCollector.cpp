@@ -272,6 +272,11 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
     return true;
 }
 
+bool DependenciesCollector::VisitConceptSpecializationExpr(ConceptSpecializationExpr *conceptExpr) {
+    insertReference(getCurrentDecl(), conceptExpr->getNamedConcept());
+    return true;
+}
+
 bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,9)
     CXXConstructorDecl* inheritedCtor = ctorDecl->getInheritedConstructor().getConstructor();

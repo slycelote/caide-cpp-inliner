@@ -53,6 +53,7 @@ public:
     bool VisitFriendDecl(clang::FriendDecl* friendDecl);
     bool VisitFieldDecl(clang::FieldDecl* fieldDecl);
     bool VisitStaticAssertDecl(clang::StaticAssertDecl* staticAssertDecl);
+    bool VisitConceptDecl(clang::ConceptDecl *D);
 
     // Apply changes that require some 'global' knowledge.
     // Called after traversal of the whole AST.

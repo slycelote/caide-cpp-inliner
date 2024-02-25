@@ -71,6 +71,7 @@ public:
     bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
+    bool VisitConceptSpecializationExpr(clang::ConceptSpecializationExpr *conceptExpr);
 
     void printGraph(std::ostream& out) const;
 

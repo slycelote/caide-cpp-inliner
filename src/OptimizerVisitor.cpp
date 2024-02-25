@@ -95,6 +95,16 @@ bool OptimizerVisitor::VisitStaticAssertDecl(clang::StaticAssertDecl* staticAsse
     return true;
 }
 
+bool OptimizerVisitor::VisitConceptDecl(clang::ConceptDecl *conceptDecl) {
+
+    if (sourceManager.isInMainFile(getBeginLoc(conceptDecl))
+        && usedDeclarations.count(conceptDecl->getCanonicalDecl()) == 0)
+    {
+        removeDecl(conceptDecl);
+    }
+    return true;
+}
+
 bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
     if (sourceManager.isInMainFile(getBeginLoc(enumDecl))
         && usedDeclarations.count(enumDecl->getCanonicalDecl()) == 0)

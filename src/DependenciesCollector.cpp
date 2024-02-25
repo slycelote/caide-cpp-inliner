@@ -272,10 +272,12 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
     return true;
 }
 
-bool DependenciesCollector::VisitConceptSpecializationExpr(ConceptSpecializationExpr *conceptExpr) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+bool DependenciesCollector::VisitConceptSpecializationExpr(ConceptSpecializationExpr* conceptExpr) {
     insertReference(getCurrentDecl(), conceptExpr->getNamedConcept());
     return true;
 }
+#endif
 
 bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,9)

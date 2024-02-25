@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "clang_version.h"
 #include "SourceLocationComparers.h"
 
 #include <clang/AST/RecursiveASTVisitor.h>
@@ -71,7 +72,9 @@ public:
     bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
-    bool VisitConceptSpecializationExpr(clang::ConceptSpecializationExpr *conceptExpr);
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool VisitConceptSpecializationExpr(clang::ConceptSpecializationExpr* conceptExpr);
+#endif
 
     void printGraph(std::ostream& out) const;
 

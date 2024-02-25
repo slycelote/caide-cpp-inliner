@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "clang_version.h"
+
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceLocation.h>
 
@@ -53,7 +55,9 @@ public:
     bool VisitFriendDecl(clang::FriendDecl* friendDecl);
     bool VisitFieldDecl(clang::FieldDecl* fieldDecl);
     bool VisitStaticAssertDecl(clang::StaticAssertDecl* staticAssertDecl);
-    bool VisitConceptDecl(clang::ConceptDecl *D);
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool VisitConceptDecl(clang::ConceptDecl* D);
+#endif
 
     // Apply changes that require some 'global' knowledge.
     // Called after traversal of the whole AST.

@@ -97,8 +97,10 @@ endfunction(add_compiler_option_if_supported)
 # Set the compiler flag explicitly.
 if(LLVM_PACKAGE_VERSION VERSION_LESS "10")
     add_compiler_option_if_supported("-std=c++11")
-else()
+elseif(LLVM_PACKAGE_VERSION VERSION_LESS "16")
     add_compiler_option_if_supported("-std=c++14")
+else()
+    add_compiler_option_if_supported("-std=c++17")
 endif()
 
 if(MSVC)

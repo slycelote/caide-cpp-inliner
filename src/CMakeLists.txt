@@ -76,6 +76,17 @@ if(LLVM_PACKAGE_VERSION VERSION_GREATER "18.255.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 
+option(CAIDE_LINK_LLVM_DYLIB
+       "Link against the LLVM dynamic library"
+       ${LLVM_LINK_LLVM_DYLIB})
+
+option(CAIDE_LINK_CLANG_DYLIB
+       "Link against the clang dynamic library"
+       ${CLANG_LINK_CLANG_DYLIB})
+
+message(STATUS "Link against the LLVM dynamic library: ${CAIDE_LINK_LLVM_DYLIB}")
+message(STATUS "Link against the Clang dynamic library: ${CAIDE_LINK_CLANG_DYLIB}")
+
 message(STATUS "LLVM_LIBRARY_DIRS=${LLVM_LIBRARY_DIRS}")
 message(STATUS "CLANG_LIBRARY_DIRS=${CLANG_LIBRARY_DIRS}")
 message(STATUS "LLVM_INCLUDE_DIRS=${LLVM_INCLUDE_DIRS}")
@@ -127,8 +138,26 @@ add_library(caideInliner STATIC
 
 target_include_directories(caideInliner SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(caideInliner PRIVATE ${CLANG_DEFINITIONS} ${LLVM_DEFINITIONS})
-target_link_libraries(caideInliner PRIVATE
-    clangAST clangBasic clangFrontend clangLex clangRewrite clangSema clangTooling)
+
+if(CAIDE_LINK_CLANG_DYLIB)
+    set(CAIDE_INLINER_CLANG_LIBS clang-cpp)
+else(CAIDE_LINK_CLANG_DYLIB)
+    set(CAIDE_INLINER_CLANG_LIBS clangAST
+                                 clangBasic
+                                 clangFrontend
+                                 clangLex
+                                 clangRewrite
+                                 clangSema
+                                 clangTooling)
+endif(CAIDE_LINK_CLANG_DYLIB)
+
+if(CAIDE_LINK_LLVM_DYLIB)
+    set(CAIDE_INLINER_LLVM_LIBS  LLVM)
+else(CAIDE_LINK_LLVM_DYLIB)
+    set(CAIDE_INLINER_LLVM_LIBS  )
+endif(CAIDE_LINK_LLVM_DYLIB)
+
+target_link_libraries(caideInliner PRIVATE ${CAIDE_INLINER_CLANG_LIBS} ${CAIDE_INLINER_LLVM_LIBS})
 
 add_subdirectory(cmd)
 

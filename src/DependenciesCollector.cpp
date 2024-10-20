@@ -141,6 +141,18 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     }
 }
 
+void DependenciesCollector::insertReference(clang::Decl* from,
+        llvm::ArrayRef<TemplateArgumentLoc> templateArguments) {
+    for (const TemplateArgumentLoc& argLoc : templateArguments) {
+        const auto kind = argLoc.getArgument().getKind();
+        dbg("Template argument kind: " << kind << std::endl);
+        if (kind == TemplateArgument::Type)
+            insertReferenceToType(from, argLoc.getTypeSourceInfo());
+        else if (kind == TemplateArgument::Declaration)
+            insertReference(from, argLoc.getArgument().getAsDecl());
+    }
+}
+
 void DependenciesCollector::insertReferenceToType(Decl* from, QualType to,
         set<const Type*>& seen)
 {
@@ -326,6 +338,7 @@ bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
     insertReference(currentDecl, ref->getQualifier());
+    insertReference(currentDecl, ref->template_arguments());
     return true;
 }
 
@@ -457,17 +470,13 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
         return true;
     }
 
-    FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo();
-    if (specInfo) {
+    if (const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten()) {
+        // Reference from explicit specialization to explicitly provided template arguments.
+        insertReference(f, templateArgs->arguments());
+    }
+
+    if (FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo()) {
         insertReference(f, specInfo->getTemplate()->getTemplatedDecl());
-        // Add references to template argument types as they are written in code, not the canonical types.
-        if (const ASTTemplateArgumentListInfo* templateArgs = specInfo->TemplateArgumentsAsWritten) {
-            for (unsigned i = 0; i < templateArgs->NumTemplateArgs; ++i) {
-                const TemplateArgumentLoc& argLoc = (*templateArgs)[i];
-                if (argLoc.getArgument().getKind() == TemplateArgument::Type)
-                    insertReferenceToType(f, argLoc.getTypeSourceInfo());
-            }
-        }
     }
 
     insertReferenceToType(f, f->getReturnType());

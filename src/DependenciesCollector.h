@@ -91,6 +91,7 @@ private:
     void insertReferenceToType(clang::Decl* from, clang::QualType to);
     void insertReferenceToType(clang::Decl* from, const clang::Type* to);
     void insertReferenceToType(clang::Decl* from, const clang::TypeSourceInfo* typeSourceInfo);
+    void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgumentLoc> templateArguments);
 
     void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 

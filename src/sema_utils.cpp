@@ -33,6 +33,7 @@ SuppressErrorsInScope::~SuppressErrorsInScope() {
 TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
     TypesInSignature ret;
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
     Expr* callee = callExpr->getCallee();
     Decl* calleeDecl = callExpr->getCalleeDecl();
 
@@ -47,8 +48,8 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
 
     auto* refExpr = dyn_cast<DeclRefExpr>(callee);
     if (!refExpr) {
-        if (auto* castExpr = dyn_cast<ImplicitCastExpr>(callee);
-            castExpr && castExpr->getCastKind() == CK_FunctionToPointerDecay) {
+        auto* castExpr = dyn_cast<ImplicitCastExpr>(callee);
+        if (castExpr && castExpr->getCastKind() == CK_FunctionToPointerDecay) {
             refExpr = dyn_cast<DeclRefExpr>(castExpr->getSubExpr());
         }
         if (!refExpr) {
@@ -70,7 +71,7 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
 
     llvm::ArrayRef<TemplateArgument> sugaredTemplateArgs;
 
-    llvm::SmallVector<TemplateArgument> fallbackBuffer;
+    llvm::SmallVector<TemplateArgument, 8> fallbackBuffer;
     auto useFallback = [&] {
         fallbackBuffer.reserve(templateParams->size());
         for (unsigned i = 0; i < numExplicitArguments; ++i) {
@@ -106,7 +107,12 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(17, 0)
                 /*AggregateDeductionCandidate=*/false,
 #endif
-                [](llvm::ArrayRef<QualType>){return false;}));
+#if CAIDE_CLANG_VERSION_AT_LEAST(18, 0)
+                // TODO: What are these?
+                /*ObjectType=*/QualType(),
+                /*ObjectClassification=*/Expr::Classification(),
+#endif
+                /*CheckNonDependent=*/[](llvm::ArrayRef<QualType>){return false;}));
         if (res == 0) {
             TemplateArgumentList* argList = deductionInfo.takeSugared();
             sugaredTemplateArgs = argList->asArray();
@@ -139,6 +145,7 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
         }
     }
 
+#endif
     return ret;
 }
 

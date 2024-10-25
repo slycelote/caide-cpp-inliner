@@ -2,6 +2,7 @@
 *~
 *.o
 *.pyc
+.gdb_history
 
 /build
 /tools/cfkeys.py
@@ -10,4 +11,6 @@
 !/tests/temp/keepme.txt
 
 tags
+cscope.out
+session.vim
 

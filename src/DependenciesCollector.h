@@ -20,6 +20,7 @@
 
 
 namespace clang {
+    class Sema;
     class SourceManager;
 }
 
@@ -33,6 +34,7 @@ struct SourceInfo;
 class DependenciesCollector: public clang::RecursiveASTVisitor<DependenciesCollector> {
 public:
     DependenciesCollector(clang::SourceManager& srcMgr,
+        clang::Sema& sema,
         const std::unordered_set<std::string>& identifiersToKeep,
         SourceInfo& srcInfo_);
 
@@ -91,11 +93,16 @@ private:
     void insertReferenceToType(clang::Decl* from, clang::QualType to);
     void insertReferenceToType(clang::Decl* from, const clang::Type* to);
     void insertReferenceToType(clang::Decl* from, const clang::TypeSourceInfo* typeSourceInfo);
+
+    void insertReference(clang::Decl* from, const clang::TemplateArgument& arg);
     void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgumentLoc> templateArguments);
+    void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgument> templateArguments);
 
     void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 
+
     clang::SourceManager& sourceManager;
+    clang::Sema& sema;
     const std::unordered_set<std::string>& identifiersToKeep;
     SourceInfo& srcInfo;
 

@@ -23,6 +23,7 @@
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
+#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Sema/Sema.h>
 #include <clang/Tooling/CompilationDatabase.h>
@@ -131,14 +132,14 @@ public:
 
         // 1. Build dependency graph for semantic declarations.
         {
-            DependenciesCollector depsVisitor(sourceManager, identifiersToKeep, srcInfo);
+            clang::Sema& sema = compiler.getSema();
+            DependenciesCollector depsVisitor(sourceManager, sema, identifiersToKeep, srcInfo);
             depsVisitor.TraverseDecl(Ctx.getTranslationUnitDecl());
 
             // Source range of delayed-parsed template functions includes only declaration part.
             //     Force their parsing to get correct source ranges.
             //     Suppress error messages temporarily (it's OK for these functions
             //     to be malformed).
-            clang::Sema& sema = compiler.getSema();
             DiagnosticsEngine& diag = sema.getDiagnostics();
             const bool suppressAll = diag.getSuppressAllDiagnostics();
             diag.setSuppressAllDiagnostics(true);
@@ -294,14 +295,22 @@ string Optimizer::doOptimize(const string& cppFile) {
     vector<string> sources;
     sources.push_back(cppFile);
 
+    clang::TextDiagnosticBuffer errors;
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
+    tool.setDiagnosticConsumer(&errors);
 
     string result;
     OptimizerFrontendActionFactory factory(result, macrosToKeep, identifiersToKeep);
 
     int ret = tool.run(&factory);
-    if (ret != 0)
-        throw std::runtime_error("Compilation error");
+    if (ret != 0) {
+        std::string message;
+        for (auto it = errors.err_begin(); it != errors.err_end(); ++it) {
+            message += it->second;
+            message.push_back('\n');
+        }
+        throw std::runtime_error(message.c_str());
+    }
 
     return result;
 }

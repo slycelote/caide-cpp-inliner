@@ -7,12 +7,12 @@
 #include "DependenciesCollector.h"
 #include "clang_compat.h"
 #include "clang_version.h"
+#include "sema_utils.h"
 #include "SourceInfo.h"
 #include "util.h"
 
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
-
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RawCommentList.h>
@@ -141,15 +141,26 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     }
 }
 
-void DependenciesCollector::insertReference(clang::Decl* from,
+void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& arg) {
+    const auto kind = arg.getKind();
+    dbg("Template argument kind: " << kind << std::endl);
+    if (kind == TemplateArgument::Type)
+        insertReferenceToType(from, arg.getAsType());
+    else if (kind == TemplateArgument::Declaration)
+        insertReference(from, arg.getAsDecl());
+}
+
+void DependenciesCollector::insertReference(Decl* from,
         llvm::ArrayRef<TemplateArgumentLoc> templateArguments) {
     for (const TemplateArgumentLoc& argLoc : templateArguments) {
-        const auto kind = argLoc.getArgument().getKind();
-        dbg("Template argument kind: " << kind << std::endl);
-        if (kind == TemplateArgument::Type)
-            insertReferenceToType(from, argLoc.getTypeSourceInfo());
-        else if (kind == TemplateArgument::Declaration)
-            insertReference(from, argLoc.getArgument().getAsDecl());
+        insertReference(from, argLoc.getArgument());
+    }
+}
+
+void DependenciesCollector::insertReference(Decl* from,
+        llvm::ArrayRef<TemplateArgument> templateArguments) {
+    for (const TemplateArgument& arg : templateArguments) {
+        insertReference(from, arg);
     }
 }
 
@@ -177,9 +188,11 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const TypeSourceIn
 }
 
 DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
+        Sema& sema_,
         const std::unordered_set<std::string>& identifiersToKeep_,
         SourceInfo& srcInfo_)
     : sourceManager(srcMgr)
+    , sema(sema_)
     , identifiersToKeep(identifiersToKeep_)
     , srcInfo(srcInfo_)
 {
@@ -275,6 +288,13 @@ bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
         return true;
 
     insertReference(getCurrentDecl(), calleeDecl);
+
+    TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
+    insertReference(getCurrentDecl(), types.templateArgs);
+    for (TypeSourceInfo* t : types.argTypes) {
+        insertReferenceToType(getCurrentDecl(), t);
+    }
+
     return true;
 }
 
@@ -470,13 +490,20 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
         return true;
     }
 
-    if (const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten()) {
+    if (const TemplateArgumentList* templateArgs = f->getTemplateSpecializationArgs()) {
+        // Reference from specialization to its template arguments.
+        insertReference(f, templateArgs->asArray());
+    }
+
+    const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten();
+    if (templateArgs) {
         // Reference from explicit specialization to explicitly provided template arguments.
         insertReference(f, templateArgs->arguments());
     }
 
     if (FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo()) {
-        insertReference(f, specInfo->getTemplate()->getTemplatedDecl());
+        FunctionTemplateDecl* ftemplate = specInfo->getTemplate();
+        insertReference(f, ftemplate->getTemplatedDecl());
     }
 
     insertReferenceToType(f, f->getReturnType());
@@ -555,8 +582,8 @@ bool DependenciesCollector::VisitEnumDecl(EnumDecl* enumDecl) {
 
 bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
     (void)stmt;
-    //dbg(stmt->getStmtClassName() << std::endl);
-    //stmt->dump();
+    // dbg(stmt->getStmtClassName() << std::endl);
+    // stmt->dump();
     return true;
 }
 

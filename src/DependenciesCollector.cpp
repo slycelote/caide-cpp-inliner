@@ -460,9 +460,14 @@ bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDe
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
     if (const ASTTemplateArgumentListInfo* templateArgs = specDecl->getTemplateArgsAsWritten()) {
         insertReference(specDecl, templateArgs->arguments());
     }
+#else
+    insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
+#endif
+
     insertReference(specDecl, specDecl->getTemplateInstantiationArgs());
 
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>

@@ -74,7 +74,10 @@ public:
 #endif
                                     StringRef /*SearchPath*/,
                                     StringRef /*RelativePath*/,
-                                    const Module* /*Imported*/
+                                    const Module* /*SuggestedModule*/
+#if CAIDE_CLANG_VERSION_AT_LEAST(19, 0)
+                                    , bool /*ModuleImported*/
+#endif
 #if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
                                     , SrcMgr::CharacteristicKind /*FileType*/
 #endif

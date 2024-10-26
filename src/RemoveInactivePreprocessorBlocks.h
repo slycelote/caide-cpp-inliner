@@ -81,7 +81,10 @@ public:
 #endif
                             llvm::StringRef SearchPath,
                             llvm::StringRef RelativePath,
-                            const clang::Module* Imported
+                            const clang::Module* /*SuggestedModule*/
+#if CAIDE_CLANG_VERSION_AT_LEAST(19, 0)
+                            , bool /*ModuleImported*/
+#endif
 #if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
                             , clang::SrcMgr::CharacteristicKind FileType
 #endif

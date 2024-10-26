@@ -22,6 +22,7 @@
 namespace clang {
     class Sema;
     class SourceManager;
+    class TemplateArgumentList;
 }
 
 
@@ -97,6 +98,7 @@ private:
     void insertReference(clang::Decl* from, const clang::TemplateArgument& arg);
     void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgumentLoc> templateArguments);
     void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgument> templateArguments);
+    void insertReference(clang::Decl* from, const clang::TemplateArgumentList& templateArgs);
 
     void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 

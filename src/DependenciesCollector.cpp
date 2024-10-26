@@ -164,6 +164,11 @@ void DependenciesCollector::insertReference(Decl* from,
     }
 }
 
+void DependenciesCollector::insertReference(Decl* from, const TemplateArgumentList& templateArgs) {
+    insertReference(from, templateArgs.asArray());
+}
+
+
 void DependenciesCollector::insertReferenceToType(Decl* from, QualType to,
         set<const Type*>& seen)
 {
@@ -336,7 +341,11 @@ bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* 
 
 bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* paramDecl) {
     if (paramDecl->hasDefaultArgument())
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
+        insertReference(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+#else
         insertReferenceToType(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+#endif
     return true;
 }
 
@@ -451,9 +460,10 @@ bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDe
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
-    // specDecl is canonical (e.g. all typedefs are removed).
-    // Add reference to the type that is actually written in the code.
-    insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
+    if (const ASTTemplateArgumentListInfo* templateArgs = specDecl->getTemplateArgsAsWritten()) {
+        insertReference(specDecl, templateArgs->arguments());
+    }
+    insertReference(specDecl, specDecl->getTemplateInstantiationArgs());
 
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
@@ -492,7 +502,7 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
 
     if (const TemplateArgumentList* templateArgs = f->getTemplateSpecializationArgs()) {
         // Reference from specialization to its template arguments.
-        insertReference(f, templateArgs->asArray());
+        insertReference(f, *templateArgs);
     }
 
     const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten();

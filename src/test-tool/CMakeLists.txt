@@ -30,6 +30,6 @@ if(LLVM_PACKAGE_VERSION VERSION_GREATER "9")
     add_test_directory(concept-constraints)
 endif()
 
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "15")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "16")
     add_test_directory(github-issue8)
 endif()

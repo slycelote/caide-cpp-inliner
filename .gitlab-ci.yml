@@ -4,7 +4,7 @@ Build and test:
   timeout: 3 hours
 
   cache:
-    key: "ccache-systemclang=$CAIDE_USE_SYSTEM_CLANG-clang=$CAIDE_CLANG_VERSION"
+    key: "ccache:os=debian-buster:systemclang=$CAIDE_USE_SYSTEM_CLANG:clang=$CAIDE_CLANG_VERSION"
     paths: [ 'ccache-cache' ]
 
   artifacts:
@@ -13,7 +13,7 @@ Build and test:
 
   parallel:
     matrix:
-      # - CAIDE_USE_SYSTEM_CLANG: 'OFF'
+      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        CAIDE_CLANG_VERSION: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 

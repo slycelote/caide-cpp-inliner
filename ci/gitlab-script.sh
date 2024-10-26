@@ -31,15 +31,6 @@ then
     apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     ci_timer
 
-    # Work around some packaging issues...
-    # case "$CAIDE_CLANG_VERSION" in
-    #     15)
-    #         ls -lah /usr/lib/llvm-15/lib/
-    #         ls -lah /usr/lib/x86_64-linux-gnu/
-    #         ln -s /usr/lib/x86_64-linux-gnu/libclang-15.so.15.0.0 /usr/lib/x86_64-linux-gnu/libclang-15.so.1 || true
-    #         ;;
-    # esac
-
     export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 

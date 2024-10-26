@@ -7,12 +7,12 @@
 #include "DependenciesCollector.h"
 #include "clang_compat.h"
 #include "clang_version.h"
+#include "sema_utils.h"
 #include "SourceInfo.h"
 #include "util.h"
 
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
-
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RawCommentList.h>
@@ -133,13 +133,41 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
             insertReferenceToType(from, tempSpecType->getAliasedType());
         if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl())
             insertReference(from, tempDecl);
-        for (unsigned i = 0; i < tempSpecType->getNumArgs(); ++i) {
-            const TemplateArgument& arg = tempSpecType->getArg(i);
+        for (unsigned i = 0; i < getNumArgs(*tempSpecType); ++i) {
+            const TemplateArgument& arg = getArg(*tempSpecType, i);
             if (arg.getKind() == TemplateArgument::Type)
                 insertReferenceToType(from, arg.getAsType(), seen);
         }
     }
 }
+
+void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& arg) {
+    const auto kind = arg.getKind();
+    dbg("Template argument kind: " << kind << std::endl);
+    if (kind == TemplateArgument::Type)
+        insertReferenceToType(from, arg.getAsType());
+    else if (kind == TemplateArgument::Declaration)
+        insertReference(from, arg.getAsDecl());
+}
+
+void DependenciesCollector::insertReference(Decl* from,
+        llvm::ArrayRef<TemplateArgumentLoc> templateArguments) {
+    for (const TemplateArgumentLoc& argLoc : templateArguments) {
+        insertReference(from, argLoc.getArgument());
+    }
+}
+
+void DependenciesCollector::insertReference(Decl* from,
+        llvm::ArrayRef<TemplateArgument> templateArguments) {
+    for (const TemplateArgument& arg : templateArguments) {
+        insertReference(from, arg);
+    }
+}
+
+void DependenciesCollector::insertReference(Decl* from, const TemplateArgumentList& templateArgs) {
+    insertReference(from, templateArgs.asArray());
+}
+
 
 void DependenciesCollector::insertReferenceToType(Decl* from, QualType to,
         set<const Type*>& seen)
@@ -165,9 +193,11 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const TypeSourceIn
 }
 
 DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
+        Sema& sema_,
         const std::unordered_set<std::string>& identifiersToKeep_,
         SourceInfo& srcInfo_)
     : sourceManager(srcMgr)
+    , sema(sema_)
     , identifiersToKeep(identifiersToKeep_)
     , srcInfo(srcInfo_)
 {
@@ -263,6 +293,13 @@ bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
         return true;
 
     insertReference(getCurrentDecl(), calleeDecl);
+
+    TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
+    insertReference(getCurrentDecl(), types.templateArgs);
+    for (TypeSourceInfo* t : types.argTypes) {
+        insertReferenceToType(getCurrentDecl(), t);
+    }
+
     return true;
 }
 
@@ -271,6 +308,13 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
     insertReference(getCurrentDecl(), constructorExpr->getConstructor());
     return true;
 }
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+bool DependenciesCollector::VisitConceptSpecializationExpr(ConceptSpecializationExpr* conceptExpr) {
+    insertReference(getCurrentDecl(), conceptExpr->getNamedConcept());
+    return true;
+}
+#endif
 
 bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,9)
@@ -297,7 +341,11 @@ bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* 
 
 bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* paramDecl) {
     if (paramDecl->hasDefaultArgument())
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
+        insertReference(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+#else
         insertReferenceToType(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+#endif
     return true;
 }
 
@@ -319,6 +367,7 @@ bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
     insertReference(currentDecl, ref->getQualifier());
+    insertReference(currentDecl, ref->template_arguments());
     return true;
 }
 
@@ -411,9 +460,15 @@ bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDe
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
-    // specDecl is canonical (e.g. all typedefs are removed).
-    // Add reference to the type that is actually written in the code.
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
+    if (const ASTTemplateArgumentListInfo* templateArgs = specDecl->getTemplateArgsAsWritten()) {
+        insertReference(specDecl, templateArgs->arguments());
+    }
+#else
     insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
+#endif
+
+    insertReference(specDecl, specDecl->getTemplateInstantiationArgs());
 
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
@@ -450,17 +505,20 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
         return true;
     }
 
-    FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo();
-    if (specInfo) {
-        insertReference(f, specInfo->getTemplate()->getTemplatedDecl());
-        // Add references to template argument types as they are written in code, not the canonical types.
-        if (const ASTTemplateArgumentListInfo* templateArgs = specInfo->TemplateArgumentsAsWritten) {
-            for (unsigned i = 0; i < templateArgs->NumTemplateArgs; ++i) {
-                const TemplateArgumentLoc& argLoc = (*templateArgs)[i];
-                if (argLoc.getArgument().getKind() == TemplateArgument::Type)
-                    insertReferenceToType(f, argLoc.getTypeSourceInfo());
-            }
-        }
+    if (const TemplateArgumentList* templateArgs = f->getTemplateSpecializationArgs()) {
+        // Reference from specialization to its template arguments.
+        insertReference(f, *templateArgs);
+    }
+
+    const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten();
+    if (templateArgs) {
+        // Reference from explicit specialization to explicitly provided template arguments.
+        insertReference(f, templateArgs->arguments());
+    }
+
+    if (FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo()) {
+        FunctionTemplateDecl* ftemplate = specInfo->getTemplate();
+        insertReference(f, ftemplate->getTemplatedDecl());
     }
 
     insertReferenceToType(f, f->getReturnType());
@@ -539,8 +597,8 @@ bool DependenciesCollector::VisitEnumDecl(EnumDecl* enumDecl) {
 
 bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
     (void)stmt;
-    //dbg(stmt->getStmtClassName() << std::endl);
-    //stmt->dump();
+    // dbg(stmt->getStmtClassName() << std::endl);
+    // stmt->dump();
     return true;
 }
 

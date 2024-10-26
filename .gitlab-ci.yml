@@ -1,7 +1,7 @@
 Build and test:
   image: 'ubuntu:bionic'
   script: ci/gitlab-script.sh
-  timeout: 2 hours
+  timeout: 3 hours
 
   cache:
     key: "ccache-systemclang=$CAIDE_USE_SYSTEM_CLANG-clang=$CAIDE_CLANG_VERSION"
@@ -15,5 +15,5 @@ Build and test:
     matrix:
       - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: ['5.0', '6.0', 7, 8, 9, 10, 11, 12, 13, 14]
+        CAIDE_CLANG_VERSION: ['5.0', '6.0', 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
 

@@ -8,6 +8,11 @@ files and headers into a single self-contained source file without any
 external dependencies (except for standard system headers). Unused code is not
 included in the resulting file.
 
+This project is available at the following mirrors:
+
+* [GitLab](https://gitlab.com/slycelote/caide-cpp-inliner)
+* [GitHub](https://github.com/slycelote/caide-cpp-inliner)
+
 ## Demo
 
 The directory [doc/demo](./../../tree/master/doc/demo) contains a small sample
@@ -85,23 +90,36 @@ and rerun the program. Observe how the output file changes accordingly.
 
 ## Build
 
-You will need [CMake](https://cmake.org) and a relatively new compiler. From
-an empty directory execute the following command: `cmake -G "Unix Makefiles"
--DCMAKE_BUILD_TYPE=Release /path/to/src`.  Replace "Unix Makefiles" with
-"Visual Studio 16 2019" or another
+clang library is a required dependency. You can either build it from scratch,
+or use a version installed in your system.
+
+* To build from scratch (recommended):
+
+        git submodule update --init --recursive
+        mkdir build
+        cd build
+        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ../src
+
+
+Replace the last argument with the full path to [src](./../../tree/master/src)
+directory. Replace "Unix Makefiles" with "Visual Studio 16 2019" or another
 [generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html)
-suitable for your platform. Replace the last argument with the full path to
-[src](./../../tree/master/src) directory. You can also use
-[cmake-gui](https://cmake.org/runningcmake/).
+suitable for your platform. Refer to [cmake
+documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html) for
+details.
 
 Once build files are generated, build as usual (run `make`, open the VS
 solution etc.)
 
-By default all necessary parts of libclang and LLVM will be built from
-scratch. This may take up to 30 minutes on a weak machine. If you have those
-libraries installed in the system (in Linux, search for packages clang-7,
-libclang-7-dev and llvm-7-dev or similar), you can use them instead by passing
-`-DCAIDE_USE_SYSTEM_CLANG=ON` option to cmake.
+* To use clang libraries from your system you need to first install them
+  (in Linux, search for packages clang-14, libclang-14-dev and llvm-14-dev
+  or similar).
+
+
+        mkdir build
+        cd build
+        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCAIDE_USE_SYSTEM_CLANG=ON ../src
+
 
 When the build is done, run `ctest` to execute the test suite.
 

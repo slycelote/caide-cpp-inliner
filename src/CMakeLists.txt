@@ -57,7 +57,7 @@ else()
         include("${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/clang/ClangConfig.cmake")
     else()
         # If the above doesn't work, we hardcode certain variables:
-        set(LLVM_PACKAGE_VERSION "14.0.0")
+        set(LLVM_PACKAGE_VERSION "19.1.2")
         set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
         set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
           "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include")
@@ -72,9 +72,20 @@ endif()
 if(LLVM_PACKAGE_VERSION VERSION_LESS "5.0")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "14.255.255")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER "19.255.255")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
+
+option(CAIDE_LINK_LLVM_DYLIB
+       "Link against the LLVM dynamic library"
+       ${LLVM_LINK_LLVM_DYLIB})
+
+option(CAIDE_LINK_CLANG_DYLIB
+       "Link against the clang dynamic library"
+       ${CLANG_LINK_CLANG_DYLIB})
+
+message(STATUS "Link against the LLVM dynamic library: ${CAIDE_LINK_LLVM_DYLIB}")
+message(STATUS "Link against the Clang dynamic library: ${CAIDE_LINK_CLANG_DYLIB}")
 
 message(STATUS "LLVM_LIBRARY_DIRS=${LLVM_LIBRARY_DIRS}")
 message(STATUS "CLANG_LIBRARY_DIRS=${CLANG_LIBRARY_DIRS}")
@@ -97,8 +108,10 @@ endfunction(add_compiler_option_if_supported)
 # Set the compiler flag explicitly.
 if(LLVM_PACKAGE_VERSION VERSION_LESS "10")
     add_compiler_option_if_supported("-std=c++11")
-else()
+elseif(LLVM_PACKAGE_VERSION VERSION_LESS "16")
     add_compiler_option_if_supported("-std=c++14")
+else()
+    add_compiler_option_if_supported("-std=c++17")
 endif()
 
 if(MSVC)
@@ -121,12 +134,30 @@ endif()
 add_library(caideInliner STATIC
     caideInliner.cpp clang_compat.cpp detect_options.cpp DependenciesCollector.cpp inliner.cpp
     MergeNamespacesVisitor.cpp optimizer.cpp OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp
-    SmartRewriter.cpp SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
+    sema_utils.cpp SmartRewriter.cpp SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
 
 target_include_directories(caideInliner SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(caideInliner PRIVATE ${CLANG_DEFINITIONS} ${LLVM_DEFINITIONS})
-target_link_libraries(caideInliner PRIVATE
-    clangAST clangBasic clangFrontend clangLex clangRewrite clangSema clangTooling)
+
+if(CAIDE_LINK_CLANG_DYLIB)
+    set(CAIDE_INLINER_CLANG_LIBS clang-cpp)
+else(CAIDE_LINK_CLANG_DYLIB)
+    set(CAIDE_INLINER_CLANG_LIBS clangAST
+                                 clangBasic
+                                 clangFrontend
+                                 clangLex
+                                 clangRewrite
+                                 clangSema
+                                 clangTooling)
+endif(CAIDE_LINK_CLANG_DYLIB)
+
+if(CAIDE_LINK_LLVM_DYLIB)
+    set(CAIDE_INLINER_LLVM_LIBS  LLVM)
+else(CAIDE_LINK_LLVM_DYLIB)
+    set(CAIDE_INLINER_LLVM_LIBS  )
+endif(CAIDE_LINK_LLVM_DYLIB)
+
+target_link_libraries(caideInliner PRIVATE ${CAIDE_INLINER_CLANG_LIBS} ${CAIDE_INLINER_LLVM_LIBS})
 
 add_subdirectory(cmd)
 

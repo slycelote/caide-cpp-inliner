@@ -65,10 +65,19 @@ public:
                                     StringRef FileName,
                                     bool /*IsAngled*/,
                                     CharSourceRange FilenameRange,
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+                                    clang::OptionalFileEntryRef FileEntryRef,
+#elif CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+                                    llvm::Optional<FileEntryRef> FileEntryRef,
+#else
                                     const FileEntry *File,
+#endif
                                     StringRef /*SearchPath*/,
                                     StringRef /*RelativePath*/,
-                                    const Module* /*Imported*/
+                                    const Module* /*SuggestedModule*/
+#if CAIDE_CLANG_VERSION_AT_LEAST(19, 0)
+                                    , bool /*ModuleImported*/
+#endif
 #if CAIDE_CLANG_VERSION_AT_LEAST(7, 0)
                                     , SrcMgr::CharacteristicKind /*FileType*/
 #endif
@@ -82,6 +91,9 @@ public:
         if (!isUserFile(HashLoc))
             return;
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+        const FileEntry* File = FileEntryRef.has_value() ? &FileEntryRef->getFileEntry() : nullptr;
+#endif
         if (!File) {
             //std::cerr << "Compilation error: " << FileName.str() << " not found\n";
             return;
@@ -272,22 +284,29 @@ private:
     }
 
     string getCanonicalPath(const FileEntry* entry) const {
+        StringRef result;
 #if CAIDE_CLANG_VERSION_AT_LEAST(3,9)
-        StringRef path = entry->tryGetRealPathName();
-        if (!path.empty())
-            return path.str();
+        result = entry->tryGetRealPathName();
 #endif
 
-        const DirectoryEntry* dirEntry = entry->getDir();
-        StringRef strRef = srcManager.getFileManager().getCanonicalName(dirEntry);
-        string res = strRef.str();
-        res.push_back('/');
-        string fname(entry->getName());
-        int i = (int)fname.size() - 1;
-        while (i >= 0 && fname[i] != '/' && fname[i] != '\\')
-            --i;
-        res += fname.substr(i+1);
-        return res;
+        if (result.empty()) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(17,0)
+            result = "(unknown path)";
+#else
+            const DirectoryEntry* dirEntry = entry->getDir();
+            StringRef strRef = srcManager.getFileManager().getCanonicalName(dirEntry);
+            string res = strRef.str();
+            res.push_back('/');
+            string fname(entry->getName());
+            int i = (int)fname.size() - 1;
+            while (i >= 0 && fname[i] != '/' && fname[i] != '\\')
+                --i;
+            res += fname.substr(i+1);
+            return res;
+#endif
+        }
+
+        return result.str();
     }
 
     bool markAsIncluded(const FileEntry& entry) {

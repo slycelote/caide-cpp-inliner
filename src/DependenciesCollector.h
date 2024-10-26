@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "clang_version.h"
 #include "SourceLocationComparers.h"
 
 #include <clang/AST/RecursiveASTVisitor.h>
@@ -19,7 +20,9 @@
 
 
 namespace clang {
+    class Sema;
     class SourceManager;
+    class TemplateArgumentList;
 }
 
 
@@ -32,6 +35,7 @@ struct SourceInfo;
 class DependenciesCollector: public clang::RecursiveASTVisitor<DependenciesCollector> {
 public:
     DependenciesCollector(clang::SourceManager& srcMgr,
+        clang::Sema& sema,
         const std::unordered_set<std::string>& identifiersToKeep,
         SourceInfo& srcInfo_);
 
@@ -71,6 +75,9 @@ public:
     bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool VisitConceptSpecializationExpr(clang::ConceptSpecializationExpr* conceptExpr);
+#endif
 
     void printGraph(std::ostream& out) const;
 
@@ -88,9 +95,16 @@ private:
     void insertReferenceToType(clang::Decl* from, const clang::Type* to);
     void insertReferenceToType(clang::Decl* from, const clang::TypeSourceInfo* typeSourceInfo);
 
+    void insertReference(clang::Decl* from, const clang::TemplateArgument& arg);
+    void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgumentLoc> templateArguments);
+    void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgument> templateArguments);
+    void insertReference(clang::Decl* from, const clang::TemplateArgumentList& templateArgs);
+
     void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 
+
     clang::SourceManager& sourceManager;
+    clang::Sema& sema;
     const std::unordered_set<std::string>& identifiersToKeep;
     SourceInfo& srcInfo;
 

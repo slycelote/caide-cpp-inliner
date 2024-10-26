@@ -69,10 +69,10 @@ else()
     message(STATUS "Using LLVM from submodule ${LLVM_PACKAGE_VERSION}")
 endif()
 
-if(LLVM_PACKAGE_VERSION VERSION_LESS "5.0")
+if(LLVM_PACKAGE_VERSION VERSION_LESS "9")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "19.255.255")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "20")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 

@@ -1,5 +1,5 @@
 Build and test:
-  image: 'ubuntu:bionic'
+  image: 'debian:buster'
   script: ci/gitlab-script.sh
   timeout: 3 hours
 
@@ -13,7 +13,7 @@ Build and test:
 
   parallel:
     matrix:
-      - CAIDE_USE_SYSTEM_CLANG: 'OFF'
+      # - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: ['5.0', '6.0', 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        CAIDE_CLANG_VERSION: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 

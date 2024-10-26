@@ -11,7 +11,7 @@ ci_timer
 apt-get update
 ci_timer
 
-apt-get install -y wget software-properties-common apt-transport-https ninja-build ccache g++-7 gcc-7
+apt-get install -y lsb-release wget software-properties-common gnupg ninja-build ccache g++-7 gcc-7
 export CXX=g++-7
 export CC=gcc-7
 ci_timer
@@ -24,27 +24,23 @@ ci_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]
 then
-    export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-    add-apt-repository "deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-$CAIDE_CLANG_VERSION  main"
-    apt-get update
+    wget https://apt.llvm.org/llvm.sh
+    chmod +x llvm.sh
+    ./llvm.sh $CAIDE_CLANG_VERSION
+    ci_timer
+    apt-get install -y clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     ci_timer
 
-    if [ "$CAIDE_CLANG_VERSION" -ge 14 ]; then
-        add-apt-repository ppa:ubuntu-toolchain-r/test
-    fi
-
-    apt-get install -y -t llvm-toolchain-bionic-"$CAIDE_CLANG_VERSION" clang-"$CAIDE_CLANG_VERSION" libclang-"$CAIDE_CLANG_VERSION"-dev llvm-"$CAIDE_CLANG_VERSION"-dev
     # Work around some packaging issues...
-    case "$CAIDE_CLANG_VERSION" in
-        15)
-            ls -lah /usr/lib/llvm-15/lib/
-            ls -lah /usr/lib/x86_64-linux-gnu/
-            ln -s /usr/lib/x86_64-linux-gnu/libclang-15.so.15.0.0 /usr/lib/x86_64-linux-gnu/libclang-15.so.1 || true
-            ;;
-    esac
-    ci_timer
+    # case "$CAIDE_CLANG_VERSION" in
+    #     15)
+    #         ls -lah /usr/lib/llvm-15/lib/
+    #         ls -lah /usr/lib/x86_64-linux-gnu/
+    #         ln -s /usr/lib/x86_64-linux-gnu/libclang-15.so.15.0.0 /usr/lib/x86_64-linux-gnu/libclang-15.so.1 || true
+    #         ;;
+    # esac
 
+    export Clang_ROOT=/usr/lib/llvm-$CAIDE_CLANG_VERSION
     export CMAKE_PREFIX_PATH=$Clang_ROOT
 
     # Debug

@@ -1,6 +1,6 @@
 caide C++ Inliner - merge all your C++ source files and headers
 into a single C++ file and remove unused code.
-Copyright (c) 2014-2022, slycelote<slycelot@yandex.ru>
+Copyright (c) 2014-2024, slycelote<slycelot@yandex.ru>
 
 
 This program is free software: you can redistribute it and/or modify

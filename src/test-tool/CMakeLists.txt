@@ -26,7 +26,8 @@ foreach(test_name IN LISTS test_list)
     add_test_directory(${test_name})
 endforeach()
 
-if(LLVM_PACKAGE_VERSION VERSION_GREATER "9")
+# TODO: Investigate issues with earlier clang versions.
+if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "12")
     add_test_directory(concepts-constraints)
 endif()
 

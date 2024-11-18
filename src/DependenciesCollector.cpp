@@ -168,7 +168,6 @@ void DependenciesCollector::insertReference(Decl* from, const TemplateArgumentLi
     insertReference(from, templateArgs.asArray());
 }
 
-
 void DependenciesCollector::insertReferenceToType(Decl* from, QualType to,
         set<const Type*>& seen)
 {
@@ -340,12 +339,17 @@ bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* 
 }
 
 bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* paramDecl) {
-    if (paramDecl->hasDefaultArgument())
+    // Reference from parent function/class template to its parameter, for transitivity.
+    insertReference(getParentDecl(paramDecl), paramDecl);
+
+    if (paramDecl->hasDefaultArgument()) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
-        insertReference(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+        insertReference(paramDecl, paramDecl->getDefaultArgument());
 #else
-        insertReferenceToType(getParentDecl(paramDecl), paramDecl->getDefaultArgument());
+        insertReferenceToType(paramDecl, paramDecl->getDefaultArgument());
 #endif
+    }
+
     return true;
 }
 
@@ -356,6 +360,7 @@ bool DependenciesCollector::VisitCXXNewExpr(CXXNewExpr* newExpr) {
 
 void DependenciesCollector::insertReference(Decl* from, NestedNameSpecifier* specifier) {
     while (specifier) {
+        // TODO: Type as written?
         insertReferenceToType(from, specifier->getAsType());
         specifier = specifier->getPrefix();
     }
@@ -597,7 +602,7 @@ bool DependenciesCollector::VisitEnumDecl(EnumDecl* enumDecl) {
 
 bool DependenciesCollector::VisitStmt(clang::Stmt* stmt) {
     (void)stmt;
-    // dbg(stmt->getStmtClassName() << std::endl);
+    dbg(stmt->getStmtClassName() << std::endl);
     // stmt->dump();
     return true;
 }

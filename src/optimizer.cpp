@@ -121,9 +121,6 @@ public:
     }
 
     virtual void HandleTranslationUnit(ASTContext& Ctx) override {
-#ifdef CAIDE_DEBUG_MODE
-        Ctx.getTranslationUnitDecl()->dump();
-#endif
         // 0. Collect auxiliary information.
         {
             BuildNonImplicitDeclMap visitor(srcInfo);

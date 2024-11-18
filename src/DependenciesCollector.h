@@ -49,6 +49,7 @@ public:
 
     bool VisitDecl(clang::Decl* decl);
     bool VisitNamedDecl(clang::NamedDecl* namedDecl);
+    bool VisitDeclaratorDecl(clang::DeclaratorDecl* declarator);
     bool VisitCallExpr(clang::CallExpr* callExpr);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr* constructorExpr);
     bool VisitCXXConstructorDecl(clang::CXXConstructorDecl* ctorDecl);

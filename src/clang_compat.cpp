@@ -70,20 +70,18 @@ bool isWrittenInBuiltinFile(const SourceManager& srcManager, SourceLocation loca
 }
 
 unsigned getNumArgs(const clang::TemplateSpecializationType& templateSpecType) {
-#if CAIDE_CLANG_VERSION_AT_LEAST(16,0)
+#if CAIDE_CLANG_VERSION_AT_LEAST(13,0)
     return templateSpecType.template_arguments().size();
 #else
     return templateSpecType.getNumArgs();
 #endif
 }
 
-const clang::TemplateArgument& getArg(
-        const clang::TemplateSpecializationType& templateSpecType,
-        unsigned i) {
-#if CAIDE_CLANG_VERSION_AT_LEAST(16,0)
-    return templateSpecType.template_arguments()[i];
+const clang::TemplateArgument* getArgs(const TemplateSpecializationType& templateSpecType) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(13,0)
+    return templateSpecType.template_arguments().data();
 #else
-    return templateSpecType.getArg(i);
+    return templateSpecType.getArgs();
 #endif
 }
 }}

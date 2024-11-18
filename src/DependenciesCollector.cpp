@@ -103,6 +103,7 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
         << std::endl);
 
     if (const ElaboratedType* elaboratedType = dyn_cast<ElaboratedType>(to)) {
+        insertReference(from, elaboratedType->getQualifier());
         insertReferenceToType(from, elaboratedType->getNamedType(), seen);
         return;
     }
@@ -130,14 +131,12 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
             dyn_cast<TemplateSpecializationType>(to))
     {
         if (tempSpecType->isTypeAlias())
-            insertReferenceToType(from, tempSpecType->getAliasedType());
+            insertReferenceToType(from, tempSpecType->getAliasedType(), seen);
         if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl())
             insertReference(from, tempDecl);
-        for (unsigned i = 0; i < getNumArgs(*tempSpecType); ++i) {
-            const TemplateArgument& arg = getArg(*tempSpecType, i);
-            if (arg.getKind() == TemplateArgument::Type)
-                insertReferenceToType(from, arg.getAsType(), seen);
-        }
+        llvm::ArrayRef<TemplateArgument> templateArgs{
+            getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
+        insertReference(from, templateArgs);
     }
 }
 
@@ -283,6 +282,11 @@ bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
     return true;
 }
 
+bool DependenciesCollector::VisitDeclaratorDecl(clang::DeclaratorDecl* declarator) {
+    insertReference(declarator, declarator->getQualifier());
+    return true;
+}
+
 bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
     dbg(CAIDE_FUNC);
     Expr* callee = callExpr->getCallee();
@@ -325,9 +329,9 @@ bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl
     for (auto it = ctorDecl->init_begin(); it != ctorDecl->init_end(); ++it) {
         CXXCtorInitializer* ctorInit = *it;
         if (ctorInit->isWritten())
-            insertReference(getCurrentDecl(), ctorInit->getMember());
-        insertReferenceToType(getCurrentDecl(), ctorInit->getBaseClass());
-        insertReferenceToType(getCurrentDecl(), ctorInit->getTypeSourceInfo());
+            insertReference(ctorDecl, ctorInit->getMember());
+        insertReferenceToType(ctorDecl, ctorInit->getBaseClass());
+        insertReferenceToType(ctorDecl, ctorInit->getTypeSourceInfo());
     }
 
     return true;

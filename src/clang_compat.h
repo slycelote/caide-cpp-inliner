@@ -28,9 +28,8 @@ bool isWrittenInBuiltinFile(const clang::SourceManager& srcManager,
     clang::SourceLocation location);
 
 unsigned getNumArgs(const clang::TemplateSpecializationType& templateSpecType);
-const clang::TemplateArgument& getArg(
-        const clang::TemplateSpecializationType& templateSpecType,
-        unsigned i);
+const clang::TemplateArgument* getArgs(
+        const clang::TemplateSpecializationType& templateSpecType);
 
 }}
 

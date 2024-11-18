@@ -27,7 +27,7 @@ foreach(test_name IN LISTS test_list)
 endforeach()
 
 if(LLVM_PACKAGE_VERSION VERSION_GREATER "9")
-    add_test_directory(concept-constraints)
+    add_test_directory(concepts-constraints)
 endif()
 
 if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "16")

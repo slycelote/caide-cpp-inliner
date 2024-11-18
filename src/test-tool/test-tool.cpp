@@ -51,6 +51,10 @@ static bool runTest(const string& testDirectory, const string& tempDirectory, ca
             cppFiles.push_back(filePath);
     }
 
+    if (cppFiles.empty()) {
+        throw std::runtime_error("No source files found in test directory");
+    }
+
     vector<string> additionalOptions = readNonEmptyLines(pathConcat(testDirectory, "clangOptions.txt"));
     for (string& opt : additionalOptions) {
         const static string TEST_ROOT_MARKER = "TEST_ROOT";
@@ -124,7 +128,7 @@ int main(int argc, char* argv[]) {
     inliner.clangCompilationOptions = readNonEmptyLines(argv[2]);
 
     int numFailedTests = 0;
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 3; i < argc; ++i) {
         try {
             if (!runTest(argv[i], tempDirectory, inliner)) {
                 ++numFailedTests;

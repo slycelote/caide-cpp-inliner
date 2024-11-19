@@ -78,7 +78,7 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
             fallbackBuffer.push_back(templateArgs[i].getArgument());
         }
         for (unsigned i = numExplicitArguments; i < templateParams->size(); ++i) {
-            // Unsugared.
+            // Falling back to unsugared arguments.
             fallbackBuffer.push_back(specInfo->TemplateArguments->get(i));
         }
 
@@ -147,6 +147,79 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
 
 #endif
     return ret;
+}
+
+std::vector<TemplateArgumentLoc> substituteTemplateArguments(
+        Sema& sema, TemplateDecl* templateDecl,
+        const TemplateArgument* args, unsigned numArgs) {
+    std::vector<TemplateArgumentLoc> res;
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+    MultiLevelTemplateArgumentList sugaredMLTAL;
+    // TODO: handle nested templates.
+    sugaredMLTAL.addOuterTemplateArguments(templateDecl,
+            llvm::ArrayRef<TemplateArgument>(args, numArgs),
+            true);
+    TemplateArgumentListInfo outputs;
+    TemplateParameterList* templateParams = templateDecl->getTemplateParameters();
+    if (!templateParams) {
+        return res;
+    }
+
+    llvm::SmallVector<TemplateArgumentLoc, 8> defaultTemplateArgs;
+
+    // Skip explicitly provided arguments.
+    for (unsigned i = numArgs; i < templateParams->size(); ++i) {
+        NamedDecl* param = templateParams->getParam(i);
+        TemplateArgumentLoc defaultArg;
+        bool foundDefaultArgument = false;
+        // See TemplateParameterList ctor in DeclTemplate.cpp for possible types.
+        if (const auto* NTTP = dyn_cast<NonTypeTemplateParmDecl>(param)) {
+            if (NTTP->hasDefaultArgument()) {
+                foundDefaultArgument = true;
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
+                defaultArg = NTTP->getDefaultArgument();
+#else
+                Expr* expr = NTTP->getDefaultArgument();
+                defaultArg = TemplateArgumentLoc(TemplateArgument(expr), expr);
+#endif
+            }
+        } else if (const auto* typeParam = dyn_cast<TemplateTypeParmDecl>(param)) {
+            if (typeParam->hasDefaultArgument()) {
+                foundDefaultArgument = true;
+#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
+                defaultArg = typeParam->getDefaultArgument();
+#else
+                QualType type = typeParam->getDefaultArgument();
+                TypeSourceInfo* TSI = typeParam->getDefaultArgumentInfo();
+                defaultArg = TemplateArgumentLoc(TemplateArgument(type), TSI);
+#endif
+            }
+        } else if (const auto* TTP = dyn_cast<TemplateTemplateParmDecl>(param)) {
+            if (TTP->hasDefaultArgument()) {
+                foundDefaultArgument = true;
+                defaultArg = TTP->getDefaultArgument();
+            }
+        }
+        if (foundDefaultArgument) {
+            defaultTemplateArgs.push_back(defaultArg);
+        }
+    }
+
+    if (!defaultTemplateArgs.empty()) {
+        TemplateArgumentListInfo substitutedDefaultArgs;
+        bool error = sema.SubstTemplateArguments(defaultTemplateArgs,
+                sugaredMLTAL, substitutedDefaultArgs);
+        if (error) {
+            dbg("sema.SubstTemplateArguments failed" << std::endl);
+        } else {
+            for (unsigned i = 0; i < substitutedDefaultArgs.size(); ++i)
+                res.push_back(substitutedDefaultArgs[i]);
+        }
+    }
+#endif
+
+    return res;
 }
 
 }}

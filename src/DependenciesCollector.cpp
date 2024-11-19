@@ -132,11 +132,15 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     {
         if (tempSpecType->isTypeAlias())
             insertReferenceToType(from, tempSpecType->getAliasedType(), seen);
-        if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl())
-            insertReference(from, tempDecl);
         llvm::ArrayRef<TemplateArgument> templateArgs{
             getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
         insertReference(from, templateArgs);
+        if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl()) {
+            insertReference(from, tempDecl);
+            std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteTemplateArguments(
+                    sema, tempDecl, templateArgs.data(), templateArgs.size());
+            insertReference(from, substitutedDefaultArgs);
+        }
     }
 }
 

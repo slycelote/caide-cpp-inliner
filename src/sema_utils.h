@@ -12,6 +12,8 @@ namespace clang {
     class CallExpr;
     class Sema;
     class TemplateArgument;
+    class TemplateArgumentLoc;
+    class TemplateDecl;
     class TypeSourceInfo;
 }
 
@@ -35,6 +37,10 @@ struct TypesInSignature {
 // For a function template call, return sugared types that are
 // instantiated as part of this call.
 TypesInSignature getSugaredTypesInSignature(clang::Sema&, clang::CallExpr*);
+
+std::vector<clang::TemplateArgumentLoc> substituteTemplateArguments(
+        clang::Sema&, clang::TemplateDecl*,
+        const clang::TemplateArgument* args, unsigned numArgs);
 
 }}
 

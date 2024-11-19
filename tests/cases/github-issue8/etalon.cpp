@@ -19,10 +19,25 @@ struct S3 {
 template <class T, class U = typename T::type>
 void f3(T&) { }
 
+template <typename T>
+struct S4 { using type = T; };
+
+template <class T, class U = typename T::type>
+class C4 {};
+
+template <typename T>
+struct S5 { using type = T; };
+
+template <class T, class U = typename T::type>
+using C5 = T;
+
 int main() {
     f1<S1>();
     f2<double>(S2{}, 0);
 
     S3<int> s3;
     f3(s3);
+
+    C4<S4<int>> c4;
+    C5<S5<int>> c5;
 }

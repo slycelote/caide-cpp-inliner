@@ -7,6 +7,7 @@
 #include "../caideInliner.hpp"
 
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -30,7 +31,15 @@ int main(int argc, const char* argv[]) {
 
     int i = 1;
     for (; i < argc && clangOptionsEnd != argv[i]; ++i) {
-        clangOptions.emplace_back(argv[i]);
+        if (argv[i][0] != '@') {
+            clangOptions.emplace_back(argv[i]);
+        } else {
+            ifstream in(&argv[i][1]);
+            string line;
+            while (getline(in, line)) {
+                clangOptions.emplace_back(line);
+            }
+        }
     }
 
     for (++i; i < argc; ++i) {

@@ -30,8 +30,8 @@ namespace caide {
 namespace internal {
 
 clang::SourceLocation findTokenAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx, clang::tok::TokenKind tokenType);
-clang::SourceLocation findSemiAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx);
-clang::SourceLocation findLocationAfterSemi(clang::SourceLocation loc, clang::ASTContext& Ctx);
+clang::SourceLocation findSemiAfterLocation(clang::SourceLocation loc, clang::ASTContext& Ctx, bool IsDecl);
+clang::SourceLocation findLocationAfterSemi(clang::SourceLocation loc, clang::ASTContext& Ctx, bool IsDecl);
 
 std::pair<const char*, const char*> getCharRange(clang::SourceRange range, const clang::SourceManager& SM, const clang::LangOptions& langOpts);
 

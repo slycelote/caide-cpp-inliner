@@ -391,7 +391,22 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
 
     SourceLocation start = getExpansionStart(sourceManager, decl);
     SourceLocation end = getExpansionEnd(sourceManager, decl);
-    SourceLocation semicolonAfterDefinition = findSemiAfterLocation(end, decl->getASTContext());
+
+    // HACK: End locations of some decls (FunctionDecl in particular) may be wrong.
+    // Since most decls are terminated by a semicolon, we use it as end location.
+    bool forwardToSemicolon = true;
+    if (isa<NamespaceDecl>(decl) || isa<EmptyDecl>(decl)) {
+        forwardToSemicolon = false;
+    } else if (auto* functionDecl = dyn_cast<FunctionDecl>(decl)) {
+        forwardToSemicolon = !functionDecl->isThisDeclarationADefinition();
+    } else if (auto* functionTemplateDecl = dyn_cast<FunctionTemplateDecl>(decl)) {
+        forwardToSemicolon = !functionTemplateDecl->isThisDeclarationADefinition();
+    }
+
+    SourceLocation semicolonAfterDefinition;
+    if (forwardToSemicolon) {
+        semicolonAfterDefinition = findSemiAfterLocation(end, decl->getASTContext(), true);
+    }
 
     dbg("REMOVE " << decl->getDeclKindName() << " "
         << decl << ": " << toString(sourceManager, start) << " " << toString(sourceManager, end)
@@ -424,7 +439,7 @@ void OptimizerVisitor::Finalize(ASTContext& ctx) {
 
         if (lastUsed == n) {
             // all variables are unused
-            SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx);
+            SourceLocation semiColon = findSemiAfterLocation(endOfLastVar, ctx, true);
             rewriter.removeRange(startOfType, semiColon);
         } else {
             for (size_t i = 0; i < lastUsed; ++i) if (!isUsed[i]) {

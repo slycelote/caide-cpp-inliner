@@ -31,7 +31,7 @@ namespace internal {
 /// If no token of this type is found or the location is inside a macro, the returned
 /// source location will be invalid.
 SourceLocation findTokenAfterLocation(SourceLocation loc, ASTContext& Ctx,
-        tok::TokenKind tokenType)
+        tok::TokenKind tokenType, bool IsDecl)
 {
     SourceManager &SM = Ctx.getSourceManager();
     if (loc.isMacroID()) {
@@ -56,22 +56,31 @@ SourceLocation findTokenAfterLocation(SourceLocation loc, ASTContext& Ctx,
             file.begin(), tokenBegin, file.end());
     Token tok;
     lexer.LexFromRawLexer(tok);
-    if (tok.isNot(tokenType))
-        return SourceLocation();
+    if (tok.isNot(tokenType)) {
+        if (!IsDecl)
+            return SourceLocation();
+        // Declaration may be followed with other tokens; such as an __attribute,
+        // before ending with a semicolon.
+        return findTokenAfterLocation(tok.getLocation(), Ctx, tokenType, /*IsDecl*/true);
+    }
 
     return tok.getLocation();
 }
 
-SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext& Ctx) {
-    return findTokenAfterLocation(loc, Ctx, tok::semi);
+SourceLocation findTokenAfterLocation(SourceLocation loc, ASTContext& Ctx, tok::TokenKind tokenType) {
+    return findTokenAfterLocation(loc, Ctx, tokenType, false);
+}
+
+SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext& Ctx, bool IsDecl) {
+    return findTokenAfterLocation(loc, Ctx, tok::semi, IsDecl);
 }
 
 /// \brief 'Loc' is the end of a statement range. This returns the location
 /// immediately after the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
-SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx) {
-    SourceLocation SemiLoc = findSemiAfterLocation(loc, Ctx);
+SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext& Ctx, bool IsDecl) {
+    SourceLocation SemiLoc = findSemiAfterLocation(loc, Ctx, IsDecl);
     if (SemiLoc.isInvalid())
         return SourceLocation();
     return SemiLoc.getLocWithOffset(1);

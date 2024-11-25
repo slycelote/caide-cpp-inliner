@@ -301,7 +301,7 @@ string Optimizer::doOptimize(const string& cppFile) {
 
     int ret = tool.run(&factory);
     if (ret != 0) {
-        std::string message;
+        std::string message = "Compilation failed with the following error(s): ";
         for (auto it = errors.err_begin(); it != errors.err_end(); ++it) {
             message += it->second;
             message.push_back('\n');

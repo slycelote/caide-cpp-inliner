@@ -31,6 +31,15 @@ struct S5 { using type = T; };
 template <class T, class U = typename T::type>
 using C5 = T;
 
+template <typename T>
+struct S6 { using type = void; };
+
+template <typename T, typename S>
+struct C6 {};
+
+template <typename T>
+struct C6<T, typename S6<T>::type> { };
+
 int main() {
     f1<S1>();
     f2<double>(S2{}, 0);
@@ -40,4 +49,5 @@ int main() {
 
     C4<S4<int>> c4;
     C5<S5<int>> c5;
+    C6<int, void> c6;
 }

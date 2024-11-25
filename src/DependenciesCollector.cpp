@@ -127,18 +127,18 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
     if (const TypedefType* typedefType = dyn_cast<TypedefType>(to))
         insertReference(from, typedefType->getDecl());
 
-    if (const TemplateSpecializationType* tempSpecType =
-            dyn_cast<TemplateSpecializationType>(to))
-    {
+    if (const auto* tempSpecType = dyn_cast<TemplateSpecializationType>(to)) {
         if (tempSpecType->isTypeAlias())
             insertReferenceToType(from, tempSpecType->getAliasedType(), seen);
-        llvm::ArrayRef<TemplateArgument> templateArgs{
+        // These will be arguments as written at the point from where the reference comes
+        // (e.g. a variable declaration).
+        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
             getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
-        insertReference(from, templateArgs);
+        insertReference(from, templateArgsAsWritten);
         if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl()) {
             insertReference(from, tempDecl);
-            std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteTemplateArguments(
-                    sema, tempDecl, templateArgs.data(), templateArgs.size());
+            std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
+                    sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
             insertReference(from, substitutedDefaultArgs);
         }
     }
@@ -146,7 +146,10 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
 
 void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& arg) {
     const auto kind = arg.getKind();
+#ifdef CAIDE_DEBUG_MODE
     dbg("Template argument kind: " << kind << std::endl);
+    arg.dump();
+#endif
     if (kind == TemplateArgument::Type)
         insertReferenceToType(from, arg.getAsType());
     else if (kind == TemplateArgument::Declaration)
@@ -481,15 +484,30 @@ bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSp
     insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
 #endif
 
-    insertReference(specDecl, specDecl->getTemplateInstantiationArgs());
+    const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
+    insertReference(specDecl, instantiatedWithArgs);
 
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-    if (instantiatedFrom.is<ClassTemplateDecl*>())
-        insertReference(specDecl, instantiatedFrom.get<ClassTemplateDecl*>());
-    else if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>())
-        insertReference(specDecl, instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>());
+    if (instantiatedFrom.is<ClassTemplateDecl*>()) {
+        auto* tempDecl = instantiatedFrom.get<ClassTemplateDecl*>();
+        insertReference(specDecl, tempDecl);
+    } else if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
+        // template<typename T>
+        // class X<Foo<T>, Bar<T>> {...}
+        // -> X<Foo<int>, Bar<int>>
+        //
+        // templateArgsAsWritten == [Foo<T>, Bar<T>]
+        // instantiatedWithArgs = [int]
+        //
+        // To obtain correct dependencies, substitute instantiatedWithArgs into templateArgsAsWritten.
+        auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
+        insertReference(specDecl, partial);
+        std::vector<TemplateArgumentLoc> sugaredPartialArgs = substituteTemplateArguments(
+            sema, partial, instantiatedWithArgs.data(), instantiatedWithArgs.size());
+        insertReference(specDecl, sugaredPartialArgs);
+    }
 
     return true;
 }

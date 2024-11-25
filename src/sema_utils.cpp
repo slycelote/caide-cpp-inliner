@@ -149,7 +149,7 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
     return ret;
 }
 
-std::vector<TemplateArgumentLoc> substituteTemplateArguments(
+std::vector<TemplateArgumentLoc> substituteDefaultTemplateArguments(
         Sema& sema, TemplateDecl* templateDecl,
         const TemplateArgument* args, unsigned numArgs) {
     std::vector<TemplateArgumentLoc> res;
@@ -160,7 +160,6 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
     sugaredMLTAL.addOuterTemplateArguments(templateDecl,
             llvm::ArrayRef<TemplateArgument>(args, numArgs),
             true);
-    TemplateArgumentListInfo outputs;
     TemplateParameterList* templateParams = templateDecl->getTemplateParameters();
     if (!templateParams) {
         return res;
@@ -216,6 +215,34 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
             for (unsigned i = 0; i < substitutedDefaultArgs.size(); ++i)
                 res.push_back(substitutedDefaultArgs[i]);
         }
+    }
+#endif
+
+    return res;
+}
+
+std::vector<TemplateArgumentLoc> substituteTemplateArguments(
+        Sema& sema, ClassTemplatePartialSpecializationDecl* templateDecl,
+        const TemplateArgument* args, unsigned numArgs) {
+    std::vector<TemplateArgumentLoc> res;
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+    MultiLevelTemplateArgumentList sugaredMLTAL;
+    sugaredMLTAL.addOuterTemplateArguments(templateDecl,
+            llvm::ArrayRef<TemplateArgument>(args, numArgs),
+            true);
+    TemplateArgumentListInfo substitutedTemplateArgs;
+    const ASTTemplateArgumentListInfo* templateArgsAsWritten = templateDecl->getTemplateArgsAsWritten();
+    if (!templateArgsAsWritten) {
+        return res;
+    }
+    bool error = sema.SubstTemplateArguments(templateArgsAsWritten->arguments(),
+            sugaredMLTAL, substitutedTemplateArgs);
+    if (error) {
+        dbg("sema.SubstTemplateArguments failed" << std::endl);
+    } else {
+        for (unsigned i = 0; i < substitutedTemplateArgs.size(); ++i)
+            res.push_back(substitutedTemplateArgs[i]);
     }
 #endif
 

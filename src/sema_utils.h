@@ -11,6 +11,7 @@
 namespace clang {
     class CallExpr;
     class Sema;
+    class ClassTemplatePartialSpecializationDecl;
     class TemplateArgument;
     class TemplateArgumentLoc;
     class TemplateDecl;
@@ -38,8 +39,12 @@ struct TypesInSignature {
 // instantiated as part of this call.
 TypesInSignature getSugaredTypesInSignature(clang::Sema&, clang::CallExpr*);
 
-std::vector<clang::TemplateArgumentLoc> substituteTemplateArguments(
+std::vector<clang::TemplateArgumentLoc> substituteDefaultTemplateArguments(
         clang::Sema&, clang::TemplateDecl*,
+        const clang::TemplateArgument* args, unsigned numArgs);
+
+std::vector<clang::TemplateArgumentLoc> substituteTemplateArguments(
+        clang::Sema&, clang::ClassTemplatePartialSpecializationDecl*,
         const clang::TemplateArgument* args, unsigned numArgs);
 
 }}

@@ -44,6 +44,9 @@ public:
     bool shouldWalkTypesOfTypeLocs() const;
 
     bool TraverseDecl(clang::Decl* decl);
+    bool TraverseTemplateSpecializationType(clang::TemplateSpecializationType*);
+    bool TraverseTemplateSpecializationTypeLoc(clang::TemplateSpecializationTypeLoc);
+    bool VisitType(clang::Type*);
 
     bool VisitStmt(clang::Stmt* stmt);
 

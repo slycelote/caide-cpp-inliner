@@ -36,6 +36,38 @@ bool DependenciesCollector::TraverseDecl(Decl* decl) {
     return ret;
 }
 
+bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
+    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
+    if (!proceed) {
+        return false;
+    }
+    if (tempSpecType->isTypeAlias()) {
+        // TODO: This type might have been traversed or not.
+        TraverseType(tempSpecType->getAliasedType());
+    }
+    return true;
+}
+
+bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
+    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
+    if (!proceed) {
+        return false;
+    }
+    const TemplateSpecializationType* tempSpecType = tempSpecTypeLoc.getTypePtr();
+    if (tempSpecType->isTypeAlias()) {
+        // TODO: This type might have been traversed or not.
+        TraverseType(tempSpecType->getAliasedType());
+    }
+    return true;
+}
+
+bool DependenciesCollector::VisitType(Type* T) {
+#ifdef CAIDE_DEBUG_MODE
+    dbg(CAIDE_FUNC);
+    T->dump();
+#endif
+    return RecursiveASTVisitor::VisitType(T);
+}
 
 Decl* DependenciesCollector::getCurrentDecl() const {
     return declStack.empty() ? nullptr : declStack.top();
@@ -128,6 +160,7 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
         insertReference(from, typedefType->getDecl());
 
     if (const auto* tempSpecType = dyn_cast<TemplateSpecializationType>(to)) {
+        TemplateName templateName = tempSpecType->getTemplateName();
         if (tempSpecType->isTypeAlias())
             insertReferenceToType(from, tempSpecType->getAliasedType(), seen);
         // These will be arguments as written at the point from where the reference comes
@@ -135,7 +168,8 @@ void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
         llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
             getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
         insertReference(from, templateArgsAsWritten);
-        if (TemplateDecl* tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl()) {
+        dbg("Template name kind: " << templateName.getKind() << std::endl);
+        if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
             insertReference(from, tempDecl);
             std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
                     sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
@@ -351,6 +385,7 @@ bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* 
 
 bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* paramDecl) {
     // Reference from parent function/class template to its parameter, for transitivity.
+    // TODO: This won't do the right thing for type aliases, as they're not a declaration context.
     insertReference(getParentDecl(paramDecl), paramDecl);
 
     if (paramDecl->hasDefaultArgument()) {
@@ -465,6 +500,8 @@ bool DependenciesCollector::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
 bool DependenciesCollector::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTemplateDecl) {
     dbg(CAIDE_FUNC);
     insertReference(aliasTemplateDecl, aliasTemplateDecl->getInstantiatedFromMemberTemplate());
+    // Dependency on the single (pattern) TypeAlias associated with this template.
+    insertReference(aliasTemplateDecl, aliasTemplateDecl->getTemplatedDecl());
     return true;
 }
 

@@ -36,19 +36,14 @@ bool DependenciesCollector::TraverseDecl(Decl* decl) {
     return ret;
 }
 
-bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
-    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
-    if (!proceed) {
-        return false;
+void DependenciesCollector::traverseTemplateArgumentsHelper(llvm::ArrayRef<TemplateArgumentLoc> args) {
+    for (const auto& arg : args) {
+        TraverseTemplateArgumentLoc(arg);
     }
-    if (tempSpecType->isTypeAlias()) {
-        // TODO: This type might have been traversed or not.
-        TraverseType(tempSpecType->getAliasedType());
-    }
-    return true;
 }
 
 bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
+    dbg(CAIDE_FUNC);
     bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
     if (!proceed) {
         return false;
@@ -58,15 +53,51 @@ bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecia
         // TODO: This type might have been traversed or not.
         TraverseType(tempSpecType->getAliasedType());
     }
+
+    TemplateName templateName = tempSpecType->getTemplateName();
+
+    dbg("Template name kind: " << templateName.getKind() << std::endl);
+    if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
+        // These will be arguments as written at the point from where the
+        // reference comes (e.g. a variable declaration).
+        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
+            getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
+        std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
+                sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
+        traverseTemplateArgumentsHelper(substitutedDefaultArgs);
+    }
+
     return true;
 }
 
-bool DependenciesCollector::VisitType(Type* T) {
-#ifdef CAIDE_DEBUG_MODE
+// We duplicate this for Type and TypeLoc, as not everything in clang traversal uses TypeLocs yet.
+bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
     dbg(CAIDE_FUNC);
-    T->dump();
-#endif
-    return RecursiveASTVisitor::VisitType(T);
+    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
+    if (!proceed) {
+        return false;
+    }
+    if (tempSpecType->isTypeAlias()) {
+        // TODO: This type might have been traversed or not.
+        TraverseType(tempSpecType->getAliasedType());
+    }
+
+    TemplateName templateName = tempSpecType->getTemplateName();
+
+    dbg("Template name kind: " << templateName.getKind() << std::endl);
+    if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
+        // These will be arguments as written at the point from where the
+        // reference comes (e.g. a variable declaration).
+        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
+            getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
+        std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
+                sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
+        for (const auto& arg : substitutedDefaultArgs) {
+            TraverseTemplateArgument(arg.getArgument());
+        }
+    }
+
+    return true;
 }
 
 Decl* DependenciesCollector::getCurrentDecl() const {
@@ -118,64 +149,25 @@ void DependenciesCollector::insertReference(Decl* from, Decl* to) {
         << std::endl);
 }
 
-void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to,
-        set<const Type*>& seen)
-{
-    if (!to)
-        return;
+bool DependenciesCollector::VisitType(Type* T) {
+#ifdef CAIDE_DEBUG_MODE
+    dbg("VisitType " << T->getTypeClassName()
+        << " " << QualType(T, 0).getAsString() << std::endl);
+    // T->dump();
+#endif
+    insertReference(getCurrentDecl(), T->getAsTagDecl());
+    return true;
+}
 
-    if (!seen.insert(to).second)
-        return;
+bool DependenciesCollector::VisitTypedefType(TypedefType* typedefType) {
+    insertReference(getCurrentDecl(), typedefType->getDecl());
+    return true;
+}
 
-    dbg("Reference   FROM    " << from->getDeclKindName() << " " << from
-        << "<" << toString(sourceManager, from).substr(0, 20) << ">"
-        << toString(sourceManager, from->getSourceRange())
-        << "     TO TYPE " << to->getTypeClassName() << " " << to
-        << " " << QualType(to, 0).getAsString()
-        << std::endl);
-
-    if (const ElaboratedType* elaboratedType = dyn_cast<ElaboratedType>(to)) {
-        insertReference(from, elaboratedType->getQualifier());
-        insertReferenceToType(from, elaboratedType->getNamedType(), seen);
-        return;
-    }
-
-    if (const ParenType* parenType = dyn_cast<ParenType>(to))
-        insertReferenceToType(from, parenType->getInnerType(), seen);
-
-    insertReference(from, to->getAsTagDecl());
-
-    if (const ArrayType* arrayType = dyn_cast<ArrayType>(to))
-        insertReferenceToType(from, arrayType->getElementType(), seen);
-
-    if (const PointerType* pointerType = dyn_cast<PointerType>(to))
-        insertReferenceToType(from, pointerType->getPointeeType(), seen);
-
-    if (const ReferenceType* refType = dyn_cast<ReferenceType>(to)) {
-        insertReferenceToType(from, refType->getPointeeTypeAsWritten(), seen);
-        insertReferenceToType(from, refType->getPointeeType(), seen);
-    }
-
-    if (const TypedefType* typedefType = dyn_cast<TypedefType>(to))
-        insertReference(from, typedefType->getDecl());
-
-    if (const auto* tempSpecType = dyn_cast<TemplateSpecializationType>(to)) {
-        TemplateName templateName = tempSpecType->getTemplateName();
-        if (tempSpecType->isTypeAlias())
-            insertReferenceToType(from, tempSpecType->getAliasedType(), seen);
-        // These will be arguments as written at the point from where the reference comes
-        // (e.g. a variable declaration).
-        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
-            getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
-        insertReference(from, templateArgsAsWritten);
-        dbg("Template name kind: " << templateName.getKind() << std::endl);
-        if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
-            insertReference(from, tempDecl);
-            std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
-                    sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
-            insertReference(from, substitutedDefaultArgs);
-        }
-    }
+bool DependenciesCollector::VisitTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
+    TemplateName templateName = tempSpecType->getTemplateName();
+    insertReference(getCurrentDecl(), templateName.getAsTemplateDecl());
+    return true;
 }
 
 void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& arg) {
@@ -183,10 +175,9 @@ void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& 
 #ifdef CAIDE_DEBUG_MODE
     dbg("Template argument kind: " << kind << std::endl);
     arg.dump();
+    dbg(std::endl);
 #endif
-    if (kind == TemplateArgument::Type)
-        insertReferenceToType(from, arg.getAsType());
-    else if (kind == TemplateArgument::Declaration)
+    if (kind == TemplateArgument::Declaration)
         insertReference(from, arg.getAsDecl());
 }
 
@@ -206,29 +197,6 @@ void DependenciesCollector::insertReference(Decl* from,
 
 void DependenciesCollector::insertReference(Decl* from, const TemplateArgumentList& templateArgs) {
     insertReference(from, templateArgs.asArray());
-}
-
-void DependenciesCollector::insertReferenceToType(Decl* from, QualType to,
-        set<const Type*>& seen)
-{
-    insertReferenceToType(from, to.getTypePtrOrNull(), seen);
-}
-
-void DependenciesCollector::insertReferenceToType(Decl* from, QualType to)
-{
-    set<const Type*> seen;
-    insertReferenceToType(from, to, seen);
-}
-
-void DependenciesCollector::insertReferenceToType(Decl* from, const Type* to)
-{
-    set<const Type*> seen;
-    insertReferenceToType(from, to, seen);
-}
-
-void DependenciesCollector::insertReferenceToType(Decl* from, const TypeSourceInfo* typeSourceInfo) {
-    if (typeSourceInfo)
-        insertReferenceToType(from, typeSourceInfo->getType());
 }
 
 DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
@@ -323,9 +291,14 @@ bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
     return true;
 }
 
-bool DependenciesCollector::VisitDeclaratorDecl(clang::DeclaratorDecl* declarator) {
-    insertReference(declarator, declarator->getQualifier());
-    return true;
+bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
+    // Sugared form of template arguments may depend on call site.
+    TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
+    for (const TemplateArgument& arg : types.templateArgs)
+        TraverseTemplateArgument(arg);
+    for (TypeSourceInfo* t : types.argTypes)
+        TraverseTypeLoc(t->getTypeLoc());
+    return RecursiveASTVisitor::TraverseCallExpr(callExpr);
 }
 
 bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
@@ -337,12 +310,6 @@ bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
         return true;
 
     insertReference(getCurrentDecl(), calleeDecl);
-
-    TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
-    insertReference(getCurrentDecl(), types.templateArgs);
-    for (TypeSourceInfo* t : types.argTypes) {
-        insertReferenceToType(getCurrentDecl(), t);
-    }
 
     return true;
 }
@@ -371,15 +338,8 @@ bool DependenciesCollector::VisitCXXConstructorDecl(CXXConstructorDecl* ctorDecl
         CXXCtorInitializer* ctorInit = *it;
         if (ctorInit->isWritten())
             insertReference(ctorDecl, ctorInit->getMember());
-        insertReferenceToType(ctorDecl, ctorInit->getBaseClass());
-        insertReferenceToType(ctorDecl, ctorInit->getTypeSourceInfo());
     }
 
-    return true;
-}
-
-bool DependenciesCollector::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr* tempExpr) {
-    insertReferenceToType(getCurrentDecl(), tempExpr->getTypeSourceInfo());
     return true;
 }
 
@@ -391,25 +351,10 @@ bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* para
     if (paramDecl->hasDefaultArgument()) {
 #if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
         insertReference(paramDecl, paramDecl->getDefaultArgument());
-#else
-        insertReferenceToType(paramDecl, paramDecl->getDefaultArgument());
 #endif
     }
 
     return true;
-}
-
-bool DependenciesCollector::VisitCXXNewExpr(CXXNewExpr* newExpr) {
-    insertReferenceToType(getCurrentDecl(), newExpr->getAllocatedType());
-    return true;
-}
-
-void DependenciesCollector::insertReference(Decl* from, NestedNameSpecifier* specifier) {
-    while (specifier) {
-        // TODO: Type as written?
-        insertReferenceToType(from, specifier->getAsType());
-        specifier = specifier->getPrefix();
-    }
 }
 
 bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
@@ -417,18 +362,7 @@ bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     Decl* currentDecl = getCurrentDecl();
     insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
-    insertReference(currentDecl, ref->getQualifier());
     insertReference(currentDecl, ref->template_arguments());
-    return true;
-}
-
-bool DependenciesCollector::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr* initExpr) {
-    insertReferenceToType(getCurrentDecl(), initExpr->getTypeSourceInfo());
-    return true;
-}
-
-bool DependenciesCollector::VisitExplicitCastExpr(ExplicitCastExpr* castExpr) {
-    insertReferenceToType(getCurrentDecl(), castExpr->getTypeAsWritten());
     return true;
 }
 
@@ -437,8 +371,6 @@ bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
     // Mark any function as depending on its local variables.
     // TODO: detect unused local variables.
     insertReference(getCurrentFunction(valueDecl), valueDecl);
-
-    insertReferenceToType(valueDecl, valueDecl->getType());
     return true;
 }
 
@@ -448,7 +380,6 @@ bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
     Decl* currentDecl = getCurrentDecl();
     // getFoundDecl() returns either MemberDecl itself or UsingShadowDecl corresponding to a UsingDecl
     insertReference(currentDecl, memberExpr->getFoundDecl().getDecl());
-    insertReference(currentDecl, memberExpr->getQualifier());
     return true;
 }
 
@@ -466,12 +397,6 @@ bool DependenciesCollector::VisitUsingShadowDecl(UsingShadowDecl* usingShadowDec
     return true;
 }
 
-// using ns::identifier, using BaseType::identifier
-bool DependenciesCollector::VisitUsingDecl(UsingDecl* usingDecl) {
-    insertReference(usingDecl, usingDecl->getQualifier());
-    return true;
-}
-
 bool DependenciesCollector::VisitLambdaExpr(LambdaExpr* lambdaExpr) {
     dbg(CAIDE_FUNC);
     insertReference(getCurrentDecl(), lambdaExpr->getCallOperator());
@@ -481,13 +406,6 @@ bool DependenciesCollector::VisitLambdaExpr(LambdaExpr* lambdaExpr) {
 bool DependenciesCollector::VisitFieldDecl(FieldDecl* field) {
     dbg(CAIDE_FUNC);
     insertReference(field, field->getParent());
-    return true;
-}
-
-// Includes both typedef and type alias
-bool DependenciesCollector::VisitTypedefNameDecl(TypedefNameDecl* typedefDecl) {
-    dbg(CAIDE_FUNC);
-    insertReferenceToType(typedefDecl, typedefDecl->getUnderlyingType());
     return true;
 }
 
@@ -511,14 +429,36 @@ bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDe
     return true;
 }
 
+bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
+    dbg(CAIDE_FUNC);
+    llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
+        instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
+
+    if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
+        // template<typename T>
+        // class X<Foo<T>, Bar<T>> {...}
+        // -> X<Foo<int>, Bar<int>>
+        //
+        // templateArgsAsWritten == [Foo<T>, Bar<T>]
+        // instantiatedWithArgs = [int]
+        //
+        // To obtain correct dependencies, substitute instantiatedWithArgs into templateArgsAsWritten.
+        auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
+        const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
+        std::vector<TemplateArgumentLoc> sugaredPartialArgs = substituteTemplateArguments(
+            sema, partial, instantiatedWithArgs.data(), instantiatedWithArgs.size());
+        traverseTemplateArgumentsHelper(sugaredPartialArgs);
+    }
+
+    return RecursiveASTVisitor::TraverseClassTemplateSpecializationDecl(specDecl);
+}
+
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
 #if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
     if (const ASTTemplateArgumentListInfo* templateArgs = specDecl->getTemplateArgsAsWritten()) {
         insertReference(specDecl, templateArgs->arguments());
     }
-#else
-    insertReferenceToType(specDecl, specDecl->getTypeAsWritten());
 #endif
 
     const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
@@ -531,19 +471,8 @@ bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSp
         auto* tempDecl = instantiatedFrom.get<ClassTemplateDecl*>();
         insertReference(specDecl, tempDecl);
     } else if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
-        // template<typename T>
-        // class X<Foo<T>, Bar<T>> {...}
-        // -> X<Foo<int>, Bar<int>>
-        //
-        // templateArgsAsWritten == [Foo<T>, Bar<T>]
-        // instantiatedWithArgs = [int]
-        //
-        // To obtain correct dependencies, substitute instantiatedWithArgs into templateArgsAsWritten.
         auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
         insertReference(specDecl, partial);
-        std::vector<TemplateArgumentLoc> sugaredPartialArgs = substituteTemplateArguments(
-            sema, partial, instantiatedWithArgs.data(), instantiatedWithArgs.size());
-        insertReference(specDecl, sugaredPartialArgs);
     }
 
     return true;
@@ -589,8 +518,6 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
         insertReference(f, ftemplate->getTemplatedDecl());
     }
 
-    insertReferenceToType(f, f->getReturnType());
-
     insertReference(f, f->getInstantiatedFromMemberFunction());
 
     if (f->doesThisDeclarationHaveABody() &&
@@ -630,22 +557,6 @@ bool DependenciesCollector::VisitCXXRecordDecl(CXXRecordDecl* recordDecl) {
     // No implicit calls to destructors in AST; assume that
     // if a class is used, its destructor is used too.
     insertReference(recordDecl, recordDecl->getDestructor());
-
-    if (recordDecl->isThisDeclarationADefinition()) {
-        for (const CXXBaseSpecifier* base = recordDecl->bases_begin();
-             base != recordDecl->bases_end(); ++base)
-        {
-            insertReferenceToType(recordDecl, base->getType());
-        }
-    }
-    return true;
-}
-
-// sizeof, alignof
-bool DependenciesCollector::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr* expr) {
-    if (expr->isArgumentType())
-        insertReferenceToType(getCurrentDecl(), expr->getArgumentType());
-    // if the argument is a variable it will be processed as DeclRefExpr
     return true;
 }
 
@@ -658,8 +569,6 @@ bool DependenciesCollector::VisitEnumDecl(EnumDecl* enumDecl) {
         insertReference(*it, enumDecl);
     }
 
-    // reference to underlying type
-    insertReferenceToType(enumDecl, enumDecl->getIntegerType());
     return true;
 }
 

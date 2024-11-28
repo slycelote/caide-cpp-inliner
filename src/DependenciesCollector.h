@@ -43,40 +43,38 @@ public:
     bool shouldVisitTemplateInstantiations() const;
     bool shouldWalkTypesOfTypeLocs() const;
 
-    bool TraverseDecl(clang::Decl* decl);
+    bool TraverseDecl(clang::Decl*);
     bool TraverseTemplateSpecializationType(clang::TemplateSpecializationType*);
     bool TraverseTemplateSpecializationTypeLoc(clang::TemplateSpecializationTypeLoc);
+
+    bool TraverseCallExpr(clang::CallExpr*);
+
     bool VisitType(clang::Type*);
+    bool VisitTypedefType(clang::TypedefType*);
+    bool VisitTemplateSpecializationType(clang::TemplateSpecializationType*);
 
     bool VisitStmt(clang::Stmt* stmt);
 
     bool VisitDecl(clang::Decl* decl);
     bool VisitNamedDecl(clang::NamedDecl* namedDecl);
-    bool VisitDeclaratorDecl(clang::DeclaratorDecl* declarator);
     bool VisitCallExpr(clang::CallExpr* callExpr);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr* constructorExpr);
     bool VisitCXXConstructorDecl(clang::CXXConstructorDecl* ctorDecl);
-    bool VisitCXXTemporaryObjectExpr(clang::CXXTemporaryObjectExpr* tempExpr);
     bool VisitTemplateTypeParmDecl(clang::TemplateTypeParmDecl* paramDecl);
-    bool VisitCXXNewExpr(clang::CXXNewExpr* newExpr);
     bool VisitDeclRefExpr(clang::DeclRefExpr* ref);
-    bool VisitCXXScalarValueInitExpr(clang::CXXScalarValueInitExpr* initExpr);
-    bool VisitExplicitCastExpr(clang::ExplicitCastExpr* castExpr);
     bool VisitValueDecl(clang::ValueDecl* valueDecl);
     bool VisitMemberExpr(clang::MemberExpr* memberExpr);
     bool VisitLambdaExpr(clang::LambdaExpr* lambdaExpr);
     bool VisitFieldDecl(clang::FieldDecl* field);
-    bool VisitTypedefNameDecl(clang::TypedefNameDecl* typedefDecl);
     bool VisitTypeAliasDecl(clang::TypeAliasDecl* aliasDecl);
     bool VisitTypeAliasTemplateDecl(clang::TypeAliasTemplateDecl* aliasTemplateDecl);
     bool VisitClassTemplateDecl(clang::ClassTemplateDecl* templateDecl);
     bool VisitClassTemplateSpecializationDecl(clang::ClassTemplateSpecializationDecl* specDecl);
+    bool TraverseClassTemplateSpecializationDecl(clang::ClassTemplateSpecializationDecl*);
     bool VisitFunctionDecl(clang::FunctionDecl* f);
     bool VisitFunctionTemplateDecl(clang::FunctionTemplateDecl* functionTemplate);
     bool VisitCXXMethodDecl(clang::CXXMethodDecl* method);
     bool VisitCXXRecordDecl(clang::CXXRecordDecl* recordDecl);
-    bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr* expr);
-    bool VisitUsingDecl(clang::UsingDecl* usingDecl);
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
@@ -92,19 +90,15 @@ private:
 
     clang::Decl* getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) const;
 
+    // Should be in RecursiveASTVisitor.
+    void traverseTemplateArgumentsHelper(llvm::ArrayRef<clang::TemplateArgumentLoc> args);
+
     void insertReference(clang::Decl* from, clang::Decl* to);
-    void insertReferenceToType(clang::Decl* from, const clang::Type* to, std::set<const clang::Type*>& seen);
-    void insertReferenceToType(clang::Decl* from, clang::QualType to, std::set<const clang::Type*>& seen);
-    void insertReferenceToType(clang::Decl* from, clang::QualType to);
-    void insertReferenceToType(clang::Decl* from, const clang::Type* to);
-    void insertReferenceToType(clang::Decl* from, const clang::TypeSourceInfo* typeSourceInfo);
 
     void insertReference(clang::Decl* from, const clang::TemplateArgument& arg);
     void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgumentLoc> templateArguments);
     void insertReference(clang::Decl* from, llvm::ArrayRef<clang::TemplateArgument> templateArguments);
     void insertReference(clang::Decl* from, const clang::TemplateArgumentList& templateArgs);
-
-    void insertReference(clang::Decl* from, clang::NestedNameSpecifier* to);
 
 
     clang::SourceManager& sourceManager;

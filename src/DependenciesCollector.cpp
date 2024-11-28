@@ -170,35 +170,6 @@ bool DependenciesCollector::VisitTemplateSpecializationType(TemplateSpecializati
     return true;
 }
 
-void DependenciesCollector::insertReference(Decl* from, const TemplateArgument& arg) {
-    const auto kind = arg.getKind();
-#ifdef CAIDE_DEBUG_MODE
-    dbg("Template argument kind: " << kind << std::endl);
-    arg.dump();
-    dbg(std::endl);
-#endif
-    if (kind == TemplateArgument::Declaration)
-        insertReference(from, arg.getAsDecl());
-}
-
-void DependenciesCollector::insertReference(Decl* from,
-        llvm::ArrayRef<TemplateArgumentLoc> templateArguments) {
-    for (const TemplateArgumentLoc& argLoc : templateArguments) {
-        insertReference(from, argLoc.getArgument());
-    }
-}
-
-void DependenciesCollector::insertReference(Decl* from,
-        llvm::ArrayRef<TemplateArgument> templateArguments) {
-    for (const TemplateArgument& arg : templateArguments) {
-        insertReference(from, arg);
-    }
-}
-
-void DependenciesCollector::insertReference(Decl* from, const TemplateArgumentList& templateArgs) {
-    insertReference(from, templateArgs.asArray());
-}
-
 DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
         Sema& sema_,
         const std::unordered_set<std::string>& identifiersToKeep_,
@@ -348,12 +319,6 @@ bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* para
     // TODO: This won't do the right thing for type aliases, as they're not a declaration context.
     insertReference(getParentDecl(paramDecl), paramDecl);
 
-    if (paramDecl->hasDefaultArgument()) {
-#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
-        insertReference(paramDecl, paramDecl->getDefaultArgument());
-#endif
-    }
-
     return true;
 }
 
@@ -362,7 +327,6 @@ bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
     Decl* currentDecl = getCurrentDecl();
     insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
-    insertReference(currentDecl, ref->template_arguments());
     return true;
 }
 
@@ -455,15 +419,6 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
-#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
-    if (const ASTTemplateArgumentListInfo* templateArgs = specDecl->getTemplateArgsAsWritten()) {
-        insertReference(specDecl, templateArgs->arguments());
-    }
-#endif
-
-    const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
-    insertReference(specDecl, instantiatedWithArgs);
-
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
@@ -500,17 +455,6 @@ bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
     if (f->getTemplatedKind() == FunctionDecl::TK_FunctionTemplate) {
         // skip non-instantiated template function
         return true;
-    }
-
-    if (const TemplateArgumentList* templateArgs = f->getTemplateSpecializationArgs()) {
-        // Reference from specialization to its template arguments.
-        insertReference(f, *templateArgs);
-    }
-
-    const ASTTemplateArgumentListInfo* templateArgs = f->getTemplateSpecializationArgsAsWritten();
-    if (templateArgs) {
-        // Reference from explicit specialization to explicitly provided template arguments.
-        insertReference(f, templateArgs->arguments());
     }
 
     if (FunctionTemplateSpecializationInfo* specInfo = f->getTemplateSpecializationInfo()) {

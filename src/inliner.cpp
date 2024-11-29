@@ -8,6 +8,7 @@
 #include "clang_compat.h"
 #include "clang_version.h"
 #include "util.h"
+#include "Timer.h"
 
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
@@ -378,6 +379,7 @@ Inliner::Inliner(const vector<string>& cmdLineOptions_)
 {}
 
 string Inliner::doInline(const string& cppFile) {
+    ScopedTimer t("Inliner::doInline");
     std::unique_ptr<clang::tooling::FixedCompilationDatabase> compilationDatabase(
         createCompilationDatabaseFromCommandLine(cmdLineOptions));
 
@@ -389,6 +391,7 @@ string Inliner::doInline(const string& cppFile) {
 
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
 
+    ScopedTimer t2("Inliner::tool.run");
     int ret = tool.run(&factory);
 
     if (ret != 0)

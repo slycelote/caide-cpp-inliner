@@ -135,7 +135,7 @@ endif()
 add_library(caideInliner STATIC
     caideInliner.cpp clang_compat.cpp detect_options.cpp DependenciesCollector.cpp inliner.cpp
     MergeNamespacesVisitor.cpp optimizer.cpp OptimizerVisitor.cpp RemoveInactivePreprocessorBlocks.cpp
-    sema_utils.cpp SmartRewriter.cpp SourceInfo.cpp SourceLocationComparers.cpp util.cpp)
+    sema_utils.cpp SmartRewriter.cpp SourceInfo.cpp SourceLocationComparers.cpp util.cpp Timer.cpp)
 
 target_include_directories(caideInliner SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(caideInliner PRIVATE ${CLANG_DEFINITIONS} ${LLVM_DEFINITIONS})

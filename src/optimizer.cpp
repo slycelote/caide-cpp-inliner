@@ -12,6 +12,7 @@
 #include "SmartRewriter.h"
 #include "SourceInfo.h"
 #include "util.h"
+#include "Timer.h"
 
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
@@ -86,22 +87,26 @@ class BuildNonImplicitDeclMap: public clang::RecursiveASTVisitor<BuildNonImplici
 public:
     BuildNonImplicitDeclMap(SourceInfo& srcInfo_)
         : srcInfo(srcInfo_)
+        , t("BuildNonImplicitDeclMap::VisitDecl")
     {
+        t.pause();
     }
 
     bool shouldVisitImplicitCode() const { return false; }
     bool shouldVisitTemplateInstantiations() const { return false; }
     bool shouldWalkTypesOfTypeLocs() const { return false; }
 
-
     bool VisitDecl(clang::Decl* decl) {
+        t.resume();
         auto key = SourceInfo::makeKey(decl);
         srcInfo.nonImplicitDecls.emplace(std::move(key), decl);
+        t.pause();
         return true;
     }
 
 private:
     SourceInfo& srcInfo;
+    ScopedTimer t;
 };
 
 class OptimizerConsumer: public ASTConsumer {
@@ -123,12 +128,14 @@ public:
     virtual void HandleTranslationUnit(ASTContext& Ctx) override {
         // 0. Collect auxiliary information.
         {
+            ScopedTimer t("BuildNonImplicitDeclMap");
             BuildNonImplicitDeclMap visitor(srcInfo);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
         }
 
         // 1. Build dependency graph for semantic declarations.
         {
+            ScopedTimer t("DependenciesCollector");
             clang::Sema& sema = compiler.getSema();
             DependenciesCollector depsVisitor(sourceManager, sema, identifiersToKeep, srcInfo);
             depsVisitor.TraverseDecl(Ctx.getTranslationUnitDecl());
@@ -155,6 +162,7 @@ public:
         // 2. Find semantic declarations that are reachable from main function in the graph.
         std::unordered_set<Decl*> used;
         {
+            ScopedTimer t("BFS");
             set<Decl*> queue;
             for (Decl* decl : srcInfo.declsToKeep)
                 queue.insert(decl->getCanonicalDecl());
@@ -170,11 +178,13 @@ public:
         // 3. Remove unnecessary lexical declarations.
         std::unordered_set<Decl*> removedDecls;
         {
+            ScopedTimer t("OptimizerVisitor");
             OptimizerVisitor visitor(sourceManager, used, removedDecls, *smartRewriter);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
             visitor.Finalize(Ctx);
         }
         {
+            ScopedTimer t("MergeNamespacesVisitor");
             MergeNamespacesVisitor visitor(sourceManager, removedDecls, *smartRewriter);
             visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
         }
@@ -185,6 +195,7 @@ public:
         // Callbacks have been called implicitly before this method, so we only need to call
         // Finalize() method that will actually use the information collected by callbacks
         // to remove unused preprocessor code
+        ScopedTimer t("Finalize+Rewrite");
         ppCallbacks.Finalize();
 
         smartRewriter->applyChanges();
@@ -286,6 +297,7 @@ Optimizer::Optimizer(const vector<string>& cmdLineOptions_,
 {}
 
 string Optimizer::doOptimize(const string& cppFile) {
+    ScopedTimer t("Optimizer::doOptimize");
     std::unique_ptr<tooling::FixedCompilationDatabase> compilationDatabase(
         createCompilationDatabaseFromCommandLine(cmdLineOptions));
 
@@ -299,9 +311,10 @@ string Optimizer::doOptimize(const string& cppFile) {
     string result;
     OptimizerFrontendActionFactory factory(result, macrosToKeep, identifiersToKeep);
 
+    ScopedTimer t2("Optimizer::tool.run");
     int ret = tool.run(&factory);
     if (ret != 0) {
-        std::string message = "Compilation failed with the following error(s): ";
+        string message = "Compilation failed with the following error(s): ";
         for (auto it = errors.err_begin(); it != errors.err_end(); ++it) {
             message += it->second;
             message.push_back('\n');

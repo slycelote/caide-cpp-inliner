@@ -24,7 +24,6 @@
 
 
 using namespace clang;
-using std::set;
 
 namespace caide {
 namespace internal {
@@ -169,6 +168,13 @@ bool DependenciesCollector::VisitTemplateSpecializationType(TemplateSpecializati
     insertReference(getCurrentDecl(), templateName.getAsTemplateDecl());
     return true;
 }
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+bool DependenciesCollector::VisitAutoType(AutoType* autoType) {
+    insertReference(getCurrentDecl(), autoType->getTypeConstraintConcept());
+    return true;
+}
+#endif
 
 DependenciesCollector::DependenciesCollector(SourceManager& srcMgr,
         Sema& sema_,

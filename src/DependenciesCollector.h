@@ -52,6 +52,9 @@ public:
     bool VisitType(clang::Type*);
     bool VisitTypedefType(clang::TypedefType*);
     bool VisitTemplateSpecializationType(clang::TemplateSpecializationType*);
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool VisitAutoType(clang::AutoType*);
+#endif
 
     bool VisitStmt(clang::Stmt* stmt);
 

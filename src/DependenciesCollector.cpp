@@ -344,6 +344,12 @@ bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
     return true;
 }
 
+bool DependenciesCollector::VisitVarDecl(VarDecl* varDecl) {
+    dbg(CAIDE_FUNC);
+    insertReference(varDecl, varDecl->getDescribedVarTemplate());
+    return true;
+}
+
 // X->F and X.F
 bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
     dbg(CAIDE_FUNC);
@@ -433,6 +439,22 @@ bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSp
         insertReference(specDecl, tempDecl);
     } else if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
         auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
+        insertReference(specDecl, partial);
+    }
+
+    return true;
+}
+
+bool DependenciesCollector::VisitVarTemplateSpecializationDecl(clang::VarTemplateSpecializationDecl* specDecl) {
+    dbg(CAIDE_FUNC);
+    llvm::PointerUnion<VarTemplateDecl*, VarTemplatePartialSpecializationDecl*>
+        instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
+
+    if (instantiatedFrom.is<VarTemplateDecl*>()) {
+        auto* tempDecl = instantiatedFrom.get<VarTemplateDecl*>();
+        insertReference(specDecl, tempDecl);
+    } else if (instantiatedFrom.is<VarTemplatePartialSpecializationDecl*>()) {
+        auto* partial = instantiatedFrom.get<VarTemplatePartialSpecializationDecl*>();
         insertReference(specDecl, partial);
     }
 

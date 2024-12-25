@@ -66,6 +66,7 @@ public:
     bool VisitTemplateTypeParmDecl(clang::TemplateTypeParmDecl* paramDecl);
     bool VisitDeclRefExpr(clang::DeclRefExpr* ref);
     bool VisitValueDecl(clang::ValueDecl* valueDecl);
+    bool VisitVarDecl(clang::VarDecl*);
     bool VisitMemberExpr(clang::MemberExpr* memberExpr);
     bool VisitLambdaExpr(clang::LambdaExpr* lambdaExpr);
     bool VisitFieldDecl(clang::FieldDecl* field);
@@ -73,6 +74,7 @@ public:
     bool VisitTypeAliasTemplateDecl(clang::TypeAliasTemplateDecl* aliasTemplateDecl);
     bool VisitClassTemplateDecl(clang::ClassTemplateDecl* templateDecl);
     bool VisitClassTemplateSpecializationDecl(clang::ClassTemplateSpecializationDecl* specDecl);
+    bool VisitVarTemplateSpecializationDecl(clang::VarTemplateSpecializationDecl* specDecl);
     bool TraverseClassTemplateSpecializationDecl(clang::ClassTemplateSpecializationDecl*);
     bool VisitFunctionDecl(clang::FunctionDecl* f);
     bool VisitFunctionTemplateDecl(clang::FunctionTemplateDecl* functionTemplate);

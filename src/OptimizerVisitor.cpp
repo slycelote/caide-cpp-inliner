@@ -117,6 +117,15 @@ bool OptimizerVisitor::VisitEnumDecl(clang::EnumDecl* enumDecl) {
     return true;
 }
 
+bool OptimizerVisitor::VisitVarTemplateDecl(VarTemplateDecl* varTemplateDecl) {
+    if (sourceManager.isInMainFile(getBeginLoc(varTemplateDecl))
+        && usedDeclarations.count(varTemplateDecl->getCanonicalDecl()) == 0)
+    {
+        removeDecl(varTemplateDecl);
+    }
+    return true;
+}
+
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
     if (sourceManager.isInMainFile(getBeginLoc(nsDecl))
         && usedDeclarations.count(nsDecl->getCanonicalDecl()) == 0)
@@ -347,40 +356,52 @@ bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
 // We remove them separately in Finalize() method.
 bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
     SourceLocation start = getExpansionStart(sourceManager, varDecl);
-    if (!varDecl->isLocalVarDeclOrParm() && sourceManager.isInMainFile(start)) {
-        variables[start].push_back(varDecl);
-        /*
-        Technically, we cannot remove global static variables because
-        their initializers may have side effects.
-        The following code marks too many expressions as having side effects
-        (e.g. it will mark an std::vector constructor as such):
+    if (!sourceManager.isInMainFile(start))
+        return true;
 
-        VarDecl* definition = varDecl->getDefinition();
-        Expr* initExpr = definition ? definition->getInit() : nullptr;
-        if (initExpr && initExpr->HasSideEffects(varDecl->getASTContext()))
-            srcInfo.declsToKeep.insert(varDecl);
+    if (varDecl->getTemplateInstantiationPattern() != nullptr) {
+        // This is template variable description; it's processed as VarTemplateDecl.
+        return true;
+    }
 
-        The analysis of which functions *really* have side effects seems too
-        complicated. So currently we simply remove unreferenced global static
-        variables unless they are marked with a '/// caide keep' comment.
-        */
-        if (usedDeclarations.count(varDecl) == 0) {
-            // Mark this variable as removed, but the actual code deletion is done in
-            // removeVariables() method.
-            removed.insert(varDecl);
-        }
+    if (varDecl->isLocalVarDeclOrParm()) {
+        // We only remove local variables together with the entire function.
+        return true;
+    }
+
+    variables[start].push_back(varDecl);
+    /*
+    Technically, we cannot remove global static variables because
+    their initializers may have side effects.
+    The following code marks too many expressions as having side effects
+    (e.g. it will mark an std::vector constructor as such):
+
+    VarDecl* definition = varDecl->getDefinition();
+    Expr* initExpr = definition ? definition->getInit() : nullptr;
+    if (initExpr && initExpr->HasSideEffects(varDecl->getASTContext()))
+        srcInfo.declsToKeep.insert(varDecl);
+
+    The analysis of which functions *really* have side effects seems too
+    complicated. So currently we simply remove unreferenced global static
+    variables unless they are marked with a '/// caide keep' comment.
+    */
+    if (usedDeclarations.count(varDecl) == 0) {
+        // Mark this variable as removed, but the actual code deletion is done in
+        // removeVariables() method.
+        removed.insert(varDecl);
     }
     return true;
 }
 
 bool OptimizerVisitor::VisitFieldDecl(clang::FieldDecl* fieldDecl) {
     SourceLocation start = getExpansionStart(sourceManager, fieldDecl);
-    if (sourceManager.isInMainFile(start)) {
-        // Comments from VisitVarDecl apply to fields too.
-        variables[start].push_back(fieldDecl);
-        if (usedDeclarations.count(fieldDecl) == 0)
-            removed.insert(fieldDecl);
-    }
+    if (!sourceManager.isInMainFile(start))
+        return true;
+
+    // Note: comments from VisitVarDecl apply to fields too.
+    variables[start].push_back(fieldDecl);
+    if (usedDeclarations.count(fieldDecl) == 0)
+        removed.insert(fieldDecl);
     return true;
 }
 

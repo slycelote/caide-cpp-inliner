@@ -92,7 +92,10 @@ void ScopedTimer::resume() {
 
 namespace caide { namespace internal {
 
-ScopedTimer::ScopedTimer(const std::string&) { }
+ScopedTimer::ScopedTimer(const std::string&) {
+    (void)start;
+    (void)duration;
+}
 ScopedTimer::~ScopedTimer() = default;
 void ScopedTimer::pause() { }
 void ScopedTimer::resume() { }

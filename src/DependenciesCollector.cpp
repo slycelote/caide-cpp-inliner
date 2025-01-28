@@ -43,20 +43,28 @@ void DependenciesCollector::traverseTemplateArgumentsHelper(llvm::ArrayRef<Templ
 
 bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
     dbg(CAIDE_FUNC);
-    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
-    if (!proceed) {
-        return false;
-    }
+    RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
+
     const TemplateSpecializationType* tempSpecType = tempSpecTypeLoc.getTypePtr();
+    // Template specialized by this type.
+    TemplateDecl* tempDecl = nullptr;
+
     if (tempSpecType->isTypeAlias()) {
         // TODO: This type might have been traversed or not.
+        // TODO: TraverseTypeLoc?
         TraverseType(tempSpecType->getAliasedType());
+
+        // This will be TypeAliasTemplateDecl.
+        tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl();
+    } else if (auto* specDecl = dyn_cast_or_null<ClassTemplateSpecializationDecl>(tempSpecType->getAsTagDecl())) {
+        llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
+            instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
+
+        // The other case is handled in TraverseClassTemplateSpecializationDecl.
+        tempDecl = instantiatedFrom.dyn_cast<ClassTemplateDecl*>();
     }
 
-    TemplateName templateName = tempSpecType->getTemplateName();
-
-    dbg("Template name kind: " << templateName.getKind() << std::endl);
-    if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
+    if (tempDecl) {
         // These will be arguments as written at the point from where the
         // reference comes (e.g. a variable declaration).
         llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
@@ -72,19 +80,26 @@ bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecia
 // We duplicate this for Type and TypeLoc, as not everything in clang traversal uses TypeLocs yet.
 bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
     dbg(CAIDE_FUNC);
-    bool proceed = RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
-    if (!proceed) {
-        return false;
-    }
+    RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
+
+    // Template specialized by this type.
+    TemplateDecl* tempDecl = nullptr;
+
     if (tempSpecType->isTypeAlias()) {
         // TODO: This type might have been traversed or not.
         TraverseType(tempSpecType->getAliasedType());
+
+        // This will be TypeAliasTemplateDecl.
+        tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl();
+    } else if (auto* specDecl = dyn_cast_or_null<ClassTemplateSpecializationDecl>(tempSpecType->getAsTagDecl())) {
+        llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
+            instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
+
+        // The other case is handled in TraverseClassTemplateSpecializationDecl.
+        tempDecl = instantiatedFrom.dyn_cast<ClassTemplateDecl*>();
     }
 
-    TemplateName templateName = tempSpecType->getTemplateName();
-
-    dbg("Template name kind: " << templateName.getKind() << std::endl);
-    if (TemplateDecl* tempDecl = templateName.getAsTemplateDecl()) {
+    if (tempDecl) {
         // These will be arguments as written at the point from where the
         // reference comes (e.g. a variable declaration).
         llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
@@ -410,6 +425,7 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
+    // The other case is handled in TraverseTemplateSpecializationTypeLoc
     if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
         // template<typename T>
         // class X<Foo<T>, Bar<T>> {...}

@@ -40,6 +40,48 @@ struct C6 {};
 template <typename T>
 struct C6<T, typename S6<T>::type> { };
 
+template <typename... Ts>
+class C7 {
+    template <int N, bool = (N < sizeof...(Ts))>
+    using X1 = int;
+
+    template <typename T>
+    using X2 = X1<sizeof(T)>;
+};
+
+template <typename... Ts>
+class C7<C7<Ts...>> {
+    template <int N, bool = (N < sizeof...(Ts))>
+    using X1 = int;
+
+    template <typename T>
+    using X2 = X1<sizeof(T)>;
+};
+
+template <>
+class C7<int, int> {
+    template <typename... Ts>
+    class C {
+        template <int N, bool = (N < sizeof...(Ts))>
+        using X1 = int;
+
+        template <typename T>
+        using X2 = X1<sizeof(T)>;
+    };
+
+    template <typename... Ts>
+    void f() {
+        using X1 = int;
+        using X2 = X1;
+    };
+};
+
+template <>
+void C7<int, int>::f<int>() {
+    using X1 = int;
+    using X2 = X1;
+}
+
 int main() {
     f1<S1>();
     f2<double>(S2{}, 0);

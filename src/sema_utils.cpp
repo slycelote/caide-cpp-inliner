@@ -30,6 +30,31 @@ SuppressErrorsInScope::~SuppressErrorsInScope() {
     sema.getDiagnostics().setSuppressAllDiagnostics(origSuppressAllDiagnostics);
 }
 
+namespace {
+
+// Calculates number of template levels inside which decl is wrapped.
+// If decl itself is a template, it is not counted.
+unsigned getNumTemplateLevels(const Decl* decl) {
+    unsigned res = 0;
+    for (const DeclContext* ctx = decl->getDeclContext(); ctx; ctx = ctx->getParent()) {
+        if (isa<ClassTemplatePartialSpecializationDecl>(ctx)) {
+            ++res;
+        } else if (const auto* record = dyn_cast<CXXRecordDecl>(ctx)) {
+            if (record->getDescribedClassTemplate()) {
+                ++res;
+            }
+        } else if (const auto* func = dyn_cast<FunctionDecl>(ctx)) {
+            if (func->getDescribedFunctionTemplate()) {
+                ++res;
+            }
+        }
+    }
+
+    return res;
+}
+
+}
+
 TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
     TypesInSignature ret;
 
@@ -125,8 +150,9 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
     ret.templateArgs.assign(sugaredTemplateArgs.begin(), sugaredTemplateArgs.end());
 
     MultiLevelTemplateArgumentList sugaredMLTAL;
-    // TODO: handle nested templates.
     sugaredMLTAL.addOuterTemplateArguments(ftemplate, sugaredTemplateArgs, true);
+    // TODO: are we handling nested templates properly?
+    sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(ftemplate));
 
     // Now substitute sugared template arguments into parameter types.
     FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
@@ -156,10 +182,11 @@ std::vector<TemplateArgumentLoc> substituteDefaultTemplateArguments(
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
     MultiLevelTemplateArgumentList sugaredMLTAL;
-    // TODO: handle nested templates.
     sugaredMLTAL.addOuterTemplateArguments(templateDecl,
             llvm::ArrayRef<TemplateArgument>(args, numArgs),
             true);
+    // TODO: are we handling nested templates properly?
+    sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(templateDecl));
     TemplateParameterList* templateParams = templateDecl->getTemplateParameters();
     if (!templateParams) {
         return res;
@@ -206,6 +233,7 @@ std::vector<TemplateArgumentLoc> substituteDefaultTemplateArguments(
     }
 
     if (!defaultTemplateArgs.empty()) {
+        SuppressErrorsInScope guard(sema);
         TemplateArgumentListInfo substitutedDefaultArgs;
         bool error = sema.SubstTemplateArguments(defaultTemplateArgs,
                 sugaredMLTAL, substitutedDefaultArgs);
@@ -231,11 +259,16 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
     sugaredMLTAL.addOuterTemplateArguments(templateDecl,
             llvm::ArrayRef<TemplateArgument>(args, numArgs),
             true);
+    // TODO: are we handling nested templates properly?
+    sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(templateDecl));
+
     TemplateArgumentListInfo substitutedTemplateArgs;
     const ASTTemplateArgumentListInfo* templateArgsAsWritten = templateDecl->getTemplateArgsAsWritten();
     if (!templateArgsAsWritten) {
         return res;
     }
+
+    SuppressErrorsInScope guard(sema);
     bool error = sema.SubstTemplateArguments(templateArgsAsWritten->arguments(),
             sugaredMLTAL, substitutedTemplateArgs);
     if (error) {

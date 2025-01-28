@@ -24,7 +24,6 @@
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
-#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Sema/Sema.h>
 #include <clang/Tooling/CompilationDatabase.h>
@@ -287,6 +286,36 @@ public:
 #endif
 };
 
+// Like clang::TextDiagnosticBuffer, but resolves source locations eagerly and
+// adds them to error messages.
+class ErrorCollector: public DiagnosticConsumer {
+public:
+    void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel, const Diagnostic& Info) override {
+        // Default implementation (Warnings/errors count).
+        DiagnosticConsumer::HandleDiagnostic(DiagLevel, Info);
+        if (DiagLevel >= DiagnosticsEngine::Level::Error) {
+            string message;
+            if (Info.hasSourceManager()) {
+                message = Info.getLocation().printToString(Info.getSourceManager());
+                message += ": ";
+            }
+            llvm::SmallVector<char, 256> buffer;
+            Info.FormatDiagnostic(buffer);
+            message += string(buffer.data(), buffer.size());
+            errors.push_back(std::move(message));
+        }
+    }
+
+    void clear() override {
+        DiagnosticConsumer::clear();
+        errors.clear();
+    }
+
+    const vector<string>& getErrors() const { return errors; }
+
+private:
+    vector<string> errors;
+};
 
 Optimizer::Optimizer(const vector<string>& cmdLineOptions_,
                      const vector<string>& macrosToKeep_,
@@ -304,7 +333,7 @@ string Optimizer::doOptimize(const string& cppFile) {
     vector<string> sources;
     sources.push_back(cppFile);
 
-    clang::TextDiagnosticBuffer errors;
+    ErrorCollector errors;
     clang::tooling::ClangTool tool(*compilationDatabase, sources);
     tool.setDiagnosticConsumer(&errors);
 
@@ -314,10 +343,13 @@ string Optimizer::doOptimize(const string& cppFile) {
     ScopedTimer t2("Optimizer::tool.run");
     int ret = tool.run(&factory);
     if (ret != 0) {
-        string message = "Compilation failed with the following error(s): ";
-        for (auto it = errors.err_begin(); it != errors.err_end(); ++it) {
-            message += it->second;
-            message.push_back('\n');
+        string message = "Inliner failed.";
+        if (!errors.getErrors().empty()) {
+            message += " The following compilation errors were detected: ";
+            for (const auto& error : errors.getErrors()) {
+                message += error;
+                message.push_back('\n');
+            }
         }
         throw std::runtime_error(message.c_str());
     }

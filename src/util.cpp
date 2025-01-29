@@ -9,12 +9,15 @@
 #include "clang_version.h"
 
 #include <clang/AST/ASTContext.h>
+#include <clang/AST/Stmt.h>
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/Lexer.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Tooling/CompilationDatabase.h>
+
+#include <llvm/Support/raw_ostream.h>
 
 #include <sstream>
 #include <string>
@@ -217,6 +220,13 @@ std::string toString(SourceManager& sourceManager, const Decl* decl) {
     if (invalid || !e)
         return "<invalid>";
     return std::string(b, std::min(b+30, e));
+}
+
+std::string toString(const ASTContext& ctx, const Stmt& stmt) {
+    std::string res;
+    llvm::raw_string_ostream os(res);
+    stmt.dump(os, ctx);
+    return res;
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(7,0)

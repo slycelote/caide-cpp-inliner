@@ -114,6 +114,40 @@ bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializ
     return true;
 }
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+bool DependenciesCollector::TraverseAutoType(AutoType* autoType) {
+    dbg(CAIDE_FUNC);
+    RecursiveASTVisitor::TraverseAutoType(autoType);
+
+    if (ConceptDecl* conceptDecl = autoType->getTypeConstraintConcept()) {
+        llvm::SmallVector<TemplateArgument, 4> args;
+        args.push_back(TemplateArgument(autoType->getDeducedType()));
+        args.append(autoType->getTypeConstraintArguments().begin(), autoType->getTypeConstraintArguments().end());
+        Expr* constraintExpr = substituteTemplateArguments(sema,
+                conceptDecl->getConstraintExpr(), conceptDecl,
+                args.data(), args.size());
+        if (constraintExpr) {
+            dbg("Specialized constraint expr: " << toString(conceptDecl->getASTContext(), *constraintExpr) << std::endl);
+            TraverseStmt(constraintExpr);
+        }
+    }
+    return true;
+}
+
+bool DependenciesCollector::TraverseVarDecl(VarDecl* valueDecl) {
+    dbg(CAIDE_FUNC);
+    RecursiveASTVisitor::TraverseVarDecl(valueDecl);
+
+    if (AutoType* autoType = valueDecl->getType().getTypePtr()->getContainedAutoType()) {
+        // AutoType within AutoTypeLoc is missing deduced type: https://github.com/llvm/llvm-project/issues/42259
+        // So we traverse the AutoType in addition to AutoTypeLoc.
+        TraverseAutoType(autoType);
+    }
+
+    return true;
+}
+#endif
+
 Decl* DependenciesCollector::getCurrentDecl() const {
     return declStack.empty() ? nullptr : declStack.top();
 }
@@ -284,6 +318,7 @@ bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
 }
 
 bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
+    dbg(CAIDE_FUNC);
     // Sugared form of template arguments may depend on call site.
     TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
     for (const TemplateArgument& arg : types.templateArgs)
@@ -294,7 +329,6 @@ bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
 }
 
 bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
-    dbg(CAIDE_FUNC);
     Expr* callee = callExpr->getCallee();
     Decl* calleeDecl = callExpr->getCalleeDecl();
 
@@ -307,7 +341,6 @@ bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
 }
 
 bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorExpr) {
-    dbg(CAIDE_FUNC);
     insertReference(getCurrentDecl(), constructorExpr->getConstructor());
     return true;
 }
@@ -344,7 +377,6 @@ bool DependenciesCollector::VisitTemplateTypeParmDecl(TemplateTypeParmDecl* para
 }
 
 bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
-    dbg(CAIDE_FUNC);
     Decl* currentDecl = getCurrentDecl();
     insertReference(currentDecl, ref->getDecl());
     insertReference(currentDecl, ref->getFoundDecl());
@@ -352,7 +384,6 @@ bool DependenciesCollector::VisitDeclRefExpr(DeclRefExpr* ref) {
 }
 
 bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
-    dbg(CAIDE_FUNC);
     // Mark any function as depending on its local variables.
     // TODO: detect unused local variables.
     insertReference(getCurrentFunction(valueDecl), valueDecl);
@@ -360,14 +391,12 @@ bool DependenciesCollector::VisitValueDecl(ValueDecl* valueDecl) {
 }
 
 bool DependenciesCollector::VisitVarDecl(VarDecl* varDecl) {
-    dbg(CAIDE_FUNC);
     insertReference(varDecl, varDecl->getDescribedVarTemplate());
     return true;
 }
 
 // X->F and X.F
 bool DependenciesCollector::VisitMemberExpr(MemberExpr* memberExpr) {
-    dbg(CAIDE_FUNC);
     Decl* currentDecl = getCurrentDecl();
     // getFoundDecl() returns either MemberDecl itself or UsingShadowDecl corresponding to a UsingDecl
     insertReference(currentDecl, memberExpr->getFoundDecl().getDecl());
@@ -389,25 +418,21 @@ bool DependenciesCollector::VisitUsingShadowDecl(UsingShadowDecl* usingShadowDec
 }
 
 bool DependenciesCollector::VisitLambdaExpr(LambdaExpr* lambdaExpr) {
-    dbg(CAIDE_FUNC);
     insertReference(getCurrentDecl(), lambdaExpr->getCallOperator());
     return true;
 }
 
 bool DependenciesCollector::VisitFieldDecl(FieldDecl* field) {
-    dbg(CAIDE_FUNC);
     insertReference(field, field->getParent());
     return true;
 }
 
 bool DependenciesCollector::VisitTypeAliasDecl(TypeAliasDecl* aliasDecl) {
-    dbg(CAIDE_FUNC);
     insertReference(aliasDecl, aliasDecl->getDescribedAliasTemplate());
     return true;
 }
 
 bool DependenciesCollector::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* aliasTemplateDecl) {
-    dbg(CAIDE_FUNC);
     insertReference(aliasTemplateDecl, aliasTemplateDecl->getInstantiatedFromMemberTemplate());
     // Dependency on the single (pattern) TypeAlias associated with this template.
     insertReference(aliasTemplateDecl, aliasTemplateDecl->getTemplatedDecl());
@@ -415,7 +440,6 @@ bool DependenciesCollector::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl* al
 }
 
 bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDecl) {
-    dbg(CAIDE_FUNC);
     insertReference(templateDecl, templateDecl->getTemplatedDecl());
     return true;
 }
@@ -446,7 +470,6 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
 }
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
-    dbg(CAIDE_FUNC);
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
@@ -462,7 +485,6 @@ bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSp
 }
 
 bool DependenciesCollector::VisitVarTemplateSpecializationDecl(clang::VarTemplateSpecializationDecl* specDecl) {
-    dbg(CAIDE_FUNC);
     llvm::PointerUnion<VarTemplateDecl*, VarTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
@@ -489,7 +511,6 @@ from a FunctionDecl.
 We only use FunctionDecl's for dependency tracking.
  */
 bool DependenciesCollector::VisitFunctionDecl(FunctionDecl* f) {
-    dbg(CAIDE_FUNC);
     if (f->isMain())
         srcInfo.declsToKeep.insert(f);
 
@@ -529,7 +550,6 @@ bool DependenciesCollector::VisitFunctionTemplateDecl(FunctionTemplateDecl* func
 }
 
 bool DependenciesCollector::VisitCXXMethodDecl(CXXMethodDecl* method) {
-    dbg(CAIDE_FUNC);
     insertReference(method, method->getParent());
     if (method->isVirtual()) {
         // Virtual methods may not be called directly. Assume that

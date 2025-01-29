@@ -282,5 +282,28 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
     return res;
 }
 
+Expr* substituteTemplateArguments(
+        clang::Sema& sema, clang::Expr* expr, clang::Decl* exprParent,
+        const clang::TemplateArgument* args, unsigned numArgs) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+    MultiLevelTemplateArgumentList templateArgs;
+    templateArgs.addOuterTemplateArguments(exprParent,
+            llvm::ArrayRef<TemplateArgument>(args, numArgs),
+            true);
+    // TODO: are we handling nested templates properly?
+    templateArgs.addOuterRetainedLevels(getNumTemplateLevels(exprParent));
+
+    // SuppressErrorsInScope guard(sema);
+    clang::ExprResult result = sema.SubstExpr(expr, templateArgs);
+    if (result.isInvalid()) {
+        dbg("sema.SubstExpr failed" << std::endl);
+        return nullptr;
+    }
+    return result.get();
+#else
+    return nullptr;
+#endif
+}
+
 }}
 

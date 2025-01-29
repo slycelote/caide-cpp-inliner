@@ -10,6 +10,8 @@
 
 namespace clang {
     class CallExpr;
+    class Decl;
+    class Expr;
     class Sema;
     class ClassTemplatePartialSpecializationDecl;
     class TemplateArgument;
@@ -45,6 +47,10 @@ std::vector<clang::TemplateArgumentLoc> substituteDefaultTemplateArguments(
 
 std::vector<clang::TemplateArgumentLoc> substituteTemplateArguments(
         clang::Sema&, clang::ClassTemplatePartialSpecializationDecl*,
+        const clang::TemplateArgument* args, unsigned numArgs);
+
+clang::Expr* substituteTemplateArguments(
+        clang::Sema&, clang::Expr*, clang::Decl* exprParent,
         const clang::TemplateArgument* args, unsigned numArgs);
 
 }}

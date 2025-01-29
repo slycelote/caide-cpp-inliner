@@ -26,17 +26,13 @@ foreach(test_name IN LISTS test_list)
     add_test_directory(${test_name})
 endforeach()
 
-if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "12")
-    # TODO: Investigate issues with earlier clang versions.
-    add_test_directory(concepts-constraints)
-endif()
-
 if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "14")
     # Needs https://github.com/llvm/llvm-project/commit/4e4511df8d33a6fc02d5e46c681855db495187cd
     add_test_directory(enums)
 endif()
 
 if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "16")
-    # Needs Sema API that's unavailable or too different in earlier versions.
+    # Need Sema APIs that are unavailable or too different in earlier versions.
     add_test_directory(github-issue8)
+    add_test_directory(concepts-constraints)
 endif()

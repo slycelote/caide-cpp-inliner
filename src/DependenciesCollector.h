@@ -53,6 +53,8 @@ public:
     bool VisitTypedefType(clang::TypedefType*);
     bool VisitTemplateSpecializationType(clang::TemplateSpecializationType*);
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool TraverseAutoType(clang::AutoType*);
+    bool TraverseVarDecl(clang::VarDecl*);
     bool VisitAutoType(clang::AutoType*);
 #endif
 

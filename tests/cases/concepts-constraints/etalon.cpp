@@ -20,9 +20,16 @@ concept Add3 = requires(T a, T b) { { a + b }; };
 
 auto add3(Add3 auto a) { return a; }
 
+template <typename T>
+constexpr bool AlwaysTrue = true;
+
+template <typename T>
+concept Concept4 = AlwaysTrue<T>;
+
 int main() {
     add(-5, 5);
     add2(1);
     add3(1);
+    Concept4 auto i = 1;
 }
 

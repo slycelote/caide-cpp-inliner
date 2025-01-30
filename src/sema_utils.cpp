@@ -9,6 +9,7 @@
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 #include "clang_version.h"
+#include "util.h"
 
 #include <clang/Sema/Sema.h>
 #include <clang/Sema/Template.h>
@@ -55,8 +56,8 @@ unsigned getNumTemplateLevels(const Decl* decl) {
 
 }
 
-TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
-    TypesInSignature ret;
+SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
+    SugaredSignature ret;
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
     Expr* callee = callExpr->getCallee();
@@ -154,7 +155,7 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
     // TODO: are we handling nested templates properly?
     sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(ftemplate));
 
-    // Now substitute sugared template arguments into parameter types.
+    // Substitute sugared template arguments into parameter types.
     FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
     for (ParmVarDecl* param : func->parameters()) {
         TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
@@ -171,7 +172,20 @@ TypesInSignature getSugaredTypesInSignature(Sema& sema, CallExpr* callExpr) {
         }
     }
 
+    // Substitute sugared template arguments into constraints.
+    llvm::SmallVector<const Expr*, 4> associatedConstraints;
+    ftemplate->getAssociatedConstraints(associatedConstraints);
+    for (const Expr* expr : associatedConstraints) {
+        clang::ExprResult result = sema.SubstExpr(const_cast<Expr*>(expr), sugaredMLTAL);
+        if (result.get()) {
+            dbg("Specialized constraint expr: " << toString(ftemplate->getASTContext(), *expr) << std::endl);
+            ret.associatedConstraints.push_back(result.get());
+        } else if (result.isInvalid()) {
+            dbg("sema.SubstExpr failed" << std::endl);
+        }
+    }
 #endif
+
     return ret;
 }
 
@@ -293,7 +307,7 @@ Expr* substituteTemplateArguments(
     // TODO: are we handling nested templates properly?
     templateArgs.addOuterRetainedLevels(getNumTemplateLevels(exprParent));
 
-    // SuppressErrorsInScope guard(sema);
+    SuppressErrorsInScope guard(sema);
     clang::ExprResult result = sema.SubstExpr(expr, templateArgs);
     if (result.isInvalid()) {
         dbg("sema.SubstExpr failed" << std::endl);

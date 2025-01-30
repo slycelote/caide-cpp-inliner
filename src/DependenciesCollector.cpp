@@ -320,11 +320,13 @@ bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
 bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
     dbg(CAIDE_FUNC);
     // Sugared form of template arguments may depend on call site.
-    TypesInSignature types = getSugaredTypesInSignature(sema, callExpr);
-    for (const TemplateArgument& arg : types.templateArgs)
+    SugaredSignature callSignature = getSugaredSignature(sema, callExpr);
+    for (const TemplateArgument& arg : callSignature.templateArgs)
         TraverseTemplateArgument(arg);
-    for (TypeSourceInfo* t : types.argTypes)
+    for (TypeSourceInfo* t : callSignature.argTypes)
         TraverseTypeLoc(t->getTypeLoc());
+    for (Expr* expr : callSignature.associatedConstraints)
+        TraverseStmt(expr);
     return RecursiveASTVisitor::TraverseCallExpr(callExpr);
 }
 

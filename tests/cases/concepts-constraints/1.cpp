@@ -31,10 +31,20 @@ constexpr bool AlwaysTrue = true;
 template <typename T>
 concept Concept4 = AlwaysTrue<T>;
 
+namespace test5 {
+    template <typename T>
+    constexpr bool AlwaysTrue = true;
+
+    template <typename T>
+        requires AlwaysTrue<T>
+    void f(T) {}
+}
+
 int main() {
     add(-5, 5);
     add2(1);
     add3(1);
     Concept4 auto i = 1;
+    test5::f(1);
 }
 

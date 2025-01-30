@@ -32,14 +32,15 @@ private:
     bool origSuppressAllDiagnostics;
 };
 
-struct TypesInSignature {
+struct SugaredSignature {
     std::vector<clang::TemplateArgument> templateArgs;
     std::vector<clang::TypeSourceInfo*> argTypes;
+    std::vector<clang::Expr*> associatedConstraints;
 };
 
 // For a function template call, return sugared types that are
 // instantiated as part of this call.
-TypesInSignature getSugaredTypesInSignature(clang::Sema&, clang::CallExpr*);
+SugaredSignature getSugaredSignature(clang::Sema&, clang::CallExpr*);
 
 std::vector<clang::TemplateArgumentLoc> substituteDefaultTemplateArguments(
         clang::Sema&, clang::TemplateDecl*,

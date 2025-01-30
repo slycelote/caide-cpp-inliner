@@ -44,7 +44,7 @@ std::string rangeToString(clang::SourceManager& sourceManager,
 std::string toString(clang::SourceManager& sourceManager, clang::SourceLocation loc);
 std::string toString(clang::SourceManager& sourceManager, clang::SourceRange range, const clang::LangOptions* = nullptr);
 std::string toString(clang::SourceManager& sourceManager, const clang::Decl* decl);
-std::string toString(const clang::ASTContext& ctx, const clang::Stmt& stmt);
+std::string toString(clang::ASTContext&, const clang::Stmt&);
 
 clang::SourceLocation getExpansionStart(clang::SourceManager& sourceManager,
         const clang::Decl* decl);

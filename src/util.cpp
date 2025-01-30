@@ -222,10 +222,14 @@ std::string toString(SourceManager& sourceManager, const Decl* decl) {
     return std::string(b, std::min(b+30, e));
 }
 
-std::string toString(const ASTContext& ctx, const Stmt& stmt) {
+std::string toString(ASTContext& ctx, const Stmt& stmt) {
     std::string res;
     llvm::raw_string_ostream os(res);
+#if CAIDE_CLANG_VERSION_AT_LEAST(11,0)
     stmt.dump(os, ctx);
+#else
+    stmt.dump(os, ctx.getSourceManager());
+#endif
     return res;
 }
 

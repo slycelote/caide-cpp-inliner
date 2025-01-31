@@ -89,6 +89,7 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
     }
 
     FunctionTemplateDecl* ftemplate = specInfo->getTemplate();
+    FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
     TemplateParameterList* templateParams = ftemplate->getTemplateParameters();
     llvm::ArrayRef<TemplateArgumentLoc> templateArgs = refExpr->template_arguments();
     const unsigned numExplicitArguments = templateArgs.size();
@@ -111,6 +112,7 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
         sugaredTemplateArgs = fallbackBuffer;
     };
 
+    clang::sema::TemplateDeductionInfo deductionInfo(calleeDecl->getBeginLoc());
     if (numExplicitArguments == templateParams->size()) {
         // All template arguments are explicitly provided, no need for deduction.
         useFallback();
@@ -120,7 +122,6 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
         for (const TemplateArgumentLoc& argLoc : templateArgs) {
             explicitArgs.addArgument(argLoc);
         }
-        clang::sema::TemplateDeductionInfo deductionInfo(calleeDecl->getBeginLoc());
         FunctionDecl* specialization;
         // Actual result type has different spelling in different clang versions.
         auto res = static_cast<int>(sema.DeduceTemplateArguments(
@@ -155,8 +156,17 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
     // TODO: are we handling nested templates properly?
     sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(ftemplate));
 
+    llvm::SmallVector<TemplateArgument, 4> argsToDeduce;
+    argsToDeduce.resize(func->parameters().size());
+    // Push the instantiation on context stack till the end of scope.
+    // This is only to avoid clang assertions in debug mode.
+    // (sema.DeduceTemplateArguments above pushes and pops this internally.)
+    Sema::InstantiatingTemplate substitutionContext(
+            sema, deductionInfo.getLocation(), ftemplate, argsToDeduce,
+            Sema::CodeSynthesisContext::DeducedTemplateArgumentSubstitution,
+            deductionInfo);
+
     // Substitute sugared template arguments into parameter types.
-    FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
     for (ParmVarDecl* param : func->parameters()) {
         TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
         TypeSourceInfo* substType = sema.SubstType(

@@ -165,20 +165,23 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
             sema, deductionInfo.getLocation(), ftemplate, argsToDeduce,
             Sema::CodeSynthesisContext::DeducedTemplateArgumentSubstitution,
             deductionInfo);
-
-    // Substitute sugared template arguments into parameter types.
-    for (ParmVarDecl* param : func->parameters()) {
-        TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
-        TypeSourceInfo* substType = sema.SubstType(
-            paramTSI,
-            sugaredMLTAL,
-            param->getLocation(),
-            {});
-        if (substType) {
-            // substType->getType().dump();
-            ret.argTypes.push_back(substType);
-        } else {
-            dbg("sema.SubstType failed" << std::endl);
+    if (substitutionContext.isInvalid()) {
+        dbg("Failed to create instantiation context for SubstType");
+    } else {
+        // Substitute sugared template arguments into parameter types.
+        for (ParmVarDecl* param : func->parameters()) {
+            TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
+            TypeSourceInfo* substType = sema.SubstType(
+                paramTSI,
+                sugaredMLTAL,
+                param->getLocation(),
+                {});
+            if (substType) {
+                // substType->getType().dump();
+                ret.argTypes.push_back(substType);
+            } else {
+                dbg("sema.SubstType failed" << std::endl);
+            }
         }
     }
 
@@ -257,15 +260,23 @@ std::vector<TemplateArgumentLoc> substituteDefaultTemplateArguments(
     }
 
     if (!defaultTemplateArgs.empty()) {
-        SuppressErrorsInScope guard(sema);
-        TemplateArgumentListInfo substitutedDefaultArgs;
-        bool error = sema.SubstTemplateArguments(defaultTemplateArgs,
-                sugaredMLTAL, substitutedDefaultArgs);
-        if (error) {
-            dbg("sema.SubstTemplateArguments failed" << std::endl);
+        // Push the instantiation on context stack till the end of scope.
+        // This is only to avoid clang assertions in debug mode.
+        Sema::InstantiatingTemplate substitutionContext(
+                sema, templateDecl->getLocation(), templateDecl);
+        if (substitutionContext.isInvalid()) {
+            dbg("Failed to create instantiation context for SubstTemplateArguments");
         } else {
-            for (unsigned i = 0; i < substitutedDefaultArgs.size(); ++i)
-                res.push_back(substitutedDefaultArgs[i]);
+            SuppressErrorsInScope guard(sema);
+            TemplateArgumentListInfo substitutedDefaultArgs;
+            bool error = sema.SubstTemplateArguments(defaultTemplateArgs,
+                    sugaredMLTAL, substitutedDefaultArgs);
+            if (error) {
+                dbg("sema.SubstTemplateArguments failed" << std::endl);
+            } else {
+                for (unsigned i = 0; i < substitutedDefaultArgs.size(); ++i)
+                    res.push_back(substitutedDefaultArgs[i]);
+            }
         }
     }
 #endif
@@ -292,14 +303,30 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
         return res;
     }
 
-    SuppressErrorsInScope guard(sema);
-    bool error = sema.SubstTemplateArguments(templateArgsAsWritten->arguments(),
-            sugaredMLTAL, substitutedTemplateArgs);
-    if (error) {
-        dbg("sema.SubstTemplateArguments failed" << std::endl);
+    clang::sema::TemplateDeductionInfo deductionInfo(templateDecl->getBeginLoc());
+    llvm::SmallVector<TemplateArgument, 4> argsToDeduce;
+    argsToDeduce.resize(templateDecl->getTemplateParameters()->size());
+    // Push the instantiation on context stack till the end of scope.
+    // This is only to avoid clang assertions in debug mode.
+    //
+    // We could use sema.DeduceTemplateArguments which pushes and pops this internally.
+    // But it's probably more expensive to perform the entire deduction, plus we want to
+    // substitute actually written (sugared) arguments of the specialization.
+    Sema::InstantiatingTemplate substitutionContext(
+            sema, deductionInfo.getLocation(), templateDecl, argsToDeduce,
+            deductionInfo);
+    if (substitutionContext.isInvalid()) {
+        dbg("Failed to create instantiation context for SubstType");
     } else {
-        for (unsigned i = 0; i < substitutedTemplateArgs.size(); ++i)
-            res.push_back(substitutedTemplateArgs[i]);
+        SuppressErrorsInScope guard(sema);
+        bool error = sema.SubstTemplateArguments(templateArgsAsWritten->arguments(),
+                sugaredMLTAL, substitutedTemplateArgs);
+        if (error) {
+            dbg("sema.SubstTemplateArguments failed" << std::endl);
+        } else {
+            for (unsigned i = 0; i < substitutedTemplateArgs.size(); ++i)
+                res.push_back(substitutedTemplateArgs[i]);
+        }
     }
 #endif
 

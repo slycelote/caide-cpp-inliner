@@ -35,19 +35,29 @@ bool DependenciesCollector::TraverseDecl(Decl* decl) {
     return ret;
 }
 
-void DependenciesCollector::traverseTemplateArgumentsHelper(llvm::ArrayRef<TemplateArgumentLoc> args) {
-    for (const auto& arg : args) {
-        TraverseTemplateArgumentLoc(arg);
+void DependenciesCollector::traverseSugaredSignature(const SugaredSignature& sig, bool traverseTypeLocs) {
+    for (const TemplateArgumentLoc& argLoc : sig.templateArgLocs)
+        TraverseTemplateArgumentLoc(argLoc);
+
+    for (TypeSourceInfo* t : sig.argTypes) {
+        if (traverseTypeLocs) {
+            TraverseTypeLoc(t->getTypeLoc());
+        } else {
+            TraverseType(t->getType());
+        }
     }
+
+    for (Expr* expr : sig.associatedConstraints)
+        TraverseStmt(expr);
 }
 
-bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
-    dbg(CAIDE_FUNC);
-    RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
-
-    const TemplateSpecializationType* tempSpecType = tempSpecTypeLoc.getTypePtr();
+void DependenciesCollector::traverseTemplateSpecializationTypeImpl(
+        const TemplateSpecializationType* tempSpecType, bool traverseTypeLocs)
+{
     // Template specialized by this type.
     TemplateDecl* tempDecl = nullptr;
+
+    llvm::ArrayRef<TemplateArgument> args;
 
     if (tempSpecType->isTypeAlias()) {
         // TODO: This type might have been traversed or not.
@@ -57,23 +67,29 @@ bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecia
         // This will be TypeAliasTemplateDecl.
         tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl();
     } else if (auto* specDecl = dyn_cast_or_null<ClassTemplateSpecializationDecl>(tempSpecType->getAsTagDecl())) {
+        args = specDecl->getTemplateInstantiationArgs().asArray();
         llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
             instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-        // The other case is handled in TraverseClassTemplateSpecializationDecl.
+        // This cannot be a partial specialization.
         tempDecl = instantiatedFrom.dyn_cast<ClassTemplateDecl*>();
     }
 
     if (tempDecl) {
         // These will be arguments as written at the point from where the
         // reference comes (e.g. a variable declaration).
-        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
+        llvm::ArrayRef<TemplateArgument> writtenArgs{
             getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
-        std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
-                sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
-        traverseTemplateArgumentsHelper(substitutedDefaultArgs);
+        SugaredSignature sig = substituteTemplateArguments(sema, tempDecl, writtenArgs, args);
+        traverseSugaredSignature(sig, traverseTypeLocs);
     }
+}
 
+bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
+    dbg(CAIDE_FUNC);
+    RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
+
+    traverseTemplateSpecializationTypeImpl(tempSpecTypeLoc.getTypePtr(), true);
     return true;
 }
 
@@ -82,35 +98,7 @@ bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializ
     dbg(CAIDE_FUNC);
     RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
 
-    // Template specialized by this type.
-    TemplateDecl* tempDecl = nullptr;
-
-    if (tempSpecType->isTypeAlias()) {
-        // TODO: This type might have been traversed or not.
-        TraverseType(tempSpecType->getAliasedType());
-
-        // This will be TypeAliasTemplateDecl.
-        tempDecl = tempSpecType->getTemplateName().getAsTemplateDecl();
-    } else if (auto* specDecl = dyn_cast_or_null<ClassTemplateSpecializationDecl>(tempSpecType->getAsTagDecl())) {
-        llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
-            instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
-
-        // The other case is handled in TraverseClassTemplateSpecializationDecl.
-        tempDecl = instantiatedFrom.dyn_cast<ClassTemplateDecl*>();
-    }
-
-    if (tempDecl) {
-        // These will be arguments as written at the point from where the
-        // reference comes (e.g. a variable declaration).
-        llvm::ArrayRef<TemplateArgument> templateArgsAsWritten{
-            getArgs(*tempSpecType), getNumArgs(*tempSpecType)};
-        std::vector<TemplateArgumentLoc> substitutedDefaultArgs = substituteDefaultTemplateArguments(
-                sema, tempDecl, templateArgsAsWritten.data(), templateArgsAsWritten.size());
-        for (const auto& arg : substitutedDefaultArgs) {
-            TraverseTemplateArgument(arg.getArgument());
-        }
-    }
-
+    traverseTemplateSpecializationTypeImpl(tempSpecType, false);
     return true;
 }
 
@@ -120,16 +108,11 @@ bool DependenciesCollector::TraverseAutoType(AutoType* autoType) {
     RecursiveASTVisitor::TraverseAutoType(autoType);
 
     if (ConceptDecl* conceptDecl = autoType->getTypeConstraintConcept()) {
-        llvm::SmallVector<TemplateArgument, 4> args;
-        args.push_back(TemplateArgument(autoType->getDeducedType()));
-        args.append(autoType->getTypeConstraintArguments().begin(), autoType->getTypeConstraintArguments().end());
-        Expr* constraintExpr = substituteTemplateArguments(sema,
-                conceptDecl->getConstraintExpr(), conceptDecl,
-                args.data(), args.size());
-        if (constraintExpr) {
-            dbg("Specialized constraint expr: " << toString(conceptDecl->getASTContext(), *constraintExpr) << std::endl);
-            TraverseStmt(constraintExpr);
-        }
+        llvm::SmallVector<TemplateArgument, 4> writtenArgs;
+        writtenArgs.push_back(TemplateArgument(autoType->getDeducedType()));
+        writtenArgs.append(autoType->getTypeConstraintArguments().begin(), autoType->getTypeConstraintArguments().end());
+        SugaredSignature sig = substituteTemplateArguments(sema, conceptDecl, writtenArgs, {});
+        traverseSugaredSignature(sig, /*traverseTypeLocs=*/false);
     }
     return true;
 }
@@ -319,15 +302,40 @@ bool DependenciesCollector::VisitNamedDecl(clang::NamedDecl* decl) {
 
 bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
     dbg(CAIDE_FUNC);
-    // Sugared form of template arguments may depend on call site.
-    SugaredSignature callSignature = getSugaredSignature(sema, callExpr);
-    for (const TemplateArgument& arg : callSignature.templateArgs)
-        TraverseTemplateArgument(arg);
-    for (TypeSourceInfo* t : callSignature.argTypes)
-        TraverseTypeLoc(t->getTypeLoc());
-    for (Expr* expr : callSignature.associatedConstraints)
-        TraverseStmt(expr);
-    return RecursiveASTVisitor::TraverseCallExpr(callExpr);
+    RecursiveASTVisitor::TraverseCallExpr(callExpr);
+
+    Expr* callee = callExpr->getCallee();
+    Decl* calleeDecl = callExpr->getCalleeDecl();
+
+    if (!callee || !calleeDecl)
+        return true;
+
+    auto* refExpr = dyn_cast<DeclRefExpr>(callee);
+    if (!refExpr) {
+        auto* castExpr = dyn_cast<ImplicitCastExpr>(callee);
+        if (castExpr && castExpr->getCastKind() == CK_FunctionToPointerDecay)
+            refExpr = dyn_cast<DeclRefExpr>(castExpr->getSubExpr());
+        if (!refExpr)
+            return true;
+    }
+
+    llvm::SmallVector<TemplateArgument, 4> writtenArgs;
+    for (TemplateArgumentLoc argLoc : refExpr->template_arguments())
+        writtenArgs.push_back(argLoc.getArgument());
+
+    // Specialization called by this expr. Refers to unsugared types.
+    auto* fspec = dyn_cast<FunctionDecl>(calleeDecl);
+    if (!fspec)
+        return true;
+    FunctionTemplateSpecializationInfo* specInfo = fspec->getTemplateSpecializationInfo();
+    if (!specInfo)
+        return true;
+    llvm::ArrayRef<TemplateArgument> args = specInfo->TemplateArguments->asArray();
+
+    FunctionTemplateDecl* ftemplate = specInfo->getTemplate();
+    SugaredSignature sig = substituteTemplateArguments(sema, ftemplate, writtenArgs, args);
+    traverseSugaredSignature(sig);
+    return true;
 }
 
 bool DependenciesCollector::VisitCallExpr(CallExpr* callExpr) {
@@ -348,6 +356,21 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+bool DependenciesCollector::TraverseConceptSpecializationExpr(ConceptSpecializationExpr* conceptExpr) {
+    dbg(CAIDE_FUNC);
+    RecursiveASTVisitor::TraverseConceptSpecializationExpr(conceptExpr);
+
+    ConceptDecl* conceptDecl = conceptExpr->getNamedConcept();
+    const ASTTemplateArgumentListInfo* argsInfo = conceptExpr->getTemplateArgsAsWritten();
+    llvm::SmallVector<TemplateArgument, 4> writtenArgs;
+    for (auto argLoc : argsInfo->arguments())
+        writtenArgs.push_back(argLoc.getArgument());
+
+    SugaredSignature sig = substituteTemplateArguments(sema, conceptDecl, writtenArgs, {});
+    traverseSugaredSignature(sig);
+    return true;
+}
+
 bool DependenciesCollector::VisitConceptSpecializationExpr(ConceptSpecializationExpr* conceptExpr) {
     insertReference(getCurrentDecl(), conceptExpr->getNamedConcept());
     return true;
@@ -451,7 +474,6 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-    // The other case is handled in TraverseTemplateSpecializationTypeLoc
     if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
         // template<typename T>
         // class X<Foo<T>, Bar<T>> {...}
@@ -463,9 +485,8 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
         // To obtain correct dependencies, substitute instantiatedWithArgs into templateArgsAsWritten.
         auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
         const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
-        std::vector<TemplateArgumentLoc> sugaredPartialArgs = substituteTemplateArguments(
-            sema, partial, instantiatedWithArgs.data(), instantiatedWithArgs.size());
-        traverseTemplateArgumentsHelper(sugaredPartialArgs);
+        SugaredSignature sig = substituteTemplateArguments(sema, partial, instantiatedWithArgs.asArray());
+        traverseSugaredSignature(sig);
     }
 
     return RecursiveASTVisitor::TraverseClassTemplateSpecializationDecl(specDecl);

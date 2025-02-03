@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
+
 #include <vector>
 
 namespace clang {
-    class CallExpr;
-    class Decl;
     class Expr;
     class Sema;
     class ClassTemplatePartialSpecializationDecl;
@@ -32,27 +32,28 @@ private:
     bool origSuppressAllDiagnostics;
 };
 
+// Sugared form of some entities emerging during a specific template instantiation.
 struct SugaredSignature {
-    std::vector<clang::TemplateArgument> templateArgs;
-    std::vector<clang::TypeSourceInfo*> argTypes;
+    // Defaulted template arguments.
+    std::vector<clang::TemplateArgumentLoc> templateArgLocs;
+
+    // Sugared constraints, including concept constraints, requires clauses and
+    // (for concept instantiation) constraint expression in the concept definition.
     std::vector<clang::Expr*> associatedConstraints;
+
+    // Sugared types of non-type template parameters and (for function template
+    // instantiation) sugared function argument types.
+    std::vector<clang::TypeSourceInfo*> argTypes;
 };
 
-// For a function template call, return sugared types that are
-// instantiated as part of this call.
-SugaredSignature getSugaredSignature(clang::Sema&, clang::CallExpr*);
-
-std::vector<clang::TemplateArgumentLoc> substituteDefaultTemplateArguments(
+SugaredSignature substituteTemplateArguments(
         clang::Sema&, clang::TemplateDecl*,
-        const clang::TemplateArgument* args, unsigned numArgs);
+        llvm::ArrayRef<clang::TemplateArgument> writtenArgs,
+        llvm::ArrayRef<clang::TemplateArgument> args);
 
-std::vector<clang::TemplateArgumentLoc> substituteTemplateArguments(
+SugaredSignature substituteTemplateArguments(
         clang::Sema&, clang::ClassTemplatePartialSpecializationDecl*,
-        const clang::TemplateArgument* args, unsigned numArgs);
-
-clang::Expr* substituteTemplateArguments(
-        clang::Sema&, clang::Expr*, clang::Decl* exprParent,
-        const clang::TemplateArgument* args, unsigned numArgs);
+        llvm::ArrayRef<clang::TemplateArgument> args);
 
 }}
 

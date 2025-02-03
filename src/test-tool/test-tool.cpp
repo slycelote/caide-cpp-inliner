@@ -85,6 +85,7 @@ static bool runTest(const string& testDirectory, const string& tempDirectory, ca
 
     const int minLength = (int)std::min(output.size(), etalon.size());
     for (int i = 0; i < minLength; ++i) {
+        // TODO: Print line numbers
         if (output[i] != etalon[i]) {
             std::cout
                 << "< " << etalon[i] << "\n"

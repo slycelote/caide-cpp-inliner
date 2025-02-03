@@ -31,7 +31,7 @@ if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "14")
     add_test_directory(enums)
 endif()
 
-if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "16")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "19")
     # Need Sema APIs that are unavailable or too different in earlier versions.
     add_test_directory(github-issue8)
     add_test_directory(concepts-constraints)

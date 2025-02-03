@@ -30,6 +30,7 @@ namespace caide {
 namespace internal {
 
 struct SourceInfo;
+struct SugaredSignature;
 
 
 class DependenciesCollector: public clang::RecursiveASTVisitor<DependenciesCollector> {
@@ -85,6 +86,7 @@ public:
     bool VisitUsingShadowDecl(clang::UsingShadowDecl* usingDecl);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
+    bool TraverseConceptSpecializationExpr(clang::ConceptSpecializationExpr* conceptExpr);
     bool VisitConceptSpecializationExpr(clang::ConceptSpecializationExpr* conceptExpr);
 #endif
 
@@ -97,8 +99,10 @@ private:
 
     clang::Decl* getCorrespondingDeclInNonInstantiatedContext(clang::Decl* semanticDecl) const;
 
-    // Should be in RecursiveASTVisitor.
-    void traverseTemplateArgumentsHelper(llvm::ArrayRef<clang::TemplateArgumentLoc> args);
+    void traverseTemplateSpecializationTypeImpl(
+            const clang::TemplateSpecializationType*,
+            bool traverseTypeLocs);
+    void traverseSugaredSignature(const SugaredSignature&, bool traverseTypeLocs = true);
 
     void insertReference(clang::Decl* from, clang::Decl* to);
 

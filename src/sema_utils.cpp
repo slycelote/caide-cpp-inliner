@@ -15,6 +15,8 @@
 #include <clang/Sema/Template.h>
 #include <clang/Sema/TemplateDeduction.h>
 
+#include <llvm/ADT/ArrayRef.h>
+
 using namespace clang;
 
 namespace caide { namespace internal {
@@ -54,126 +56,183 @@ unsigned getNumTemplateLevels(const Decl* decl) {
     return res;
 }
 
+bool anyArgDependent(llvm::ArrayRef<TemplateArgument> args) {
+    for (const auto& arg : args) {
+        if (arg.isDependent()) {
+            return true;
+        }
+    }
+    return false;
 }
 
-SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
+void substituteExprs(Sema& sema, llvm::ArrayRef<const Expr*> exprs,
+        const MultiLevelTemplateArgumentList& MLTAL, SugaredSignature& sig)
+{
+    for (auto* expr : exprs) {
+        clang::ExprResult result = sema.SubstExpr(const_cast<Expr*>(expr), MLTAL);
+        if (result.isInvalid()) {
+            dbg("sema.SubstExpr failed" << std::endl);
+        } else if (Expr* res = result.get()) {
+            dbg("Specialized constraint expr: " << toString(sema.getASTContext(), *res) << std::endl);
+            sig.associatedConstraints.push_back(res);
+        }
+    }
+}
+
+// sema.DeduceTemplateArguments was exposed in commit 7415524b
+#if CAIDE_CLANG_VERSION_AT_LEAST(19, 1)
+
+template <typename TArgumentLocVector>
+int deduceTemplateArguments(Sema& sema,
+        TemplateDecl* templateDecl,
+        llvm::ArrayRef<TemplateArgument> writtenArgs,
+        llvm::SmallVectorImpl<TemplateArgument>& deduced,
+        TArgumentLocVector& synthesizedArgLocs)
+{
+    const bool isFuncTemplate = isa<FunctionTemplateDecl>(templateDecl);
+    TemplateParameterList* params = templateDecl->getTemplateParameters();
+
+    // If deduced is not empty, we know unsugared form of template arguments
+    // from the specialization decl. But we still want to synthesize sugared form
+    // of default arguments.
+    // If deduced is empty, specialization decl is not available (e.g for template type aliases).
+    if (deduced.empty()) {
+        llvm::SmallVector<TemplateArgument, 4> Ps;
+        sema.getASTContext().getInjectedTemplateArgs(params, Ps);
+
+        llvm::SmallVector<DeducedTemplateArgument, 4> deducedTemplateArgs(params->size());
+        clang::sema::TemplateDeductionInfo deductionInfo(
+                templateDecl->getBeginLoc(),
+                getNumTemplateLevels(templateDecl));
+
+        // Collects the last few arguments into a pack to match the parameter pack
+        // (if any), but otherwise doesn't change arguments.
+        int deductionResult = (int)sema.DeduceTemplateArguments(params, Ps, writtenArgs,
+                deductionInfo, deducedTemplateArgs, false);
+        if (deductionResult != 0) {
+            return deductionResult;
+        }
+
+        deduced.assign(deducedTemplateArgs.begin(), deducedTemplateArgs.end());
+    }
+
+    // TODO: use correct source locations. Probably only matters in case of
+    // compilation errors, which we don't expect here.
+    SourceLocation templateLoc = templateDecl->getLocation();
+    SourceLocation rAngleLoc = templateLoc;
+
+    // Instantiate necessary default arguments. For function templates, some
+    // template arguments could have been deduced from function arguments
+    // and we don't know which template arguments were defaulted, apart from
+    // explicitly provided arguments. Unnecessary instantiations can lead to
+    // false positives or compilation errors (which we suppress in outer scope).
+    for (unsigned i = writtenArgs.size(); i < params->size(); ++i) {
+        bool hasDefaultArg = false;
+        NamedDecl* param = params->getParam(i);
+        // We pass 'deduced' as both SugaredConverted and CanonicalConverted arguments;
+        // the latter doesn't seem to be used anyway...
+        TemplateArgumentLoc defaultArgLoc = sema.SubstDefaultTemplateArgumentIfAvailable(
+                templateDecl, templateLoc, rAngleLoc, param, deduced, deduced, hasDefaultArg);
+        if (hasDefaultArg) {
+            synthesizedArgLocs.push_back(defaultArgLoc);
+            if (deduced[i].isNull()) {
+                // Not filled by sema.DeduceTemplateArguments above.
+                deduced[i] = defaultArgLoc.getArgument();
+            }
+        } else if (!isFuncTemplate) {
+            // Something unexpected: no argument provided and no default argument.
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+void collectSugar(Sema& sema,
+        TemplateDecl* templateDecl,
+        const MultiLevelTemplateArgumentList& MLTAL,
+        SugaredSignature& sig)
+{
+    TemplateParameterList* paramList = templateDecl->getTemplateParameters();
+
+    // Substitute sugared template arguments into template parameter types.
+    for (NamedDecl* paramDecl : paramList->asArray()) {
+        if (const auto* NTTP = dyn_cast<NonTypeTemplateParmDecl>(paramDecl)) {
+            TypeSourceInfo* substType = sema.SubstType(
+                NTTP->getTypeSourceInfo(),
+                MLTAL,
+                NTTP->getBeginLoc(),
+                {});
+            if (substType) {
+                // substType->getType().dump();
+                sig.argTypes.push_back(substType);
+            } else {
+                dbg("sema.SubstType failed" << std::endl);
+            }
+        }
+    }
+
+    llvm::SmallVector<const Expr*, 4> constraints;
+    templateDecl->getAssociatedConstraints(constraints);
+    substituteExprs(sema, constraints, MLTAL, sig);
+}
+#endif
+
+}
+
+SugaredSignature substituteTemplateArguments(
+        Sema& sema, TemplateDecl* templateDecl,
+        llvm::ArrayRef<TemplateArgument> writtenArgs,
+        llvm::ArrayRef<TemplateArgument> args)
+{
     SugaredSignature ret;
 
-#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
-    Expr* callee = callExpr->getCallee();
-    Decl* calleeDecl = callExpr->getCalleeDecl();
-
-    if (!callee || !calleeDecl)
-        return ret;
-
-    // Specialization called by this expr. Refers to unsugared types.
-    auto* fspec = dyn_cast<FunctionDecl>(calleeDecl);
-    if (!fspec) {
+#if CAIDE_CLANG_VERSION_AT_LEAST(19, 1)
+    if (anyArgDependent(writtenArgs)) {
         return ret;
     }
-
-    auto* refExpr = dyn_cast<DeclRefExpr>(callee);
-    if (!refExpr) {
-        auto* castExpr = dyn_cast<ImplicitCastExpr>(callee);
-        if (castExpr && castExpr->getCastKind() == CK_FunctionToPointerDecay) {
-            refExpr = dyn_cast<DeclRefExpr>(castExpr->getSubExpr());
-        }
-        if (!refExpr) {
-            return ret;
-        }
-    }
-
-    FunctionTemplateSpecializationInfo* specInfo = fspec->getTemplateSpecializationInfo();
-    if (!specInfo) {
-        return ret;
-    }
-
-    FunctionTemplateDecl* ftemplate = specInfo->getTemplate();
-    FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
-    TemplateParameterList* templateParams = ftemplate->getTemplateParameters();
-    llvm::ArrayRef<TemplateArgumentLoc> templateArgs = refExpr->template_arguments();
-    const unsigned numExplicitArguments = templateArgs.size();
 
     SuppressErrorsInScope guard(sema);
 
-    llvm::ArrayRef<TemplateArgument> sugaredTemplateArgs;
+    llvm::SmallVector<TemplateArgument, 4> deducedArgs(args);
 
-    llvm::SmallVector<TemplateArgument, 8> fallbackBuffer;
-    auto useFallback = [&] {
-        fallbackBuffer.reserve(templateParams->size());
-        for (unsigned i = 0; i < numExplicitArguments; ++i) {
-            fallbackBuffer.push_back(templateArgs[i].getArgument());
-        }
-        for (unsigned i = numExplicitArguments; i < templateParams->size(); ++i) {
-            // Falling back to unsugared arguments.
-            fallbackBuffer.push_back(specInfo->TemplateArguments->get(i));
-        }
-
-        sugaredTemplateArgs = fallbackBuffer;
-    };
-
-    clang::sema::TemplateDeductionInfo deductionInfo(calleeDecl->getBeginLoc());
-    if (numExplicitArguments == templateParams->size()) {
-        // All template arguments are explicitly provided, no need for deduction.
-        useFallback();
-    } else {
-        // Perform template argument deduction for the function call.
-        TemplateArgumentListInfo explicitArgs;
-        for (const TemplateArgumentLoc& argLoc : templateArgs) {
-            explicitArgs.addArgument(argLoc);
-        }
-        FunctionDecl* specialization;
-        // Actual result type has different spelling in different clang versions.
-        auto res = static_cast<int>(sema.DeduceTemplateArguments(
-                ftemplate,
-                &explicitArgs,
-                llvm::ArrayRef<Expr*>{callExpr->getArgs(), callExpr->getNumArgs()},
-                specialization,
-                deductionInfo,
-                /*PartialOverloading=*/false,
-#if CAIDE_CLANG_VERSION_AT_LEAST(17, 0)
-                /*AggregateDeductionCandidate=*/false,
-#endif
-#if CAIDE_CLANG_VERSION_AT_LEAST(18, 0)
-                // TODO: What are these?
-                /*ObjectType=*/QualType(),
-                /*ObjectClassification=*/Expr::Classification(),
-#endif
-                /*CheckNonDependent=*/[](llvm::ArrayRef<QualType>){return false;}));
-        if (res == 0) {
-            TemplateArgumentList* argList = deductionInfo.takeSugared();
-            sugaredTemplateArgs = argList->asArray();
-        } else {
-            dbg("sema.DeduceTemplateArguments failed: " << res << std::endl);
-            useFallback();
-        }
+    int deductionResult = deduceTemplateArguments(sema, templateDecl, writtenArgs, deducedArgs, ret.templateArgLocs);
+    if (deductionResult != 0) {
+        dbg("sema.DeduceTemplateArguments failed: " << deductionResult << std::endl);
+        return ret;
     }
 
-    ret.templateArgs.assign(sugaredTemplateArgs.begin(), sugaredTemplateArgs.end());
+    if (anyArgDependent(deducedArgs)) {
+        return ret;
+    }
 
-    MultiLevelTemplateArgumentList sugaredMLTAL;
-    sugaredMLTAL.addOuterTemplateArguments(ftemplate, sugaredTemplateArgs, true);
+    MultiLevelTemplateArgumentList MLTAL;
+    MLTAL.addOuterTemplateArguments(templateDecl, deducedArgs, true);
     // TODO: are we handling nested templates properly?
-    sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(ftemplate));
+    MLTAL.addOuterRetainedLevels(getNumTemplateLevels(templateDecl));
 
-    llvm::SmallVector<TemplateArgument, 4> argsToDeduce;
-    argsToDeduce.resize(func->parameters().size());
     // Push the instantiation on context stack till the end of scope.
     // This is only to avoid clang assertions in debug mode.
-    // (sema.DeduceTemplateArguments above pushes and pops this internally.)
     Sema::InstantiatingTemplate substitutionContext(
-            sema, deductionInfo.getLocation(), ftemplate, argsToDeduce,
-            Sema::CodeSynthesisContext::DeducedTemplateArgumentSubstitution,
-            deductionInfo);
+            sema, templateDecl->getBeginLoc(), templateDecl);
     if (substitutionContext.isInvalid()) {
-        dbg("Failed to create instantiation context for SubstType");
-    } else {
-        // Substitute sugared template arguments into parameter types.
+        dbg("Failed to create instantiation context" << std::endl);
+        return ret;
+    }
+
+    collectSugar(sema, templateDecl, MLTAL, ret);
+    if (auto* conceptDecl = dyn_cast<ConceptDecl>(templateDecl)) {
+        Expr* constraintExpr = conceptDecl->getConstraintExpr();
+        substituteExprs(sema, {constraintExpr}, MLTAL, ret);
+    }
+    if (auto* ftemplate = dyn_cast<FunctionTemplateDecl>(templateDecl)) {
+        // Substitute sugared template arguments into function parameter types.
+        FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
         for (ParmVarDecl* param : func->parameters()) {
             TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
             TypeSourceInfo* substType = sema.SubstType(
                 paramTSI,
-                sugaredMLTAL,
+                MLTAL,
                 param->getLocation(),
                 {});
             if (substType) {
@@ -185,138 +244,53 @@ SugaredSignature getSugaredSignature(Sema& sema, CallExpr* callExpr) {
         }
     }
 
-    // Substitute sugared template arguments into constraints.
-    llvm::SmallVector<const Expr*, 4> associatedConstraints;
-    ftemplate->getAssociatedConstraints(associatedConstraints);
-    for (const Expr* expr : associatedConstraints) {
-        clang::ExprResult result = sema.SubstExpr(const_cast<Expr*>(expr), sugaredMLTAL);
-        if (result.get()) {
-            dbg("Specialized constraint expr: " << toString(ftemplate->getASTContext(), *expr) << std::endl);
-            ret.associatedConstraints.push_back(result.get());
-        } else if (result.isInvalid()) {
-            dbg("sema.SubstExpr failed" << std::endl);
-        }
-    }
+#else
+    (void)sema;
+    (void)templateDecl;
+    (void)writtenArgs;
+    (void)args;
 #endif
 
     return ret;
 }
 
-std::vector<TemplateArgumentLoc> substituteDefaultTemplateArguments(
-        Sema& sema, TemplateDecl* templateDecl,
-        const TemplateArgument* args, unsigned numArgs) {
-    std::vector<TemplateArgumentLoc> res;
-
-#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
-    MultiLevelTemplateArgumentList sugaredMLTAL;
-    sugaredMLTAL.addOuterTemplateArguments(templateDecl,
-            llvm::ArrayRef<TemplateArgument>(args, numArgs),
-            true);
-    // TODO: are we handling nested templates properly?
-    sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(templateDecl));
-    TemplateParameterList* templateParams = templateDecl->getTemplateParameters();
-    if (!templateParams) {
-        return res;
-    }
-
-    llvm::SmallVector<TemplateArgumentLoc, 8> defaultTemplateArgs;
-
-    // Skip explicitly provided arguments.
-    for (unsigned i = numArgs; i < templateParams->size(); ++i) {
-        NamedDecl* param = templateParams->getParam(i);
-        TemplateArgumentLoc defaultArg;
-        bool foundDefaultArgument = false;
-        // See TemplateParameterList ctor in DeclTemplate.cpp for possible types.
-        if (const auto* NTTP = dyn_cast<NonTypeTemplateParmDecl>(param)) {
-            if (NTTP->hasDefaultArgument()) {
-                foundDefaultArgument = true;
-#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
-                defaultArg = NTTP->getDefaultArgument();
-#else
-                Expr* expr = NTTP->getDefaultArgument();
-                defaultArg = TemplateArgumentLoc(TemplateArgument(expr), expr);
-#endif
-            }
-        } else if (const auto* typeParam = dyn_cast<TemplateTypeParmDecl>(param)) {
-            if (typeParam->hasDefaultArgument()) {
-                foundDefaultArgument = true;
-#if CAIDE_CLANG_VERSION_AT_LEAST(19,0)
-                defaultArg = typeParam->getDefaultArgument();
-#else
-                QualType type = typeParam->getDefaultArgument();
-                TypeSourceInfo* TSI = typeParam->getDefaultArgumentInfo();
-                defaultArg = TemplateArgumentLoc(TemplateArgument(type), TSI);
-#endif
-            }
-        } else if (const auto* TTP = dyn_cast<TemplateTemplateParmDecl>(param)) {
-            if (TTP->hasDefaultArgument()) {
-                foundDefaultArgument = true;
-                defaultArg = TTP->getDefaultArgument();
-            }
-        }
-        if (foundDefaultArgument) {
-            defaultTemplateArgs.push_back(defaultArg);
-        }
-    }
-
-    if (!defaultTemplateArgs.empty()) {
-        // Push the instantiation on context stack till the end of scope.
-        // This is only to avoid clang assertions in debug mode.
-        Sema::InstantiatingTemplate substitutionContext(
-                sema, templateDecl->getLocation(), templateDecl);
-        if (substitutionContext.isInvalid()) {
-            dbg("Failed to create instantiation context for SubstTemplateArguments");
-        } else {
-            SuppressErrorsInScope guard(sema);
-            TemplateArgumentListInfo substitutedDefaultArgs;
-            bool error = sema.SubstTemplateArguments(defaultTemplateArgs,
-                    sugaredMLTAL, substitutedDefaultArgs);
-            if (error) {
-                dbg("sema.SubstTemplateArguments failed" << std::endl);
-            } else {
-                for (unsigned i = 0; i < substitutedDefaultArgs.size(); ++i)
-                    res.push_back(substitutedDefaultArgs[i]);
-            }
-        }
-    }
-#endif
-
-    return res;
-}
-
-std::vector<TemplateArgumentLoc> substituteTemplateArguments(
+SugaredSignature substituteTemplateArguments(
         Sema& sema, ClassTemplatePartialSpecializationDecl* templateDecl,
-        const TemplateArgument* args, unsigned numArgs) {
-    std::vector<TemplateArgumentLoc> res;
+        llvm::ArrayRef<TemplateArgument> args) {
+    SugaredSignature ret;
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+    if (anyArgDependent(args)) {
+        return ret;
+    }
+
     MultiLevelTemplateArgumentList sugaredMLTAL;
-    sugaredMLTAL.addOuterTemplateArguments(templateDecl,
-            llvm::ArrayRef<TemplateArgument>(args, numArgs),
-            true);
+    sugaredMLTAL.addOuterTemplateArguments(templateDecl, args, true);
     // TODO: are we handling nested templates properly?
     sugaredMLTAL.addOuterRetainedLevels(getNumTemplateLevels(templateDecl));
 
     TemplateArgumentListInfo substitutedTemplateArgs;
     const ASTTemplateArgumentListInfo* templateArgsAsWritten = templateDecl->getTemplateArgsAsWritten();
     if (!templateArgsAsWritten) {
-        return res;
+        return ret;
     }
 
-    clang::sema::TemplateDeductionInfo deductionInfo(templateDecl->getBeginLoc());
+    clang::sema::TemplateDeductionInfo deductionInfo(
+            templateDecl->getBeginLoc(),
+            getNumTemplateLevels(templateDecl));
     llvm::SmallVector<TemplateArgument, 4> argsToDeduce;
     argsToDeduce.resize(templateDecl->getTemplateParameters()->size());
     // Push the instantiation on context stack till the end of scope.
     // This is only to avoid clang assertions in debug mode.
     //
     // We could use sema.DeduceTemplateArguments which pushes and pops this internally.
-    // But it's probably more expensive to perform the entire deduction, plus we want to
+    // But it would probably be more expensive to perform the entire deduction, plus we want to
     // substitute actually written (sugared) arguments of the specialization.
     Sema::InstantiatingTemplate substitutionContext(
             sema, deductionInfo.getLocation(), templateDecl, argsToDeduce,
             deductionInfo);
     if (substitutionContext.isInvalid()) {
-        dbg("Failed to create instantiation context for SubstType");
+        dbg("Failed to create instantiation context for SubstTemplateArguments");
     } else {
         SuppressErrorsInScope guard(sema);
         bool error = sema.SubstTemplateArguments(templateArgsAsWritten->arguments(),
@@ -325,35 +299,21 @@ std::vector<TemplateArgumentLoc> substituteTemplateArguments(
             dbg("sema.SubstTemplateArguments failed" << std::endl);
         } else {
             for (unsigned i = 0; i < substitutedTemplateArgs.size(); ++i)
-                res.push_back(substitutedTemplateArgs[i]);
+                ret.templateArgLocs.push_back(substitutedTemplateArgs[i]);
         }
     }
-#endif
 
-    return res;
-}
+    llvm::SmallVector<const Expr*, 4> constraints;
+    templateDecl->getAssociatedConstraints(constraints);
+    substituteExprs(sema, constraints, sugaredMLTAL, ret);
 
-Expr* substituteTemplateArguments(
-        clang::Sema& sema, clang::Expr* expr, clang::Decl* exprParent,
-        const clang::TemplateArgument* args, unsigned numArgs) {
-#if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
-    MultiLevelTemplateArgumentList templateArgs;
-    templateArgs.addOuterTemplateArguments(exprParent,
-            llvm::ArrayRef<TemplateArgument>(args, numArgs),
-            true);
-    // TODO: are we handling nested templates properly?
-    templateArgs.addOuterRetainedLevels(getNumTemplateLevels(exprParent));
-
-    SuppressErrorsInScope guard(sema);
-    clang::ExprResult result = sema.SubstExpr(expr, templateArgs);
-    if (result.isInvalid()) {
-        dbg("sema.SubstExpr failed" << std::endl);
-        return nullptr;
-    }
-    return result.get();
 #else
-    return nullptr;
+    (void)sema;
+    (void)templateDecl;
+    (void)args;
 #endif
+
+    return ret;
 }
 
 }}

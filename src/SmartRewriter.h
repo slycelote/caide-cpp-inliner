@@ -33,7 +33,7 @@ public:
     void appendToPreamble(std::string s);
     void removeRange(clang::SourceLocation begin, clang::SourceLocation end);
     void removeRange(const clang::SourceRange& range);
-    const clang::RewriteBuffer* getRewriteBufferFor(clang::FileID fileID) const;
+    bool getRewriteBufferFor(clang::FileID fileID, std::string& rewriteBuf) const;
     void applyChanges();
 
 private:

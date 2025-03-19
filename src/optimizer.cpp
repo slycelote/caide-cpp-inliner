@@ -204,9 +204,9 @@ public:
 
 private:
     string getResult() const {
-        if (const RewriteBuffer* rewriteBuf =
-                smartRewriter->getRewriteBufferFor(sourceManager.getMainFileID()))
-            return string(rewriteBuf->begin(), rewriteBuf->end());
+        string rewriteBuf;
+        if (smartRewriter->getRewriteBufferFor(sourceManager.getMainFileID(), rewriteBuf))
+            return rewriteBuf;
 
         // No changes
         bool invalid;

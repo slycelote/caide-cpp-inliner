@@ -82,6 +82,15 @@ void substituteExprs(Sema& sema, llvm::ArrayRef<const Expr*> exprs,
 // sema.DeduceTemplateArguments was exposed in commit 7415524b
 #if CAIDE_CLANG_VERSION_AT_LEAST(19, 1)
 
+llvm::SmallVector<TemplateArgument, 4> getInjectedTemplateArgs(
+        ASTContext& astCtx, const TemplateParameterList& params)
+{
+    llvm::SmallVector<TemplateArgument, 4> Ps;
+    for (NamedDecl* paramDecl : params)
+        Ps.push_back(astCtx.getInjectedTemplateArg(paramDecl));
+    return Ps;
+}
+
 template <typename TArgumentLocVector>
 int deduceTemplateArguments(Sema& sema,
         TemplateDecl* templateDecl,
@@ -97,9 +106,7 @@ int deduceTemplateArguments(Sema& sema,
     // of default arguments.
     // If deduced is empty, specialization decl is not available (e.g for template type aliases).
     if (deduced.empty()) {
-        llvm::SmallVector<TemplateArgument, 4> Ps;
-        sema.getASTContext().getInjectedTemplateArgs(params, Ps);
-
+        llvm::SmallVector<TemplateArgument, 4> Ps = getInjectedTemplateArgs(sema.getASTContext(), *params);
         llvm::SmallVector<DeducedTemplateArgument, 4> deducedTemplateArgs(params->size());
         clang::sema::TemplateDeductionInfo deductionInfo(
                 templateDecl->getBeginLoc(),

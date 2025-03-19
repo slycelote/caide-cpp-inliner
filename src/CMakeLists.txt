@@ -58,7 +58,7 @@ else()
         include("${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/clang/ClangConfig.cmake")
     else()
         # If the above doesn't work, we hardcode certain variables:
-        set(LLVM_PACKAGE_VERSION "19.1.2")
+        set(LLVM_PACKAGE_VERSION "20.1.1")
         set(LLVM_LIBRARY_DIRS "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/lib")
         set(LLVM_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm/include"
           "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/include")
@@ -73,7 +73,7 @@ endif()
 if(LLVM_PACKAGE_VERSION VERSION_LESS "9")
     message(WARNING "A version of clang/llvm that is too old is detected. Build failure is possible.")
 endif()
-if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "20")
+if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL "21")
     message(WARNING "A version of clang/llvm that is too recent is detected. Build failure is possible.")
 endif()
 

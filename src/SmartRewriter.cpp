@@ -40,8 +40,13 @@ bool SmartRewriter::isPartOfRangeRemoved(const SourceRange& range) const {
     return removed.intersects(range.getBegin(), range.getEnd());
 }
 
-const RewriteBuffer* SmartRewriter::getRewriteBufferFor(FileID fileID) const {
-    return rewriter.getRewriteBufferFor(fileID);
+bool SmartRewriter::getRewriteBufferFor(FileID fileID, std::string& rewriteBuf) const {
+    const auto* rewriteBuffer = rewriter.getRewriteBufferFor(fileID);
+    if (rewriteBuffer == nullptr) {
+        return false;
+    }
+    rewriteBuf.assign(rewriteBuffer->begin(), rewriteBuffer->end());
+    return true;
 }
 
 void SmartRewriter::applyChanges() {

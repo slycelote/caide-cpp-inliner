@@ -15,5 +15,5 @@ Build and test:
     matrix:
       - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-
+        # https://apt.llvm.org/llvm.sh installation script only supports versions starting at 9
+        CAIDE_CLANG_VERSION: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]

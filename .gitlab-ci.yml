@@ -1,10 +1,10 @@
 Build and test:
-  image: 'debian:buster'
+  image: 'debian:bullseye'
   script: ci/gitlab-script.sh
   timeout: 3 hours
 
   cache:
-    key: "ccache:os=debian-buster:systemclang=$CAIDE_USE_SYSTEM_CLANG:clang=$CAIDE_CLANG_VERSION"
+    key: "ccache:os=debian-bullseye:systemclang=$CAIDE_USE_SYSTEM_CLANG:clang=$CAIDE_CLANG_VERSION"
     paths: [ 'ccache-cache' ]
 
   artifacts:

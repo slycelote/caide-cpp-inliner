@@ -11,9 +11,9 @@ ci_timer
 apt-get update
 ci_timer
 
-apt-get install -y lsb-release wget software-properties-common gnupg ninja-build ccache g++-7 gcc-7
-export CXX=g++-7
-export CC=gcc-7
+apt-get install -y lsb-release wget software-properties-common gnupg ninja-build ccache g++-9 gcc-9
+export CXX=g++-9
+export CC=gcc-9
 ci_timer
 
 wget https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-linux-x86_64.tar.gz

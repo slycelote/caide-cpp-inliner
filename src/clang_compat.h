@@ -38,7 +38,7 @@ const clang::TemplateArgument* getArgs(
 using llvm::dyn_cast_if_present;
 #else
 template <typename To, typename From>
-auto dyn_cast_if_present(From* val) {
+auto* dyn_cast_if_present(From&& val) {
     if (val) {
         return llvm::dyn_cast<To>(val);
     } else {
@@ -46,5 +46,6 @@ auto dyn_cast_if_present(From* val) {
     }
 }
 #endif
+
 }}
 

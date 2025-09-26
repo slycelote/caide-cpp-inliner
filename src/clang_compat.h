@@ -6,7 +6,10 @@
 
 #pragma once
 
+#include "clang_version.h"
+
 #include <clang/Basic/SourceLocation.h>
+#include <llvm/Support/Casting.h>
 
 namespace clang {
     class CXXConstructorDecl;
@@ -31,5 +34,17 @@ unsigned getNumArgs(const clang::TemplateSpecializationType& templateSpecType);
 const clang::TemplateArgument* getArgs(
         const clang::TemplateSpecializationType& templateSpecType);
 
+#if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
+using llvm::dyn_cast_if_present;
+#else
+template <typename To, typename From>
+auto dyn_cast_if_present(From* val) {
+    if (val) {
+        return llvm::dyn_cast<To>(val);
+    } else {
+        return nullptr;
+    }
+}
+#endif
 }}
 

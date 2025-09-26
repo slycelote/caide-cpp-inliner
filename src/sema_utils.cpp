@@ -91,6 +91,23 @@ llvm::SmallVector<TemplateArgument, 4> getInjectedTemplateArgs(
     return Ps;
 }
 
+
+// TTemplateDecl is either TemplateDecl or ClassTemplatePartialSpecializationDecl
+template <typename TTemplateDecl>
+llvm::SmallVector<const Expr*, 4> getConstraintExprs(const TTemplateDecl* templateDecl) {
+    llvm::SmallVector<const Expr*, 4> constraintExprs;
+
+#if CAIDE_CLANG_VERSION_AT_LEAST(21, 0)
+    llvm::SmallVector<AssociatedConstraint, 4> constraints;
+    templateDecl->getAssociatedConstraints(constraints);
+    for (const auto& ac : constraints)
+        constraintExprs.push_back(ac.ConstraintExpr);
+#else
+    templateDecl->getAssociatedConstraints(constraintExprs);
+#endif
+    return constraintExprs;
+}
+
 template <typename TArgumentLocVector>
 int deduceTemplateArguments(Sema& sema,
         TemplateDecl* templateDecl,
@@ -179,8 +196,8 @@ void collectSugar(Sema& sema,
         }
     }
 
-    llvm::SmallVector<const Expr*, 4> constraints;
-    templateDecl->getAssociatedConstraints(constraints);
+    llvm::SmallVector<const Expr*, 4> constraints =
+        getConstraintExprs(templateDecl);
     substituteExprs(sema, constraints, MLTAL, sig);
 }
 #endif
@@ -310,8 +327,8 @@ SugaredSignature substituteTemplateArguments(
         }
     }
 
-    llvm::SmallVector<const Expr*, 4> constraints;
-    templateDecl->getAssociatedConstraints(constraints);
+    llvm::SmallVector<const Expr*, 4> constraints =
+        getConstraintExprs(templateDecl);
     substituteExprs(sema, constraints, sugaredMLTAL, ret);
 
 #else

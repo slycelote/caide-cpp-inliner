@@ -15,4 +15,4 @@ Build and test:
     matrix:
       - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        CAIDE_CLANG_VERSION: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]

@@ -72,7 +72,7 @@ void DependenciesCollector::traverseTemplateSpecializationTypeImpl(
             instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
         // This cannot be a partial specialization.
-        tempDecl = instantiatedFrom.dyn_cast<ClassTemplateDecl*>();
+        tempDecl = dyn_cast_if_present<ClassTemplateDecl*>(instantiatedFrom);
     }
 
     if (tempDecl) {
@@ -314,7 +314,7 @@ bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
     if (!refExpr) {
         auto* castExpr = dyn_cast<ImplicitCastExpr>(callee);
         if (castExpr && castExpr->getCastKind() == CK_FunctionToPointerDecay)
-            refExpr = dyn_cast<DeclRefExpr>(castExpr->getSubExpr());
+            refExpr = dyn_cast_if_present<DeclRefExpr>(castExpr->getSubExpr());
         if (!refExpr)
             return true;
     }
@@ -474,7 +474,7 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-    if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
+    if (auto* partial = dyn_cast_if_present<ClassTemplatePartialSpecializationDecl*>(instantiatedFrom)) {
         // template<typename T>
         // class X<Foo<T>, Bar<T>> {...}
         // -> X<Foo<int>, Bar<int>>
@@ -483,7 +483,6 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
         // instantiatedWithArgs = [int]
         //
         // To obtain correct dependencies, substitute instantiatedWithArgs into templateArgsAsWritten.
-        auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
         const TemplateArgumentList& instantiatedWithArgs = specDecl->getTemplateInstantiationArgs();
         SugaredSignature sig = substituteTemplateArguments(sema, partial, instantiatedWithArgs.asArray());
         traverseSugaredSignature(sig);
@@ -496,11 +495,9 @@ bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSp
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-    if (instantiatedFrom.is<ClassTemplateDecl*>()) {
-        auto* tempDecl = instantiatedFrom.get<ClassTemplateDecl*>();
+    if (auto* tempDecl = dyn_cast_if_present<ClassTemplateDecl*>(instantiatedFrom)) {
         insertReference(specDecl, tempDecl);
-    } else if (instantiatedFrom.is<ClassTemplatePartialSpecializationDecl*>()) {
-        auto* partial = instantiatedFrom.get<ClassTemplatePartialSpecializationDecl*>();
+    } else if (auto* partial = dyn_cast_if_present<ClassTemplatePartialSpecializationDecl*>(instantiatedFrom)) {
         insertReference(specDecl, partial);
     }
 
@@ -511,11 +508,9 @@ bool DependenciesCollector::VisitVarTemplateSpecializationDecl(clang::VarTemplat
     llvm::PointerUnion<VarTemplateDecl*, VarTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
-    if (instantiatedFrom.is<VarTemplateDecl*>()) {
-        auto* tempDecl = instantiatedFrom.get<VarTemplateDecl*>();
+    if (auto* tempDecl = dyn_cast_if_present<VarTemplateDecl*>(instantiatedFrom)) {
         insertReference(specDecl, tempDecl);
-    } else if (instantiatedFrom.is<VarTemplatePartialSpecializationDecl*>()) {
-        auto* partial = instantiatedFrom.get<VarTemplatePartialSpecializationDecl*>();
+    } else if (auto* partial = dyn_cast_if_present<VarTemplatePartialSpecializationDecl*>(instantiatedFrom)) {
         insertReference(specDecl, partial);
     }
 

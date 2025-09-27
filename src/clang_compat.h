@@ -37,18 +37,17 @@ const clang::TemplateArgument* getArgs(
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(15, 0)
 using llvm::dyn_cast_if_present;
-
-# if !CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
-template <typename To, typename... PTs>
-auto* dyn_cast_if_present(llvm::PointerUnion<PTs...> val) {
-    return val.template dyn_cast<To>();
-}
-# endif
-
 #else
 template <typename To, typename From>
 auto* dyn_cast_if_present(From&& val) {
     return val ? llvm::dyn_cast<To>(val) : nullptr;
+}
+#endif
+
+#if !CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
+template <typename To, typename... PTs>
+auto* dyn_cast_if_present(llvm::PointerUnion<PTs...> val) {
+    return val.template dyn_cast<To>();
 }
 #endif
 

@@ -108,11 +108,15 @@ bool DependenciesCollector::TraverseAutoType(AutoType* autoType) {
     RecursiveASTVisitor::TraverseAutoType(autoType);
 
     if (ConceptDecl* conceptDecl = autoType->getTypeConstraintConcept()) {
-        llvm::SmallVector<TemplateArgument, 4> writtenArgs;
-        writtenArgs.push_back(TemplateArgument(autoType->getDeducedType()));
-        writtenArgs.append(autoType->getTypeConstraintArguments().begin(), autoType->getTypeConstraintArguments().end());
-        SugaredSignature sig = substituteTemplateArguments(sema, conceptDecl, writtenArgs, {});
-        traverseSugaredSignature(sig, /*traverseTypeLocs=*/false);
+        // XXX: We might need this in stdlib for transitive dependencies, but
+        // substituteTemplateArguments takes too long.
+        if (sourceManager.isInMainFile(getBeginLoc(conceptDecl))) {
+            llvm::SmallVector<TemplateArgument, 4> writtenArgs;
+            writtenArgs.push_back(TemplateArgument(autoType->getDeducedType()));
+            writtenArgs.append(autoType->getTypeConstraintArguments().begin(), autoType->getTypeConstraintArguments().end());
+            SugaredSignature sig = substituteTemplateArguments(sema, conceptDecl, writtenArgs, {});
+            traverseSugaredSignature(sig, /*traverseTypeLocs=*/false);
+        }
     }
     return true;
 }
@@ -319,6 +323,11 @@ bool DependenciesCollector::TraverseCallExpr(CallExpr* callExpr) {
             return true;
     }
 
+    // XXX: We might need the following in stdlib for transitive dependencies, but
+    // substituteTemplateArguments takes too long.
+    if (!sourceManager.isInMainFile(callExpr->getExprLoc()))
+        return true;
+
     llvm::SmallVector<TemplateArgument, 4> writtenArgs;
     for (TemplateArgumentLoc argLoc : refExpr->template_arguments())
         writtenArgs.push_back(argLoc.getArgument());
@@ -359,6 +368,10 @@ bool DependenciesCollector::VisitCXXConstructExpr(CXXConstructExpr* constructorE
 bool DependenciesCollector::TraverseConceptSpecializationExpr(ConceptSpecializationExpr* conceptExpr) {
     dbg(CAIDE_FUNC);
     RecursiveASTVisitor::TraverseConceptSpecializationExpr(conceptExpr);
+    // XXX: We might need the following in stdlib for transitive dependencies, but
+    // substituteTemplateArguments takes too long.
+    if (!sourceManager.isInMainFile(conceptExpr->getExprLoc()))
+        return true;
 
     ConceptDecl* conceptDecl = conceptExpr->getNamedConcept();
     const ASTTemplateArgumentListInfo* argsInfo = conceptExpr->getTemplateArgsAsWritten();
@@ -471,6 +484,8 @@ bool DependenciesCollector::VisitClassTemplateDecl(ClassTemplateDecl* templateDe
 
 bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {
     dbg(CAIDE_FUNC);
+    RecursiveASTVisitor::TraverseClassTemplateSpecializationDecl(specDecl);
+
     llvm::PointerUnion<ClassTemplateDecl*, ClassTemplatePartialSpecializationDecl*>
         instantiatedFrom = specDecl->getSpecializedTemplateOrPartial();
 
@@ -488,7 +503,7 @@ bool DependenciesCollector::TraverseClassTemplateSpecializationDecl(ClassTemplat
         traverseSugaredSignature(sig);
     }
 
-    return RecursiveASTVisitor::TraverseClassTemplateSpecializationDecl(specDecl);
+    return true;
 }
 
 bool DependenciesCollector::VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl* specDecl) {

@@ -9,6 +9,7 @@
 // #define CAIDE_DEBUG_MODE
 #include "caide_debug.h"
 #include "clang_version.h"
+#include "Timer.h"
 #include "util.h"
 
 #include <clang/Sema/Sema.h>
@@ -68,12 +69,13 @@ bool anyArgDependent(llvm::ArrayRef<TemplateArgument> args) {
 void substituteExprs(Sema& sema, llvm::ArrayRef<const Expr*> exprs,
         const MultiLevelTemplateArgumentList& MLTAL, SugaredSignature& sig)
 {
+    ScopedTimer t("substituteExprs");
     for (auto* expr : exprs) {
         clang::ExprResult result = sema.SubstExpr(const_cast<Expr*>(expr), MLTAL);
         if (result.isInvalid()) {
             dbg("sema.SubstExpr failed" << std::endl);
         } else if (Expr* res = result.get()) {
-            dbg("Specialized constraint expr: " << toString(sema.getASTContext(), *res) << std::endl);
+            // dbg("Specialized constraint expr: " << toString(sema.getASTContext(), *res) << std::endl);
             sig.associatedConstraints.push_back(res);
         }
     }
@@ -119,6 +121,7 @@ int deduceTemplateArguments(Sema& sema,
         llvm::SmallVectorImpl<TemplateArgument>& deduced,
         TArgumentLocVector& synthesizedArgLocs)
 {
+    ScopedTimer t1("deduceTemplateArguments");
     const bool isFuncTemplate = isa<FunctionTemplateDecl>(templateDecl);
     TemplateParameterList* params = templateDecl->getTemplateParameters();
 
@@ -181,10 +184,12 @@ void collectSugar(Sema& sema,
         const MultiLevelTemplateArgumentList& MLTAL,
         SugaredSignature& sig)
 {
+    ScopedTimer t1("collectSugar");
     TemplateParameterList* paramList = templateDecl->getTemplateParameters();
 
     // Substitute sugared template arguments into template parameter types.
     for (NamedDecl* paramDecl : paramList->asArray()) {
+        ScopedTimer t2("sema.SubstType");
         if (const auto* NTTP = dyn_cast<NonTypeTemplateParmDecl>(paramDecl)) {
             TypeSourceInfo* substType = sema.SubstType(
                 NTTP->getTypeSourceInfo(),
@@ -213,6 +218,7 @@ SugaredSignature substituteTemplateArguments(
         llvm::ArrayRef<TemplateArgument> writtenArgs,
         llvm::ArrayRef<TemplateArgument> args)
 {
+    ScopedTimer t1("substituteTemplateArguments");
     SugaredSignature ret;
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(19, 1)
@@ -256,6 +262,7 @@ SugaredSignature substituteTemplateArguments(
     if (auto* ftemplate = dyn_cast<FunctionTemplateDecl>(templateDecl)) {
         // Substitute sugared template arguments into function parameter types.
         FunctionDecl* func = ftemplate->getTemplatedDecl(); // Non-specialized decl.
+        ScopedTimer t2("sema.SubstType");
         for (ParmVarDecl* param : func->parameters()) {
             TypeSourceInfo* paramTSI = param->getTypeSourceInfo();
             TypeSourceInfo* substType = sema.SubstType(
@@ -285,8 +292,8 @@ SugaredSignature substituteTemplateArguments(
 SugaredSignature substituteTemplateArguments(
         Sema& sema, ClassTemplatePartialSpecializationDecl* templateDecl,
         llvm::ArrayRef<TemplateArgument> args) {
+    ScopedTimer t1("substituteTemplateArguments(ClassPartialSpec)");
     SugaredSignature ret;
-
 #if CAIDE_CLANG_VERSION_AT_LEAST(16, 0)
     if (anyArgDependent(args)) {
         return ret;

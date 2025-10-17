@@ -93,7 +93,7 @@ and rerun the program. Observe how the output file changes accordingly.
 clang library is a required dependency. You can either build it from scratch,
 or use a version installed in your system.
 
-* To build from scratch (recommended):
+* To build from scratch:
 
         git submodule update --init --recursive
         mkdir build
@@ -112,8 +112,7 @@ Once build files are generated, build as usual (run `make`, open the VS
 solution etc.)
 
 * To use clang libraries from your system you need to first install them
-  (in Linux, search for packages clang-14, libclang-14-dev and llvm-14-dev
-  or similar).
+  (in Linux, search for packages clang-19 and libclang-19-dev or similar).
 
 
         mkdir build
@@ -131,8 +130,8 @@ Refer to Doxygen comments in [caideInliner header](src/caideInliner.hpp).
 
 ## Known issues
 
-* Non-standard features, such as defining a function without return type, are
-  not supported.
+* Non-standard features, such as defining a function without return type, may
+  be unsupported.
 * Defining a class and a variable of the same class simultaneously (`struct A
   {} a;`) is not supported.
 * Unused global variables are removed. This is fine, unless you use such a

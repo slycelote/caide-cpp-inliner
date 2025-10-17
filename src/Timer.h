@@ -5,13 +5,12 @@
 // option) any later version. See LICENSE.TXT for details.
 
 #include <chrono>
-#include <string>
 
 namespace caide { namespace internal {
 
 class ScopedTimer {
 public:
-    ScopedTimer(const std::string& name);
+    explicit ScopedTimer(const char* name);
     ~ScopedTimer();
 
     void pause();

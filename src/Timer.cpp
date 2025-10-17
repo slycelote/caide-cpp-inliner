@@ -14,6 +14,7 @@
 #include <iostream>
 #include <map>
 #include <stack>
+#include <string>
 
 
 namespace caide { namespace internal {
@@ -66,9 +67,9 @@ struct ReportPrinter {
 
 }
 
-ScopedTimer::ScopedTimer(const std::string& name) {
+ScopedTimer::ScopedTimer(const char* name) {
     TimeReport* prev = printer.cur.top();
-    TimeReport& cur = prev->children[name];
+    TimeReport& cur = prev->children[std::string(name)];
     printer.cur.push(&cur);
     cur.count++;
     duration = &cur.duration;
@@ -97,7 +98,7 @@ void ScopedTimer::resume() {
 
 namespace caide { namespace internal {
 
-ScopedTimer::ScopedTimer(const std::string&) {
+ScopedTimer::ScopedTimer(const char*) {
     (void)start;
     (void)duration;
 }

@@ -10,6 +10,7 @@
 
 #ifdef CAIDE_TIMER
 
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <stack>
@@ -22,6 +23,7 @@ namespace {
 struct TimeReport {
     using Duration = std::chrono::steady_clock::duration;
     Duration duration;
+    uint64_t count = 0;
 
     std::map<std::string, TimeReport> children;
 };
@@ -38,22 +40,24 @@ struct ReportPrinter {
         auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(node.duration);
         auto other = durationMs;
         if (indent >= 0)
-            print(durationMs, name, indent);
+            print(durationMs, name, indent, node.count);
 
         for (const auto& kv : node.children)
             other -= print(kv.second, kv.first, indent + INDENT);
 
         if (indent >= 0 && !node.children.empty() && other > std::chrono::milliseconds{0})
-            print(other, "Other", indent + INDENT);
+            print(other, "Other", indent + INDENT, node.count);
 
         return durationMs;
     }
 
-    void print(std::chrono::milliseconds duration, const std::string& name, int indent) {
-        std::string durationStr = std::to_string(duration.count());
-        std::cerr << durationStr << " ms ";
-        for (size_t i = durationStr.size(); i < (size_t)6; ++i)
-            std::cerr << ' ';
+    void print(std::chrono::milliseconds duration, const std::string& name, int indent, int count) {
+        std::string durationStr = std::to_string(duration.count()) + " ms";
+        std::cerr << std::right << std::setw(12) << durationStr;
+
+        std::string countStr = "/" + std::to_string(count);
+        std::cerr << std::setw(10) << countStr << " |";
+
         for (int i = 0; i < indent; ++i)
             std::cerr << ' ';
         std::cerr << name << '\n';
@@ -66,6 +70,7 @@ ScopedTimer::ScopedTimer(const std::string& name) {
     TimeReport* prev = printer.cur.top();
     TimeReport& cur = prev->children[name];
     printer.cur.push(&cur);
+    cur.count++;
     duration = &cur.duration;
     resume();
 }

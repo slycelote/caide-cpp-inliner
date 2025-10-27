@@ -12,6 +12,7 @@
 #include "optimizer.h"
 
 #include <algorithm>
+#include <iostream>
 #include <limits>
 #include <fstream>
 #include <sstream>
@@ -167,6 +168,8 @@ extern "C" int caideInlineCppCode(
         inliner.inlineCode(files, outputFilePath);
         return 0;
     } catch (const std::exception& e) {
+        // TODO: Expose error message in C interface.
+        std::cerr << e.what() << std::endl;
         return 1;
     } catch (...) {
         return 2;

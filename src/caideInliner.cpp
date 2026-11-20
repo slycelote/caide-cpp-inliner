@@ -94,12 +94,11 @@ static bool isWhitespaceOnly(const string& text) {
 
 static void removeEmptyLines(const string& textInBinaryMode,
                              int maxConsequentEmptyLines,
-                             const string& outputFilePath)
+                             ofstream &out)
 {
     if (maxConsequentEmptyLines < 0)
         maxConsequentEmptyLines = std::numeric_limits<int>::max();
     istringstream in{textInBinaryMode};
-    ofstream out{outputFilePath, std::ios::binary};
     int currentConsequentEmptyLines = 0;
     bool readNonEmptyLine = false;
     string line;
@@ -123,7 +122,7 @@ static string pathConcat(const string& path, const string& fileName) {
     return result;
 }
 
-void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& outputFilePath) const {
+void CppInliner::inlineCode(const vector<string>& cppFilePaths, ofstream &os) const {
     const string concatStage{pathConcat(temporaryDirectory, "concat.cpp")};
     const string inlinedStage{pathConcat(temporaryDirectory, "inlined.cpp")};
 
@@ -135,7 +134,12 @@ void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& ou
 
     internal::Optimizer optimizer{inliner.getResultingCommandLineOptions(), macrosToKeep, identifiersToKeep};
     std::string onlyReachableCode{optimizer.doOptimize(inlinedStage)};
-    removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, outputFilePath);
+    removeEmptyLines(onlyReachableCode, maxConsequentEmptyLines, os);
+}
+
+void CppInliner::inlineCode(const vector<string>& cppFilePaths, const string& outputFilePath) const {
+    ofstream out(outputFilePath, std::ios::binary);
+    inlineCode(cppFilePaths, out);
 }
 
 void CppInliner::autoDetectCompilationOptions() {

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -36,7 +37,6 @@ public:
     /// \sa maxConsequentEmptyLines
     explicit CppInliner(const std::string& temporaryDirectory);
 
-
     /// \brief Generate a single-file C++ program equivalent to the multiple-file program.
     /// \param cppFilePaths full paths of all C++ files of a program
     /// \param outputFilePath path to a file where the inlined program will be written
@@ -46,6 +46,10 @@ public:
     /// marked with a comment 'caide keep' will be kept too.
     void inlineCode(const std::vector<std::string>& cppFilePaths,
                     const std::string& outputFilePath) const;
+
+    /// \brief The same function but it takes in an `ostream` instead
+    void inlineCode(const std::vector<std::string>& cppFilePaths,
+                    std::ostream& out) const;
 
     /// \brief Try to detect system include paths automatically and adjust
     /// clangCompilationOptions accordingly.

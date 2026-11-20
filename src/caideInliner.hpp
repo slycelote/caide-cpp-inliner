@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -48,7 +49,7 @@ public:
 
     /// \brief The same function but it takes in an `ostream` instead
     void inlineCode(const std::vector<std::string>& cppFilePaths,
-                    std::ostream &out) const;
+                    std::ostream& out) const;
 
     /// \brief Try to detect system include paths automatically and adjust
     /// clangCompilationOptions accordingly.

@@ -46,9 +46,9 @@ public:
     void inlineCode(const std::vector<std::string>& cppFilePaths,
                     const std::string& outputFilePath) const;
 
-    /// \brief The same function but it takes in an `ofstream` instead
+    /// \brief The same function but it takes in an `ostream` instead
     void inlineCode(const std::vector<std::string>& cppFilePaths,
-                    std::ofstream &out) const;
+                    std::ostream &out) const;
 
     /// \brief Try to detect system include paths automatically and adjust
     /// clangCompilationOptions accordingly.

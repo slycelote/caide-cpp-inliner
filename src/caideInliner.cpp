@@ -94,7 +94,7 @@ static bool isWhitespaceOnly(const string& text) {
 
 static void removeEmptyLines(const string& textInBinaryMode,
                              int maxConsequentEmptyLines,
-                             ofstream &out)
+                             std::ostream &out)
 {
     if (maxConsequentEmptyLines < 0)
         maxConsequentEmptyLines = std::numeric_limits<int>::max();
@@ -122,7 +122,7 @@ static string pathConcat(const string& path, const string& fileName) {
     return result;
 }
 
-void CppInliner::inlineCode(const vector<string>& cppFilePaths, ofstream &os) const {
+void CppInliner::inlineCode(const vector<string>& cppFilePaths, std::ostream &os) const {
     const string concatStage{pathConcat(temporaryDirectory, "concat.cpp")};
     const string inlinedStage{pathConcat(temporaryDirectory, "inlined.cpp")};
 

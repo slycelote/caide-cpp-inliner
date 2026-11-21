@@ -1,10 +1,10 @@
 Build and test:
-  image: 'debian:bullseye'
+  image: 'debian:bookworm'
   script: ci/gitlab-script.sh
   timeout: 3 hours
 
   cache:
-    key: "ccache:os=debian-bullseye:systemclang=$CAIDE_USE_SYSTEM_CLANG:clang=$CAIDE_CLANG_VERSION"
+    key: "ccache:os=debian-bookworm:systemclang=$CAIDE_USE_SYSTEM_CLANG:clang=$CAIDE_CLANG_VERSION"
     paths: [ 'ccache-cache' ]
 
   artifacts:
@@ -15,4 +15,4 @@ Build and test:
     matrix:
       - CAIDE_USE_SYSTEM_CLANG: 'OFF'
       - CAIDE_USE_SYSTEM_CLANG: 'ON'
-        CAIDE_CLANG_VERSION: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        CAIDE_CLANG_VERSION: [15, 16, 17, 18, 19, 20, 21, 22]

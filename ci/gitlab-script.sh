@@ -11,15 +11,9 @@ ci_timer
 apt-get update
 ci_timer
 
-apt-get install -y lsb-release wget software-properties-common gnupg ninja-build ccache g++-9 gcc-9
-export CXX=g++-9
-export CC=gcc-9
-ci_timer
-
-wget https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-linux-x86_64.tar.gz
-tar xf cmake-3.20.1-linux-x86_64.tar.gz
-rm *.tar.gz
-export PATH="$PATH":"$PWD/cmake-3.20.1-linux-x86_64/bin"
+apt-get install -y lsb-release wget software-properties-common gnupg ninja-build ccache cmake g++-11 gcc-11
+export CXX=g++-11
+export CC=gcc-11
 ci_timer
 
 if [ "$CAIDE_USE_SYSTEM_CLANG" = "ON" ]

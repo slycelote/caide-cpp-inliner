@@ -151,6 +151,8 @@ int deduceTemplateArguments(Sema& sema,
     // compilation errors, which we don't expect here.
     SourceLocation templateLoc = templateDecl->getLocation();
     SourceLocation rAngleLoc = templateLoc;
+    SourceLocation templateNameLoc = templateLoc;
+    (void)templateNameLoc;
 
     // Instantiate necessary default arguments. For function templates, some
     // template arguments could have been deduced from function arguments
@@ -163,7 +165,11 @@ int deduceTemplateArguments(Sema& sema,
         // We pass 'deduced' as both SugaredConverted and CanonicalConverted arguments;
         // the latter doesn't seem to be used anyway...
         TemplateArgumentLoc defaultArgLoc = sema.SubstDefaultTemplateArgumentIfAvailable(
-                templateDecl, templateLoc, rAngleLoc, param, deduced, deduced, hasDefaultArg);
+                templateDecl, templateLoc,
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+                templateNameLoc,
+#endif
+                rAngleLoc, param, deduced, deduced, hasDefaultArg);
         if (hasDefaultArg) {
             synthesizedArgLocs.push_back(defaultArgLoc);
             if (deduced[i].isNull()) {
@@ -322,8 +328,11 @@ SugaredSignature substituteTemplateArguments(
     // But it would probably be more expensive to perform the entire deduction, plus we want to
     // substitute actually written (sugared) arguments of the specialization.
     Sema::InstantiatingTemplate substitutionContext(
-            sema, deductionInfo.getLocation(), templateDecl, argsToDeduce,
-            deductionInfo);
+        sema, deductionInfo.getLocation(), templateDecl, argsToDeduce
+#if !CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+        , deductionInfo
+#endif
+    );
     if (substitutionContext.isInvalid()) {
         dbg("Failed to create instantiation context for SubstTemplateArguments");
     } else {

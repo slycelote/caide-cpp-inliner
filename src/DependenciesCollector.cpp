@@ -85,29 +85,57 @@ void DependenciesCollector::traverseTemplateSpecializationTypeImpl(
     }
 }
 
-bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc tempSpecTypeLoc) {
+bool DependenciesCollector::TraverseTemplateSpecializationTypeLoc(
+    TemplateSpecializationTypeLoc tempSpecTypeLoc
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+    , bool TraverseQualifier
+#endif
+) {
     dbg(CAIDE_FUNC);
-    RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(tempSpecTypeLoc);
+    RecursiveASTVisitor::TraverseTemplateSpecializationTypeLoc(
+        tempSpecTypeLoc
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+        , TraverseQualifier
+#endif
+    );
 
     traverseTemplateSpecializationTypeImpl(tempSpecTypeLoc.getTypePtr(), true);
     return true;
 }
 
 // We duplicate this for Type and TypeLoc, as not everything in clang traversal uses TypeLocs yet.
-bool DependenciesCollector::TraverseTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
+bool DependenciesCollector::TraverseTemplateSpecializationType(
+    TemplateSpecializationType* tempSpecType
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+    , bool TraverseQualifier
+#endif
+) {
     dbg(CAIDE_FUNC);
-    RecursiveASTVisitor::TraverseTemplateSpecializationType(tempSpecType);
+    RecursiveASTVisitor::TraverseTemplateSpecializationType(
+        tempSpecType
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+        , TraverseQualifier
+#endif
+    );
 
     traverseTemplateSpecializationTypeImpl(tempSpecType, false);
     return true;
 }
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
-bool DependenciesCollector::TraverseAutoType(AutoType* autoType) {
+bool DependenciesCollector::TraverseAutoType(
+    AutoType* autoType, bool TraverseQualifier
+) {
     dbg(CAIDE_FUNC);
-    RecursiveASTVisitor::TraverseAutoType(autoType);
+    (void)TraverseQualifier;
+    RecursiveASTVisitor::TraverseAutoType(
+        autoType
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+        , TraverseQualifier
+#endif
+    );
 
-    if (ConceptDecl* conceptDecl = autoType->getTypeConstraintConcept()) {
+    if (auto* conceptDecl = dyn_cast_if_present<ConceptDecl>(autoType->getTypeConstraintConcept())) {
         // XXX: We might need this in stdlib for transitive dependencies, but
         // substituteTemplateArguments takes too long.
         if (sourceManager.isInMainFile(getBeginLoc(conceptDecl))) {

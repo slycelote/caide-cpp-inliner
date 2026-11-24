@@ -53,14 +53,6 @@ cmake -GNinja -DCAIDE_USE_SYSTEM_CLANG=$CAIDE_USE_SYSTEM_CLANG \
 ninja || ninja -j1
 ci_timer
 
-if [ "$CAIDE_USE_SYSTEM_CLANG" = "OFF" ]
-then
-    ninja install-clang-resource-headers
-    # The previous target installs builtin clang headers under llvm-project/, but clang libraries expect to find them under lib/
-    # (a bug in clang when it's built as a CMake subproject?)
-    ln -s "$PWD"/llvm-project/llvm/lib/clang lib/clang
-fi
-
 ctest --verbose
 
 ci_timer

@@ -52,8 +52,10 @@ public:
     bool VisitUsingDirectiveDecl(clang::UsingDirectiveDecl* usingDecl);
     bool VisitVarDecl(clang::VarDecl* varDecl);
     bool VisitVarTemplateDecl(clang::VarTemplateDecl*);
+    bool VisitVarTemplateSpecializationDecl(clang::VarTemplateSpecializationDecl*);
     bool VisitEnumDecl(clang::EnumDecl* enumDecl);
     bool VisitFriendDecl(clang::FriendDecl* friendDecl);
+
     bool VisitFieldDecl(clang::FieldDecl* fieldDecl);
     bool VisitStaticAssertDecl(clang::StaticAssertDecl* staticAssertDecl);
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)

@@ -126,6 +126,15 @@ bool OptimizerVisitor::VisitVarTemplateDecl(VarTemplateDecl* varTemplateDecl) {
     return true;
 }
 
+bool OptimizerVisitor::VisitVarTemplateSpecializationDecl(VarTemplateSpecializationDecl* decl) {
+    if (sourceManager.isInMainFile(getBeginLoc(decl))
+        && usedDeclarations.count(decl->getCanonicalDecl()) == 0)
+    {
+        removeDecl(decl);
+    }
+    return true;
+}
+
 bool OptimizerVisitor::VisitNamespaceDecl(NamespaceDecl* nsDecl) {
     if (sourceManager.isInMainFile(getBeginLoc(nsDecl))
         && usedDeclarations.count(nsDecl->getCanonicalDecl()) == 0)
@@ -355,12 +364,18 @@ bool OptimizerVisitor::VisitFriendDecl(clang::FriendDecl* friendDecl) {
 // Variables are a special case because there may be many comma separated variables in one definition.
 // We remove them separately in Finalize() method.
 bool OptimizerVisitor::VisitVarDecl(VarDecl* varDecl) {
+    dbg(CAIDE_FUNC);
     SourceLocation start = getExpansionStart(sourceManager, varDecl);
     if (!sourceManager.isInMainFile(start))
         return true;
 
+    // Ignore variable templates. Multiple of them cannot be declared at the same time,
+    // and their removal is processed in VisitVarTemplateDecl and VisitVarTemplateSpecializationDecl
     if (varDecl->getTemplateInstantiationPattern() != nullptr) {
-        // This is template variable description; it's processed as VarTemplateDecl.
+        return true;
+    }
+
+    if (isa<VarTemplateSpecializationDecl>(varDecl) || varDecl->getDescribedVarTemplate()) {
         return true;
     }
 
@@ -438,7 +453,12 @@ void OptimizerVisitor::removeDecl(Decl* decl) {
 
     rewriter.removeRange(start, end);
 
-    if (RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl))
+#if CAIDE_CLANG_VERSION_AT_LEAST(23,0)
+    RawComment* comment = decl->getASTContext().getRawCommentNoCache(decl);
+#else
+    RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
+#endif
+    if (comment)
         rewriter.removeRange(comment->getSourceRange());
 }
 
@@ -451,9 +471,15 @@ void OptimizerVisitor::Finalize(ASTContext& ctx) {
         vector<bool> isUsed(n, true);
         size_t lastUsed = n;
         for (size_t i = 0; i < n; ++i) {
-            isUsed[i] = usedDeclarations.count(vars[i]->getCanonicalDecl()) != 0;
+            Decl* canonicalDecl = vars[i]->getCanonicalDecl();
+            isUsed[i] = usedDeclarations.count(canonicalDecl) != 0;
             if (isUsed[i])
                 lastUsed = i;
+            dbg((isUsed[i] ? "Used: " : "Unused: ") <<
+                canonicalDecl->getDeclKindName() << " " << canonicalDecl <<
+                " <" << toString(sourceManager, canonicalDecl) << "> " <<
+                toString(sourceManager, canonicalDecl->getSourceRange()) <<
+                std::endl);
         }
 
         SourceLocation endOfLastVar = getExpansionEnd(sourceManager, vars.back());

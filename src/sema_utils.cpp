@@ -59,6 +59,24 @@ unsigned getNumTemplateLevels(const Decl* decl) {
 
 bool anyArgDependent(llvm::ArrayRef<TemplateArgument> args) {
     for (const auto& arg : args) {
+        using ArgKind = TemplateArgument::ArgKind;
+
+        switch (arg.getKind()) {
+            case ArgKind::Type:
+                if (arg.getAsType().isNull()) {
+                    // Why does this happen?
+                    dbg("Type template argument doesn't point to a type" << std::endl);
+                    return true; // arg.isDependent() would crash
+                }
+                break;
+            case ArgKind::Null:
+                // Also check this, just in case.
+                dbg("Template argument is invalid" << std::endl);
+                return true;
+            default:
+                break;
+        }
+
         if (arg.isDependent()) {
             return true;
         }

@@ -66,8 +66,9 @@ public:
     bool VisitTypedefType(clang::TypedefType*);
     bool VisitTemplateSpecializationType(clang::TemplateSpecializationType*);
 
+    bool TraverseType(clang::QualType, bool TraverseQualifier = true);
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
-    bool TraverseAutoType(clang::AutoType*, bool TraverseQualifier = false);
+    bool TraverseAutoType(clang::AutoType*, bool TraverseQualifier = true);
     bool TraverseVarDecl(clang::VarDecl*);
     bool VisitAutoType(clang::AutoType*);
 #endif

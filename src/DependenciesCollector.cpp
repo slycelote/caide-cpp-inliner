@@ -29,10 +29,34 @@ namespace caide {
 namespace internal {
 
 bool DependenciesCollector::TraverseDecl(Decl* decl) {
+    // Follow the check in RecursiveASTVisitor. decl may be null.
+    if (!decl)
+        return true;
+    dbg("TRAVERSE " << decl->getDeclKindName() << " " << decl
+        << "<" << toString(sourceManager, decl).substr(0, 30) << ">"
+        << toString(sourceManager, getExpansionRange(sourceManager, decl))
+        << std::endl);
+
     declStack.push(decl);
-    bool ret = RecursiveASTVisitor<DependenciesCollector>::TraverseDecl(decl);
+    bool ret = RecursiveASTVisitor::TraverseDecl(decl);
     declStack.pop();
     return ret;
+}
+
+bool DependenciesCollector::TraverseType(clang::QualType qtype, bool TraverseQualifier) {
+    (void)TraverseQualifier;
+    const Type* type = qtype.getTypePtrOrNull();
+    (void)type;
+    dbg("TRAVERSE TYPE " <<
+        (type ? type->getTypeClassName() : "") <<
+        " " << qtype.getAsString() << std::endl);
+
+    return RecursiveASTVisitor::TraverseType(
+        qtype
+#if CAIDE_CLANG_VERSION_AT_LEAST(22,0)
+        , TraverseQualifier
+#endif
+    );
 }
 
 void DependenciesCollector::traverseSugaredSignature(const SugaredSignature& sig, bool traverseTypeLocs) {
@@ -223,11 +247,13 @@ bool DependenciesCollector::VisitType(Type* T) {
 }
 
 bool DependenciesCollector::VisitTypedefType(TypedefType* typedefType) {
+    dbg(CAIDE_FUNC);
     insertReference(getCurrentDecl(), typedefType->getDecl());
     return true;
 }
 
 bool DependenciesCollector::VisitTemplateSpecializationType(TemplateSpecializationType* tempSpecType) {
+    dbg(CAIDE_FUNC);
     TemplateName templateName = tempSpecType->getTemplateName();
     insertReference(getCurrentDecl(), templateName.getAsTemplateDecl());
     return true;
@@ -235,6 +261,7 @@ bool DependenciesCollector::VisitTemplateSpecializationType(TemplateSpecializati
 
 #if CAIDE_CLANG_VERSION_AT_LEAST(10,0)
 bool DependenciesCollector::VisitAutoType(AutoType* autoType) {
+    dbg(CAIDE_FUNC);
     insertReference(getCurrentDecl(), autoType->getTypeConstraintConcept());
     return true;
 }
@@ -274,7 +301,11 @@ bool DependenciesCollector::VisitDecl(Decl* decl) {
     insertReference(decl, getCorrespondingDeclInNonInstantiatedContext(decl));
 
     // Remainder of the function processes special comments.
+#if CAIDE_CLANG_VERSION_AT_LEAST(23,0)
+    RawComment* comment = decl->getASTContext().getRawCommentNoCache(decl);
+#else
     RawComment* comment = decl->getASTContext().getRawCommentForDeclNoCache(decl);
+#endif
     if (!comment)
         return true;
 
